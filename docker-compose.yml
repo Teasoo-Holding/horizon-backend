@@ -1,0 +1,16 @@
+services:
+  dev-db:
+    image: postgres:15
+    restart: always
+    container_name: nestjs_postgres
+    environment:
+      POSTGRES_USER: user1
+      POSTGRES_PASSWORD: top-secret
+      POSTGRES_DB: esg_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
