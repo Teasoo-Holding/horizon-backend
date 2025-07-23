@@ -1,12 +1,14 @@
+version: "3.8"
+
 services:
   dev-db:
     image: postgres:15
     restart: always
     container_name: nestjs_postgres
     environment:
-      POSTGRES_USER: user1
-      POSTGRES_PASSWORD: top-secret
-      POSTGRES_DB: esg_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
