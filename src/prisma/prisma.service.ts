@@ -5,10 +5,16 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient {
   constructor(config: ConfigService) {
+    const databaseUrl = config.get<string>('DATABASE_URL');
+
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL is not set in environment variables');
+    }
+
     super({
       datasources: {
         db: {
-          url: config.get('DATABASE_URL'),
+          url: databaseUrl,
         },
       },
     });
