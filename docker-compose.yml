@@ -1,18 +1,18 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  dev-db:
-    image: postgres:15
+  db:
+    image: postgres:15-alpine
+    container_name: horizon-db
     restart: always
-    container_name: nestjs_postgres
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  pgdata:
+  postgres_data:

@@ -1,22 +1,22 @@
 model User {
-  id               String     @id @default(cuid())
-  email            String     @unique
-  password         String     
-  first_name       String
-  last_name        String?
-  phone_number     String?
-  role             Role       @default(SUSTAINABILITY_MANAGER)
-  company          String?
-  company_id       String?    
-  permissions      String[]   
-  status           UserStatus @default(PENDING)
+  id                String        @id @default(cuid())
+  email             String        @unique
+  password          String
+  first_name        String
+  last_name         String?
+  phone_number      String?
+  role              Role          @default(SUSTAINABILITY_MANAGER)
+  company           String?
+  company_id        String?
+  permissions       String[]
+  status            UserStatus    @default(PENDING)
   profile_photo_url String?
-  last_login       DateTime?
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @updatedAt
-  refreshTokens    RefreshToken[]
+  last_login        DateTime?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  refreshTokens     RefreshToken[]
 
-  @@map("users") 
+  @@map("users")
 }
 
 enum Role {
