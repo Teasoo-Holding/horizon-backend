@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  dev-db:
     image: postgres:15-alpine
     container_name: horizon-db
     restart: always
