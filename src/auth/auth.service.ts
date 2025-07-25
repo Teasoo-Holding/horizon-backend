@@ -10,8 +10,8 @@ export class AuthService {
     return await this.prismaService.user.create({
       data: {
         email: dto.email,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
+        first_name: dto.firstName,
+        last_name: dto.lastName,
         password: dto.password,
       },
     });
