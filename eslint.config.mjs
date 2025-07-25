@@ -5,6 +5,7 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 
 export default {
+  files: ['src/**/*.ts', 'apps/**/*.ts', 'libs/**/*.ts', 'test/**/*.ts'],
   ignores: ['eslint.config.mjs'],
   parser: tsParser,
   parserOptions: {
@@ -32,5 +33,5 @@ export default {
     '@typescript-eslint/no-unsafe-argument': 'warn',
     '@typescript-eslint/no-unsafe-call': 'warn',
     '@typescript-eslint/no-unsafe-assignment': 'warn',
-  }
+  },
 };
