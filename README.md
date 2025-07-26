@@ -2,6 +2,12 @@
 
 [![Build Status](https://github.com/Teasoo-Holding/horizon-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Teasoo-Holding/horizon-backend/actions/workflows/ci.yml)
 
+![Coverage](https://raw.githubusercontent.com/Teasoo-Holding/horizon-backend/main/coverage/badge.svg)
+
+![Coverage](https://raw.githubusercontent.com/Teasoo-Holding/horizon-backend/develop/coverage/badge.svg)
+
+![Coverage](./coverage/badge.svg)
+
 This repository contains the **NestJS** backend for the Horizon project.
 
 ## Overview
@@ -15,16 +21,19 @@ This repository contains the **NestJS** backend for the Horizon project.
 ## Development
 
 - Run locally with live reload:
+
 ```
 npm run start:dev
 ```
 
 - Build production files:
+
 ```
 npm run build
 ```
 
 - Run lint and tests:
+
 ```
 npm run lint
 npm run test
@@ -42,4 +51,3 @@ npm run test
 - Deployment to production VPS planned when ready
 
 ---
-
