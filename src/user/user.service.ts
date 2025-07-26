@@ -33,7 +33,7 @@ export class UserService {
     });
   }
 
-  create(createUserDto: CreateUserDto) {
+  create(_createUserDto: CreateUserDto) {
     return 'This action adds a new user';
   }
 
@@ -45,7 +45,7 @@ export class UserService {
     return `This action returns a #${id} user`;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  update(id: number, _updateUserDto: UpdateUserDto) {
     return `This action updates a #${id} user`;
   }
 
