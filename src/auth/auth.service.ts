@@ -5,7 +5,7 @@ import { RegisterDto, LoginDto } from './dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
   async register(dto: RegisterDto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
@@ -18,21 +18,21 @@ export class AuthService {
         role: dto.role
       },
     });
-  
+
     const { password, ...safeUser } = user;
     return safeUser;
   }
 
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ 
-      where: { email: dto.email } 
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email }
     });
-  
+
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-  
+
     const { password, ...safeUser } = user;
     return safeUser;
   }
