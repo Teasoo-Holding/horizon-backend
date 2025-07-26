@@ -9,7 +9,7 @@ import { LoginDto, RegisterDto } from './dto';
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService, // Inject JwtService properly
+    private jwtService: JwtService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -63,6 +63,8 @@ export class AuthService {
         first_name,
         last_name,
         role: role as Role,
+        phone_number: phoneNumber,
+        company
       },
     });
 
