@@ -28,13 +28,16 @@ export class AuthService {
     const { email, password } = dto;
     const user = await this.validateUser(email, password);
 
-    const accessToken = this.jwtService.sign({ sub: user.id }); // Fix JwtService call
+    const accessToken = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+    });
 
     const refreshToken = await this.prisma.refreshToken.create({
       data: {
         refresh_token: crypto.randomUUID(),
         user_id: user.id,
-        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
+        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
       },
     });
 
@@ -46,7 +49,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { email, password, firstName, lastName, phoneNumber, company, role } =
+    const { email, password, first_name, last_name, phoneNumber, company, role } =
       dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -57,8 +60,8 @@ export class AuthService {
       data: {
         email,
         password: hashedPassword,
-        first_name: firstName,
-        last_name: lastName,
+        first_name,
+        last_name,
         role: role as Role,
       },
     });

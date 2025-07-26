@@ -8,10 +8,10 @@ export class RegisterDto {
   password: string;
 
   @IsString() @MinLength(2)
-  firstName: string;
+  first_name: string;
 
   @IsString() @MinLength(2)
-  lastName?: string;
+  last_name?: string;
 
   @IsOptional() @IsString() @Matches(/^\+?\d{10,15}$/)
   phoneNumber?: string;
