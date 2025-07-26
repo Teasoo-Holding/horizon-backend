@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  SUSTAINABILITY_MANAGER
+  C_SUITE_EXEC
+  DEPT_HEAD
+  REGULATOR
+  INVESTOR
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  DISABLED
+}
+
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique @db.VarChar(255)
+  password          String        @db.VarChar(255)
+  first_name        String        @db.VarChar(100)
+  last_name         String?       @db.VarChar(100)
+  phone_number      String?       @db.VarChar(20)
+  role              Role          @default(SUSTAINABILITY_MANAGER)
+  company           String?       @db.VarChar(100)
+  company_id        String?       @db.VarChar(50)
+  permissions       String[]      @db.VarChar(50)
+  status            UserStatus    @default(PENDING)
+  profile_photo_url String?       @db.VarChar(255)
+  last_login        DateTime?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+  @@index([email])
+  @@index([status])
+  @@index([company_id])
+  @@index([created_at])
+}
+
+
+model RefreshToken {
+  id            String  @id @default(cuid())
+  user_id       String
+  user          User    @relation(fields: [user_id], references: [id])
+  refresh_token String  @unique
+  expires_at    DateTime
+  created_at    DateTime @default(now())
+
+  @@map("refresh_tokens")
+  @@index([user_id])
+  @@index([refresh_token])
+}

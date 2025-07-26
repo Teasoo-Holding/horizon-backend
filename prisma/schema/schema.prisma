@@ -1,3 +1,6 @@
+import "./user.prisma"
+import "./refresh_token.prisma"
+
 generator client {
   provider = "prisma-client-js"
 }
