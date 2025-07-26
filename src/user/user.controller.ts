@@ -14,6 +14,7 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 interface RequestWithUser extends Request {
   user: {
@@ -22,17 +23,22 @@ interface RequestWithUser extends Request {
   };
 }
 
+@ApiTags('User')
 @Controller('user')
 @UseGuards(JwtAuthGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get currently authenticated user' })
   getMe(@Request() req: RequestWithUser) {
     return this.userService.findMe(req.user.userId);
   }
 
   @Patch('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile' })
   updateMe(
     @Request() req: RequestWithUser,
     @Body() updateUserDto: UpdateUserDto,
