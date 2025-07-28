@@ -85,7 +85,6 @@ export class AuthService {
         { first_name, otp },
         7,
       );
-      console.log(`OTP sent to ${email}: OTP: ${otp}, templateId: 7`);
     } catch (error) {
       console.error('Error sending welcome email:', error);
     }

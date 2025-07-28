@@ -27,9 +27,7 @@ export class EmailService {
           },
         },
       );
-      console.log(
-        `Email sent to ${to} with templateId: ${templateId}, key: ${this.configService.get<string>('BREVO_API_KEY')}`,
-      );
+
       return { success: true, message: `Email sent` };
     } catch (error: unknown) {
       console.error('Error sending email:', error);
