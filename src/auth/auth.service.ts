@@ -1,23 +1,88 @@
-import { PrismaService } from './../prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
-import { AuthDto } from './dto/auth.dto';
-
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
+import { Role } from '@prisma/client';
+import { LoginDto, RegisterDto } from './dto';
 @Injectable()
 export class AuthService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
-  async signup(dto: AuthDto) {
-    return await this.prismaService.user.create({
-      data: {
-        email: dto.email,
-        first_name: dto.firstName,
-        last_name: dto.lastName,
-        password: dto.password,
-      },
-    });
+  async validateUser(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) throw new UnauthorizedException('Invalid password');
+
+    const { password: _, ...result } = user;
+    return result;
   }
 
-  async getUsers() {
-    return await this.prismaService.user.findMany();
+  async login(dto: LoginDto) {
+    const { email, password } = dto;
+    const user = await this.validateUser(email, password);
+
+    const accessToken = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+    });
+
+    const refreshToken = await this.prisma.refreshToken.create({
+      data: {
+        refresh_token: crypto.randomUUID(),
+        user_id: user.id,
+        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      },
+    });
+
+    return {
+      accessToken,
+      refreshToken: refreshToken.refresh_token,
+      user,
+    };
+  }
+
+  async register(dto: RegisterDto) {
+    const { email, password, first_name, last_name, phoneNumber, company, role } =
+      dto;
+
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) throw new UnauthorizedException('Email already in use');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        first_name,
+        last_name,
+        role: role as Role,
+        phone_number: phoneNumber,
+        company
+      },
+    });
+
+    const { password: _, ...result } = newUser;
+    return result;
+  }
+
+  async refresh(refresh_token: string) {
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { refresh_token },
+    });
+
+    if (!stored) throw new UnauthorizedException('Invalid refresh token');
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: stored.user_id },
+    });
+
+    return { user };
   }
 }

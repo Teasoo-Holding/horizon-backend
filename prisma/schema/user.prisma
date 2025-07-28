@@ -1,24 +1,3 @@
-model User {
-  id                String        @id @default(cuid())
-  email             String        @unique
-  password          String
-  first_name        String
-  last_name         String?
-  phone_number      String?
-  role              Role          @default(SUSTAINABILITY_MANAGER)
-  company           String?
-  company_id        String?
-  permissions       String[]
-  status            UserStatus    @default(PENDING)
-  profile_photo_url String?
-  last_login        DateTime?
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
-  refreshTokens     RefreshToken[]
-
-  @@map("users")
-}
-
 enum Role {
   SUPER_ADMIN
   SUSTAINABILITY_MANAGER
@@ -33,4 +12,29 @@ enum UserStatus {
   APPROVED
   SUSPENDED
   DISABLED
+}
+
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique @db.VarChar(255)
+  password          String        @db.VarChar(255)
+  first_name        String        @db.VarChar(100)
+  last_name         String?       @db.VarChar(100)
+  phone_number      String?       @db.VarChar(20)
+  role              Role          @default(SUSTAINABILITY_MANAGER)
+  company           String?       @db.VarChar(100)
+  company_id        String?       @db.VarChar(50)
+  permissions       String[]      @db.VarChar(50)
+  status            UserStatus    @default(PENDING)
+  profile_photo_url String?       @db.VarChar(255)
+  last_login        DateTime?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+  @@index([email])
+  @@index([status])
+  @@index([company_id])
+  @@index([created_at])
 }
