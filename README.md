@@ -1,8 +1,6 @@
 # Horizon Backend
 
 [![Build Status](https://github.com/Teasoo-Holding/horizon-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Teasoo-Holding/horizon-backend/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/Teasoo-Holding/horizon-backend/badge.svg?branch=main)](https://coveralls.io/github/Teasoo-Holding/horizon-backend?branch=main)
-
 
 This repository contains the **NestJS** backend for the Horizon project.
 

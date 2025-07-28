@@ -49,8 +49,15 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { email, password, first_name, last_name, phoneNumber, company, role } =
-      dto;
+    const {
+      email,
+      password,
+      first_name,
+      last_name,
+      phoneNumber,
+      company,
+      role,
+    } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
@@ -64,7 +71,7 @@ export class AuthService {
         last_name,
         role: role as Role,
         phone_number: phoneNumber,
-        company
+        company,
       },
     });
 
