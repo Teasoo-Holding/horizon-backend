@@ -25,9 +25,8 @@ export class UserService {
   async updateMe(userId: string, dto: UpdateMeDto) {
     const { role, permission, ...rest } = dto;
 
-    const updateData: Prisma.UserUpdateInput = {};
+    const updateData: Prisma.UserUpdateArgs['data'] = {};
 
-    // Scalars
     if (rest.first_name !== undefined) updateData.first_name = rest.first_name;
     if (rest.last_name !== undefined) updateData.last_name = rest.last_name;
     if (rest.email !== undefined) updateData.email = rest.email;
