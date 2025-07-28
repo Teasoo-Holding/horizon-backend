@@ -4,7 +4,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException } from '@nestjs/common';
-import { Role } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -25,6 +24,23 @@ describe('AuthService', () => {
             refreshToken: {
               create: jest.fn(),
               findUnique: jest.fn(),
+            },
+            role: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'role-id',
+                  name: 'SUSTAINABILITY_MANAGER',
+                }),
+            },
+            permission: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'perm-id',
+                  name: 'can:edit',
+                  description: 'can edit stuff',
+                }),
             },
           },
         },
@@ -51,7 +67,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: Role.SUSTAINABILITY_MANAGER,
+        role: 'SUSTAINABILITY_MANAGER',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -79,7 +95,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: Role.SUSTAINABILITY_MANAGER,
+        role: 'SUSTAINABILITY_MANAGER',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1 });

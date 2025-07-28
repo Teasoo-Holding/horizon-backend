@@ -1,0 +1,8 @@
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  users       User[]
+
+  @@map("permissions")
+}
