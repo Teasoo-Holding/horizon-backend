@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
 
 describe('UserService', () => {
   let service: UserService;
@@ -21,6 +20,12 @@ describe('UserService', () => {
           ...data,
         }),
       ),
+    },
+    role: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'role-id' }),
+    },
+    permission: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'permission-id' }),
     },
   };
 
@@ -88,7 +93,7 @@ describe('UserService', () => {
       const updated = await service.updateMe('1', {
         first_name: 'Jane',
         last_name: 'Smith',
-        role: Role.SUPER_ADMIN,
+        role: 'SUPER_ADMIN',
       });
 
       expect(mockPrismaService.user.update).toHaveBeenCalledWith({
@@ -96,7 +101,11 @@ describe('UserService', () => {
         data: {
           first_name: 'Jane',
           last_name: 'Smith',
-          role: Role.SUPER_ADMIN,
+          role: {
+            connect: {
+              id: 'role-id',
+            },
+          },
         },
       });
 
@@ -104,7 +113,11 @@ describe('UserService', () => {
         id: '1',
         first_name: 'Jane',
         last_name: 'Smith',
-        role: Role.SUPER_ADMIN,
+        role: {
+          connect: {
+            id: 'role-id',
+          },
+        },
       });
     });
   });

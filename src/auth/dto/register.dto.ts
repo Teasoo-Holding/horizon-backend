@@ -10,7 +10,7 @@ export class RegisterDto {
   @IsString() @MinLength(2)
   first_name: string;
 
-  @IsString() @MinLength(2)
+  @IsOptional() @IsString() @MinLength(2)
   last_name?: string;
 
   @IsOptional() @IsString() @Matches(/^\+?\d{10,15}$/)
@@ -21,4 +21,7 @@ export class RegisterDto {
 
   @IsString()
   role: string;
+
+  @IsOptional() @IsString()
+  permission?: string;
 }
