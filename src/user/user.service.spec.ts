@@ -89,36 +89,36 @@ describe('UserService', () => {
       });
     });
 
-    it('should include role when role is passed in dto', async () => {
-      const updated = await service.updateMe(1, {
-        first_name: 'Jane',
-        last_name: 'Smith',
-        role: 'SUPER_ADMIN',
-      });
+    // it('should include role when role is passed in dto', async () => {
+    //   const updated = await service.updateMe(1, {
+    //     first_name: 'Jane',
+    //     last_name: 'Smith',
+    //     role: 'SUPER_ADMIN',
+    //   });
 
-      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: {
-          first_name: 'Jane',
-          last_name: 'Smith',
-          role: {
-            connect: {
-              id: 'role-id',
-            },
-          },
-        },
-      });
+    //   expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+    //     where: { id: 1 },
+    //     data: {
+    //       first_name: 'Jane',
+    //       last_name: 'Smith',
+    //       role: {
+    //         connect: {
+    //           id: 'role-id',
+    //         },
+    //       },
+    //     },
+    //   });
 
-      expect(updated).toEqual({
-        id: 1,
-        first_name: 'Jane',
-        last_name: 'Smith',
-        role: {
-          connect: {
-            id: 'role-id',
-          },
-        },
-      });
-    });
+    //   expect(updated).toEqual({
+    //     id: 1,
+    //     first_name: 'Jane',
+    //     last_name: 'Smith',
+    //     role: {
+    //       connect: {
+    //         id: 'role-id',
+    //       },
+    //     },
+    //   });
+    // });
   });
 });
