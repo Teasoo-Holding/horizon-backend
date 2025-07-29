@@ -13,7 +13,7 @@ model User {
   last_name         String?      @db.VarChar(100)
   phone_number      String?      @db.VarChar(20)
 
-  roleId            String
+  roleId            Int
   role              Role         @relation(fields: [roleId], references: [id])
 
   permissionId      String
