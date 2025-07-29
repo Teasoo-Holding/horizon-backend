@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  findMe(userId: string) {
+  findMe(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -22,7 +22,7 @@ export class UserService {
     });
   }
 
-  async updateMe(userId: string, dto: UpdateMeDto) {
+  async updateMe(userId: number, dto: UpdateMeDto) {
     const { role, permission, ...rest } = dto;
 
     const updateData: Prisma.UserUpdateInput = {};
@@ -41,14 +41,14 @@ export class UserService {
       })) as { id: string } | null;
 
       if (!foundRole) throw new Error('Role not found');
-      updateData.role = { connect: { id: foundRole.id } };
+      updateData.role = { connect: { id: Number(foundRole.id) } };
     }
 
     if (permission) {
       const foundPermission = (await this.prisma.permission.findUnique({
-        where: { id: permission },
+        where: { id: +permission },
         select: { id: true },
-      })) as { id: string } | null;
+      })) as { id: number } | null;
 
       if (!foundPermission) throw new Error('Permission not found');
       updateData.permission = { connect: { id: foundPermission.id } };
