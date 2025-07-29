@@ -8,7 +8,7 @@ describe('UserService', () => {
   const mockPrismaService = {
     user: {
       findUnique: jest.fn().mockResolvedValue({
-        id: '1',
+        id: 1,
         first_name: 'John',
         last_name: 'Doe',
         email: 'john@example.com',
@@ -58,7 +58,7 @@ describe('UserService', () => {
         },
       });
       expect(user).toEqual({
-        id: '1',
+        id: 1,
         first_name: 'John',
         last_name: 'Doe',
         email: 'john@example.com',
@@ -75,7 +75,7 @@ describe('UserService', () => {
       });
 
       expect(mockPrismaService.user.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: 1 },
         data: {
           first_name: 'Jane',
           last_name: 'Smith',
@@ -83,7 +83,7 @@ describe('UserService', () => {
       });
 
       expect(updated).toEqual({
-        id: '1',
+        id: 1,
         first_name: 'Jane',
         last_name: 'Smith',
       });
@@ -97,7 +97,7 @@ describe('UserService', () => {
       });
 
       expect(mockPrismaService.user.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: 1 },
         data: {
           first_name: 'Jane',
           last_name: 'Smith',
@@ -110,7 +110,7 @@ describe('UserService', () => {
       });
 
       expect(updated).toEqual({
-        id: '1',
+        id: 1,
         first_name: 'Jane',
         last_name: 'Smith',
         role: {
