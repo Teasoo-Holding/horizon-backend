@@ -6,7 +6,7 @@ enum UserStatus {
 }
 
 model User {
-  id                String       @id @default(cuid())
+  id                Int          @id @default(autoincrement())
   email             String       @unique @db.VarChar(255)
   password          String       @db.VarChar(255)
   first_name        String       @db.VarChar(100)
@@ -16,7 +16,7 @@ model User {
   roleId            Int
   role              Role         @relation(fields: [roleId], references: [id])
 
-  permissionId      String
+  permissionId      Int
   permission        Permission   @relation(fields: [permissionId], references: [id])
 
   company           String?      @db.VarChar(100)
@@ -28,6 +28,8 @@ model User {
   created_at        DateTime     @default(now())
   updated_at        DateTime     @updatedAt
   refreshTokens     RefreshToken[]
+  otpHash               String?
+  otpExpiresAt      DateTime?
 
   @@map("users")
   @@index([email])

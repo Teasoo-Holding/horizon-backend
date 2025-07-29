@@ -1,6 +1,6 @@
 model RefreshToken {
-  id            String  @id @default(cuid())
-  user_id       String
+  id            Int      @id @default(autoincrement())
+  user_id       Int
   user          User    @relation(fields: [user_id], references: [id])
   refresh_token String  @unique
   expires_at    DateTime

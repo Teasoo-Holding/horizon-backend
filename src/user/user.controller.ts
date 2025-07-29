@@ -17,7 +17,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 interface RequestWithUser extends Request {
   user: {
-    userId: string;
+    userId: number;
     email: string;
   };
 }
