@@ -3,10 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
-import { Role } from '@prisma/client';
 import { LoginDto, RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
+import { Role } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
