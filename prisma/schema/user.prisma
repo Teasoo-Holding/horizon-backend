@@ -16,8 +16,8 @@ model User {
   roleId            Int
   role              Role         @relation(fields: [roleId], references: [id])
 
-  permissionId      Int
-  permission        Permission   @relation(fields: [permissionId], references: [id])
+  permissionId      Int?
+  permission        Permission?   @relation(fields: [permissionId], references: [id])
 
   company           String?      @db.VarChar(100)
   company_id        String?      @db.VarChar(50)
