@@ -4,11 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { LoginDto, RegisterDto } from './dto';
+import { EmailService } from 'src/email/email.service';
+import { OtpService } from 'src/otp/otp.service';
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
+    private otpService: OtpService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -30,6 +34,7 @@ export class AuthService {
     const accessToken = this.jwtService.sign({
       sub: user.id,
       email: user.email,
+      role: user.roleId,
     });
 
     const refreshToken = await this.prisma.refreshToken.create({
@@ -56,34 +61,38 @@ export class AuthService {
       phone_number,
       company,
       role,
-      permission,
     } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
 
-    const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: string; name: string } | null;
+    // Look up role by name
+    const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: number; name: string } | null;
     if (!foundRole) throw new UnauthorizedException('Role not found');
 
-    let permissionId: string | null = null;
+    // let permissionId: number | null = null;
 
-    if (role === 'SUPER_ADMIN') {
-      const superAdminPerm = await this.prisma.permission.findUnique({ where: { name: 'SUPER_ADMIN' } }) as { id: string; name: string } | null;
-      if (!superAdminPerm) throw new UnauthorizedException('SUPER_ADMIN permission not found');
-      permissionId = superAdminPerm.id;
-    } else if (role === 'SUSTAINABILITY_MANAGER') {
-      const adminPerm = await this.prisma.permission.findUnique({ where: { name: 'ADMIN' } }) as { id: string; name: string } | null;
-      if (!adminPerm) throw new UnauthorizedException('ADMIN permission not found');
-      permissionId = adminPerm.id;
-    } else if (permission) {
-      const foundPerm = await this.prisma.permission.findUnique({ where: { name: permission } }) as { id: string; name: string } | null;
-      if (!foundPerm) throw new UnauthorizedException('Permission not found');
-      permissionId = foundPerm.id;
-    } else {
-      throw new UnauthorizedException('Permission is required for this role');
-    }
+    // if (role === 'SUPER_ADMIN') {
+    //   const superAdminPerm = await this.prisma.permission.findUnique({ where: { name: 'SUPER_ADMIN' } }) as { id: string; name: string } | null;
+    //   if (!superAdminPerm) throw new UnauthorizedException('SUPER_ADMIN permission not found');
+    //   permissionId = superAdminPerm.id;
+    // } else if (role === 'SUSTAINABILITY_MANAGER') {
+    //   const adminPerm = await this.prisma.permission.findUnique({ where: { name: 'ADMIN' } }) as { id: string; name: string } | null;
+    //   if (!adminPerm) throw new UnauthorizedException('ADMIN permission not found');
+    //   permissionId = adminPerm.id;
+    // } else if (permission) {
+    //   const foundPerm = await this.prisma.permission.findUnique({ where: { name: permission } }) as { id: string; name: string } | null;
+    //   if (!foundPerm) throw new UnauthorizedException('Permission not found');
+    //   permissionId = foundPerm.id;
+    // } else {
+    //   throw new UnauthorizedException('Permission is required for this role');
+    // }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+
+    // const permissionId = 2; 
+
     const newUser = await this.prisma.user.create({
       data: {
         email,
@@ -92,12 +101,22 @@ export class AuthService {
         last_name,
         phone_number,
         company,
-        roleId: foundRole.id,
-        permissionId,
+        roleId: +foundRole.id,
+        // permissionId: permissionId
       },
     });
-
+    try {
+      const otp = this.otpService.generateOtp();
+      await this.emailService.sendEmail(
+        email,
+        { first_name, otp },
+        7,
+      );
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+    }
     const { password: _, ...result } = newUser;
+
     return result;
   }
 

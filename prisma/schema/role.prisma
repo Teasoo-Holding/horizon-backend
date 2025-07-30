@@ -10,10 +10,11 @@ enum RoleTypes {
 }
 
 model Role {
-  id          Int       @id @default(autoincrement())
-  name        RoleTypes @unique
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
   description String?
   users       User[]
 
   @@map("roles")
 }
+
