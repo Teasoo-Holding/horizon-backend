@@ -4,11 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { LoginDto, RegisterDto } from './dto';
+import { EmailService } from 'src/email/email.service';
+import { OtpService } from 'src/otp/otp.service';
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
+    private otpService: OtpService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -97,8 +101,18 @@ export class AuthService {
         permissionId: +permissionId,
       },
     });
-
+    try {
+      const otp = this.otpService.generateOtp();
+      await this.emailService.sendEmail(
+        email,
+        { first_name, otp },
+        7,
+      );
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+    }
     const { password: _, ...result } = newUser;
+
     return result;
   }
 

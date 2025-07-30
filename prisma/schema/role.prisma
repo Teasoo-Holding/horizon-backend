@@ -6,3 +6,4 @@ model Role {
 
   @@map("roles")
 }
+

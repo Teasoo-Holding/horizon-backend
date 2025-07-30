@@ -4,59 +4,70 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException } from '@nestjs/common';
+import { EmailService } from 'src/email/email.service';
+import { OtpService } from 'src/otp/otp.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: PrismaService;
   let jwtService: JwtService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: PrismaService,
-          useValue: {
-            user: {
-              findUnique: jest.fn(),
-              create: jest.fn(),
-            },
-            refreshToken: {
-              create: jest.fn(),
-              findUnique: jest.fn(),
-            },
-            role: {
-              findUnique: jest
-                .fn()
-                .mockResolvedValue({
-                  id: 'role-id',
-                  name: 'SUSTAINABILITY_MANAGER',
-                }),
-            },
-            permission: {
-              findUnique: jest
-                .fn()
-                .mockResolvedValue({
-                  id: 'perm-id',
-                  name: 'can:edit',
-                  description: 'can edit stuff',
-                }),
-            },
+beforeEach(async () => {
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      AuthService,
+      {
+        provide: PrismaService,
+        useValue: {
+          user: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+          },
+          refreshToken: {
+            create: jest.fn(),
+            findUnique: jest.fn(),
+          },
+          role: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'role-id',
+              name: 'SUSTAINABILITY_MANAGER',
+            }),
+          },
+          permission: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'perm-id',
+              name: 'can:edit',
+              description: 'can edit stuff',
+            }),
           },
         },
-        {
-          provide: JwtService,
-          useValue: {
-            sign: jest.fn().mockReturnValue('mockAccessToken'),
-          },
+      },
+      {
+        provide: JwtService,
+        useValue: {
+          sign: jest.fn().mockReturnValue('mockAccessToken'),
         },
-      ],
-    }).compile();
+      },
+      {
+        provide: EmailService,
+        useValue: {
+          sendVerificationEmail: jest.fn(), // mock methods used in AuthService
+        },
+      },
+      {
+        provide: OtpService,
+        useValue: {
+          generateOtp: jest.fn().mockReturnValue({ otp: '123456', expiresAt: new Date(Date.now() + 5 * 60 * 1000) }),
+        },
+      },
+    ],
+  }).compile();
 
-    service = module.get<AuthService>(AuthService);
-    prisma = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-  });
+  service = module.get<AuthService>(AuthService);
+  prisma = module.get<PrismaService>(PrismaService);
+  jwtService = module.get<JwtService>(JwtService);
+});
+
 
   describe('register', () => {
     it('should register a new user', async () => {
