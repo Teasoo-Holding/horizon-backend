@@ -1,17 +1,26 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
 
 export class CreateCompanyDto {
-  @IsString()
-  @IsNotEmpty()
-  companyName: string;
+  @IsEmail()
+  email: string;
 
   @IsString()
-  @IsOptional()
-  registrationNumber?: string;
+  @MinLength(8)
+  password: string;
 
   @IsString()
-  @IsOptional()
-  address?: string;
+  @MinLength(2)
+  first_name: string;
 
-  // add other company fields here as required
+  @IsString()
+  @MinLength(2)
+  last_name: string;
+
+  @IsString()
+  @MinLength(2)
+  company_name: string;
+
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]+$/)
+  registration_number: string;
 }
