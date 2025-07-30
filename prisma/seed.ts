@@ -26,25 +26,25 @@ async function main() {
     });
 
     // Seed Permissions
-    await prisma.permission.createMany({
-      data: [
-        { name: 'SUPER_ADMIN', description: 'Full system access' },
-        { name: 'ADMIN', description: 'Administrative privileges' },
-        { name: 'SUB_ADMIN', description: 'Limited admin access' },
-        { name: 'VIEWER', description: 'Read-only access' },
-        { name: 'EDITOR', description: 'Content editing access' },
-      ],
-      skipDuplicates: true,
-    });
+    // await prisma.permission.createMany({
+    //   data: [
+    //     { name: 'SUPER_ADMIN', description: 'Full system access' },
+    //     { name: 'ADMIN', description: 'Administrative privileges' },
+    //     { name: 'SUB_ADMIN', description: 'Limited admin access' },
+    //     { name: 'VIEWER', description: 'Read-only access' },
+    //     { name: 'EDITOR', description: 'Content editing access' },
+    //   ],
+    //   skipDuplicates: true,
+    // });
 
     // Create Super Admin
     const superAdminRole = await prisma.role.findUniqueOrThrow({
       where: { name: 'SUPER_ADMIN' },
     });
 
-    const superAdminPermission = await prisma.permission.findUniqueOrThrow({
-      where: { name: 'SUPER_ADMIN' },
-    });
+    // const superAdminPermission = await prisma.permission.findUniqueOrThrow({
+    //   where: { name: 'SUPER_ADMIN' },
+    // });
 
     const hashedPassword = await bcrypt.hash('Teasoo@2024', 10);
     await prisma.user.create({
@@ -54,7 +54,7 @@ async function main() {
         first_name: 'Teasoo',
         last_name: 'Admin',
         roleId: superAdminRole.id,
-        permissionId: superAdminPermission.id,
+        permissionId: 1,
         status: 'APPROVED',
         company: 'Teasoo Consulting',
         company_id: 'TEASOO001',
