@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prisma generate
+        run: npx prisma generate --schema=./prisma/schema
+
       - name: Run lint
         run: npm run lint
 

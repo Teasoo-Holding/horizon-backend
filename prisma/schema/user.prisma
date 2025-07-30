@@ -1,12 +1,3 @@
-enum Role {
-  SUPER_ADMIN
-  SUSTAINABILITY_MANAGER
-  C_SUITE_EXEC
-  DEPT_HEAD
-  REGULATOR
-  INVESTOR
-}
-
 enum UserStatus {
   PENDING
   APPROVED
@@ -15,22 +6,30 @@ enum UserStatus {
 }
 
 model User {
-  id                String        @id @default(cuid())
-  email             String        @unique @db.VarChar(255)
-  password          String        @db.VarChar(255)
-  first_name        String        @db.VarChar(100)
-  last_name         String?       @db.VarChar(100)
-  phone_number      String?       @db.VarChar(20)
-  role              Role          @default(SUSTAINABILITY_MANAGER)
-  company           String?       @db.VarChar(100)
-  company_id        String?       @db.VarChar(50)
-  permissions       String[]      @db.VarChar(50)
-  status            UserStatus    @default(PENDING)
-  profile_photo_url String?       @db.VarChar(255)
+  id                Int          @id @default(autoincrement())
+  email             String       @unique @db.VarChar(255)
+  password          String       @db.VarChar(255)
+  first_name        String       @db.VarChar(100)
+  last_name         String?      @db.VarChar(100)
+  phone_number      String?      @db.VarChar(20)
+
+  roleId            Int
+  role              Role         @relation(fields: [roleId], references: [id])
+
+  permissionId      Int
+  permission        Permission   @relation(fields: [permissionId], references: [id])
+
+  company           String?      @db.VarChar(100)
+  company_id        String?      @db.VarChar(50)
+
+  status            UserStatus   @default(PENDING)
+  profile_photo_url String?      @db.VarChar(255)
   last_login        DateTime?
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
   refreshTokens     RefreshToken[]
+  otpHash               String?
+  otpExpiresAt      DateTime?
 
   @@map("users")
   @@index([email])

@@ -16,6 +16,9 @@
     "prisma:generate": "npm run prisma-cmd generate",
     "prisma:migrate": "npm run prisma-cmd migrate dev",
     "prisma:studio": "npm run prisma-cmd studio",
+    "seed": "ts-node prisma/seed.ts",
+    "seed:run": "npm run prisma-cmd db seed",
+    "reset:db": "npm run prisma-cmd migrate reset && npm run seed",
     "prestart": "npm run prisma-cmd migrate deploy",
     "lint": "eslint src/**/*.ts test/**/*.ts --fix",
     "test": "jest --config jest.config.ts",
@@ -25,6 +28,9 @@
     "test:badges": "npm run test:cov && npm run make-badge",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
