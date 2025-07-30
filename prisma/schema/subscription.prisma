@@ -1,0 +1,19 @@
+model Subscription {
+  id               Int      @id @default(autoincrement())
+  name             String
+  description      String?
+  price_monthly    Float
+  price_annual     Float
+  discount         Float?
+  max_team_members Int?
+  features         Json?
+  created_at       DateTime @default(now())
+  created_by       Int
+  updated_at       DateTime @updatedAt
+  updated_by       Int
+
+  companySubscriptions CompanySubscription[] @relation("CompanySubs")
+  companies            Company[]             @relation("CompanyCurrentSubscription")
+
+  @@map("subscription")
+}

@@ -1,6 +1,17 @@
+enum RoleTypes {
+  SUPER_ADMIN
+  RESTRICTED_ADMIN
+  ADMIN_VIEWER
+  ADMIN_EDITOR
+  SUSTAINABILITY_MANAGER
+  C_SUITE_EXEC
+  REGULATOR
+  INVESTOR
+}
+
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          Int       @id @default(autoincrement())
+  name        RoleTypes @unique
   description String?
   users       User[]
 

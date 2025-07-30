@@ -53,7 +53,7 @@ export class AuthService {
       password,
       first_name,
       last_name,
-      phoneNumber,
+      phone_number,
       company,
       role,
       permission,
@@ -62,7 +62,6 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
 
-    // Look up role by name
     const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: string; name: string } | null;
     if (!foundRole) throw new UnauthorizedException('Role not found');
 
@@ -91,7 +90,7 @@ export class AuthService {
         password: hashedPassword,
         first_name,
         last_name,
-        phone_number: phoneNumber,
+        phone_number,
         company,
         roleId: foundRole.id,
         permissionId,
