@@ -21,7 +21,7 @@ model Company {
   created_by                Int
   updated_at                DateTime      @updatedAt
   updated_by                Int
-  current_subscription_tier Int? // FK to Subscription.id
+  current_subscription_tier Int?
 
   subscription Subscription? @relation(fields: [current_subscription_tier], references: [id], name: "CompanyCurrentSubscription")
 

@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CompaniesController } from './companies/companies.controller';
-import { CompaniesService } from './companies/companies.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { EsgAuthController } from './auth/esg-auth.controller';
+import { EsgAuthService } from './auth/esg-auth.service';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
-  controllers: [CompaniesController],
-  providers: [CompaniesService, PrismaService]
+  imports: [PrismaModule],
+  controllers: [EsgAuthController],
+  providers: [EsgAuthService]
 })
 export class EsgModule {}

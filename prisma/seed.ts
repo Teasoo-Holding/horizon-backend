@@ -12,6 +12,7 @@ async function main() {
         { name: 'ADMIN_VIEWER', description: 'Read-only admin access' },
         { name: 'ADMIN_EDITOR', description: 'Data editing access' },
         { name: 'SUSTAINABILITY_MANAGER', description: 'The ESG admin' },
+        { name: 'SUB_ADMIN', description: 'The ESG restricted admin' },
         { name: 'C_SUITE_EXEC', description: 'Executive level' },
         { name: 'REGULATOR', description: 'Regulatory compliance access' },
         { name: 'INVESTOR', description: 'Investment analytics access' },
@@ -33,14 +34,20 @@ async function main() {
       },
     });
 
-    const fullPermissions = await prisma.permission.create({
-      data: {
-        can_add_user: true,
-        can_add_department: true,
-        can_input_data: true,
-        can_generate_report: true,
+    const permissions = [
+      { name: 'can_add_user', description: 'User management access' },
+      { name: 'can_add_department', description: 'Department management' },
+      { name: 'can_input_data', description: 'Can input ESG data' },
+      {
+        name: 'can_generate_report',
+        description: 'Generate analytics reports',
       },
+    ];
+    await prisma.permission.createMany({
+      data: permissions,
+      skipDuplicates: true,
     });
+    const allPermissions = await prisma.permission.findMany();
 
     const adminUser = await prisma.user.create({
       data: {
@@ -49,13 +56,8 @@ async function main() {
         first_name: 'Teasoo',
         last_name: 'Admin',
         role: { connect: { name: 'SUPER_ADMIN' } },
-        permission: { connect: { id: fullPermissions.id } },
+        company: { connect: { id: company.id } },
         status: 'APPROVED',
-        company: {
-          connect: {
-            id: company.id,
-          },
-        },
       },
     });
 
@@ -65,6 +67,14 @@ async function main() {
         created_by: adminUser.id,
         updated_by: adminUser.id,
       },
+    });
+
+    await prisma.userPermission.createMany({
+      data: allPermissions.map((perm) => ({
+        userId: adminUser.id,
+        permissionId: perm.id,
+      })),
+      skipDuplicates: true,
     });
 
     await prisma.subscription.createMany({
@@ -130,9 +140,9 @@ async function main() {
       skipDuplicates: true,
     });
 
-    console.log('✅ Seeding completed');
+    console.log('✅ Seeding completed successfully');
   } catch (error) {
-    console.error('Seeding failed:', error);
+    console.error('❌ Seeding failed:', error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

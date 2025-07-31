@@ -5,6 +5,9 @@ CREATE TYPE "CompanyStatus" AS ENUM ('PENDING', 'ACTIVE', 'SUSPENDED', 'DISABLED
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'CANCELLED', 'EXPIRED', 'TRIAL');
 
 -- CreateEnum
+CREATE TYPE "RoleNames" AS ENUM ('SUPER_ADMIN', 'RESTRICTED_ADMIN', 'ADMIN_VIEWER', 'ADMIN_EDITOR', 'SUSTAINABILITY_MANAGER', 'SUB_ADMIN', 'C_SUITE_EXEC', 'REGULATOR', 'INVESTOR');
+
+-- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('PENDING', 'APPROVED', 'SUSPENDED', 'DISABLED');
 
 -- CreateTable
@@ -55,6 +58,15 @@ CREATE TABLE "permissions" (
 );
 
 -- CreateTable
+CREATE TABLE "rate_limit" (
+    "key" TEXT NOT NULL,
+    "hits" INTEGER NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "rate_limit_pkey" PRIMARY KEY ("key")
+);
+
+-- CreateTable
 CREATE TABLE "refresh_tokens" (
     "id" SERIAL NOT NULL,
     "user_id" INTEGER NOT NULL,
@@ -68,7 +80,7 @@ CREATE TABLE "refresh_tokens" (
 -- CreateTable
 CREATE TABLE "roles" (
     "id" SERIAL NOT NULL,
-    "name" TEXT NOT NULL,
+    "name" "RoleNames" NOT NULL,
     "description" TEXT,
 
     CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
@@ -101,15 +113,25 @@ CREATE TABLE "users" (
     "last_name" VARCHAR(100),
     "phone_number" VARCHAR(20),
     "roleId" INTEGER NOT NULL,
-    "permissionId" INTEGER NOT NULL,
-    "company_id" INTEGER NOT NULL,
+    "companyId" INTEGER NOT NULL,
     "status" "UserStatus" NOT NULL DEFAULT 'PENDING',
     "profile_photo_url" VARCHAR(255),
     "last_login" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "otpHash" TEXT,
+    "otpExpiresAt" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "user_permissions" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "permissionId" INTEGER NOT NULL,
+
+    CONSTRAINT "user_permissions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -155,10 +177,13 @@ CREATE INDEX "users_email_idx" ON "users"("email");
 CREATE INDEX "users_status_idx" ON "users"("status");
 
 -- CreateIndex
-CREATE INDEX "users_company_id_idx" ON "users"("company_id");
+CREATE INDEX "users_companyId_idx" ON "users"("companyId");
 
 -- CreateIndex
 CREATE INDEX "users_created_at_idx" ON "users"("created_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_permissions_userId_permissionId_key" ON "user_permissions"("userId", "permissionId");
 
 -- AddForeignKey
 ALTER TABLE "companies" ADD CONSTRAINT "companies_current_subscription_tier_fkey" FOREIGN KEY ("current_subscription_tier") REFERENCES "subscription"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -176,7 +201,10 @@ ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIG
 ALTER TABLE "users" ADD CONSTRAINT "users_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "users_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "user_permissions" ADD CONSTRAINT "user_permissions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_permissions" ADD CONSTRAINT "user_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

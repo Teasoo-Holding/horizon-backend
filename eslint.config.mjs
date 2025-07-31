@@ -10,7 +10,7 @@ export default [
   {
     files: ['src/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/no-unsafe-call': 'off',
     },
