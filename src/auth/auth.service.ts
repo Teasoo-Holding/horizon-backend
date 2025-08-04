@@ -114,8 +114,6 @@ export class AuthService {
       password,
       first_name,
       last_name,
-      phoneNumber,
-      company,
       role,
     } = dto;
 
@@ -123,10 +121,14 @@ export class AuthService {
     if (existing) throw new UnauthorizedException('Email already in use');
 
     // Look up role by name
-    const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: number; name: string } | null;
+    const foundRole = await this.prisma.role.findUnique({ where: { name: role as RoleNames } }) as { id: number; name: string } | null;
     if (!foundRole) throw new UnauthorizedException('Role not found');
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const fallbackCompany = await this.prisma.company.findFirst();
+    if (!fallbackCompany)
+      throw new UnauthorizedException('No fallback company available');
 
     const newUser = await this.prisma.user.create({
       data: {
@@ -134,9 +136,8 @@ export class AuthService {
         password: hashedPassword,
         first_name,
         last_name,
-        phone_number: phoneNumber,
-        company,
         roleId: +foundRole.id,
+        companyId: fallbackCompany.id,
       },
     });
 

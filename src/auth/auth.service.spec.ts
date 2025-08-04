@@ -24,7 +24,10 @@ describe('AuthService', () => {
               create: jest.fn(),
             },
             company: {
-              findFirst: jest.fn(),
+              findFirst: jest.fn().mockResolvedValue({
+                id: 1,
+                name: 'TestCo',
+              }),
             },
             refreshToken: {
               create: jest.fn(),
