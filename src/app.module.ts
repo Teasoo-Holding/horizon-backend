@@ -13,9 +13,22 @@ import { OtpService } from './otp/otp.service';
 import { OtpModule } from './otp/otp.module';
 import { RateLimitModule } from './infrastructure/rate_limiting/rate_limit.module';
 import { EsgModule } from './esg/esg.module';
+import { CompanyModule } from './esg/company/company.module';
+import { DepartmentsModule } from './esg/departments/departments.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ConfigModule.forRoot({ isGlobal: true }), UserModule, EmailModule, OtpModule, RateLimitModule, EsgModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    ConfigModule.forRoot({ isGlobal: true }),
+    UserModule,
+    EmailModule,
+    OtpModule,
+    RateLimitModule,
+    EsgModule,
+    CompanyModule,
+    DepartmentsModule
+  ],
   controllers: [AppController, AuthController],
   providers: [AppService, AuthService, EmailService, OtpService],
 })

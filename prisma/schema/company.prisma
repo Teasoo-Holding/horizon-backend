@@ -28,6 +28,7 @@ model Company {
   users User[] @relation("CompanyUsers")
 
   companySubscriptions CompanySubscription[] @relation("CompanySubs")
+  departments Department[]
 
   @@index([status])
   @@index([created_at])

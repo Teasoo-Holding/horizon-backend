@@ -36,6 +36,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.roleId,
+      companyId: user.companyId,
     });
 
     const refreshToken = await this.prisma.refreshToken.create({

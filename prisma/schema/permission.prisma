@@ -1,7 +1,7 @@
 model Permission {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
   userPermissions UserPermission[]
 
   @@map("permissions")
