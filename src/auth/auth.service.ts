@@ -133,4 +133,40 @@ export class AuthService {
 
     return { user };
   }
+  async teasooAsminRegister(dto: RegisterDto) {
+    const {
+      email,
+      password,
+      first_name,
+      last_name,
+      phoneNumber,
+      company,
+      role,
+    } = dto;
+
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) throw new UnauthorizedException('Email already in use');
+
+    // Look up role by name
+    const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: number; name: string } | null;
+    if (!foundRole) throw new UnauthorizedException('Role not found');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        first_name,
+        last_name,
+        phone_number: phoneNumber,
+        company,
+        roleId: +foundRole.id,
+      },
+    });
+
+    const { password: _, ...result } = newUser;
+
+    return result;
+  }
 }
