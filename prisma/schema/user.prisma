@@ -6,34 +6,36 @@ enum UserStatus {
 }
 
 model User {
-  id                Int          @id @default(autoincrement())
-  email             String       @unique @db.VarChar(255)
-  password          String       @db.VarChar(255)
-  first_name        String       @db.VarChar(100)
-  last_name         String?      @db.VarChar(100)
-  phone_number      String?      @db.VarChar(20)
+  id           Int     @id @default(autoincrement())
+  email        String  @unique @db.VarChar(255)
+  password     String  @db.VarChar(255)
+  first_name   String  @db.VarChar(100)
+  last_name    String? @db.VarChar(100)
+  phone_number String? @db.VarChar(20)
 
-  roleId            Int
-  role              Role         @relation(fields: [roleId], references: [id])
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id])
 
-  permissionId      Int?
-  permission        Permission?   @relation(fields: [permissionId], references: [id])
+  companyId Int
+  company   Company? @relation(fields: [companyId], references: [id], name: "CompanyUsers")
 
-  company           String?      @db.VarChar(100)
-  company_id        String?      @db.VarChar(50)
+  departmentId Int?
+  department Department? @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
 
-  status            UserStatus   @default(PENDING)
-  profile_photo_url String?      @db.VarChar(255)
+  permissions UserPermission[]
+
+  status            UserStatus     @default(PENDING)
+  profile_photo_url String?        @db.VarChar(255)
   last_login        DateTime?
-  created_at        DateTime     @default(now())
-  updated_at        DateTime     @updatedAt
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
   refreshTokens     RefreshToken[]
-  otpHash               String?
+  otpHash           String?
   otpExpiresAt      DateTime?
 
-  @@map("users")
   @@index([email])
   @@index([status])
-  @@index([company_id])
+  @@index([companyId])
   @@index([created_at])
+  @@map("users")
 }

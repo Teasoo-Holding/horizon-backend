@@ -14,7 +14,7 @@ export class RegisterDto {
   last_name?: string;
 
   @IsOptional() @IsString() @Matches(/^\+?\d{10,15}$/)
-  phoneNumber?: string;
+  phone_number?: string;
 
   @IsOptional() @IsString()
   company?: string;

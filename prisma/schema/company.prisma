@@ -1,0 +1,37 @@
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+model Company {
+  id                        Int           @id @default(autoincrement())
+  name                      String        @unique
+  registration_number       String
+  industry_type             String
+  address                   String
+  contact_email             String
+  website                   String?
+  contact_phone             String
+  company_logo_url          String?
+  status                    CompanyStatus @default(PENDING)
+  staff                     Json?
+  created_at                DateTime      @default(now())
+  created_by                Int
+  updated_at                DateTime      @updatedAt
+  updated_by                Int
+  current_subscription_tier Int?
+
+  subscription Subscription? @relation(fields: [current_subscription_tier], references: [id], name: "CompanyCurrentSubscription")
+
+  users User[] @relation("CompanyUsers")
+
+  companySubscriptions CompanySubscription[] @relation("CompanySubs")
+  departments Department[]
+
+  @@index([status])
+  @@index([created_at])
+
+  @@map("companies")
+}

@@ -1,0 +1,28 @@
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
+}
+
+model CompanySubscription {
+  id              Int                @id @default(autoincrement())
+  company_id      Int
+  subscription_id Int
+  start_date      DateTime
+  end_date        DateTime?
+  status          SubscriptionStatus @default(ACTIVE)
+  created_by      Int
+  updated_by      Int
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+
+  Company      Company      @relation(fields: [company_id], references: [id], name: "CompanySubs")
+  Subscription Subscription @relation(fields: [subscription_id], references: [id], name: "CompanySubs")
+
+  @@index([company_id])
+  @@index([subscription_id])
+  @@index([status])
+
+  @@map("company_subscriptions")
+}

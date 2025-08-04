@@ -1,0 +1,10 @@
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id])
+  users       User[]  @relation("DepartmentUsers")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
