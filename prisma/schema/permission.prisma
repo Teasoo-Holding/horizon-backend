@@ -1,11 +1,8 @@
 model Permission {
-  id                Int @id @default(autoincrement())
-  can_add_user      Boolean @default(false)
-  can_add_department Boolean @default(false)
-  can_input_data    Boolean @default(false)
-  can_generate_report Boolean @default(false)
-
-  users User[]
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
+  userPermissions UserPermission[]
 
   @@map("permissions")
 }

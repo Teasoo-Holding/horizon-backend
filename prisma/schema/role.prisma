@@ -1,9 +1,20 @@
+enum RoleNames {
+  SUPER_ADMIN
+  RESTRICTED_ADMIN
+  ADMIN_VIEWER
+  ADMIN_EDITOR
+  SUSTAINABILITY_MANAGER
+  SUB_ADMIN
+  C_SUITE_EXEC
+  REGULATOR
+  INVESTOR
+}
+
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int       @id @default(autoincrement())
+  name        RoleNames @unique
   description String?
   users       User[]
 
   @@map("roles")
 }
-

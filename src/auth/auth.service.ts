@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { LoginDto, RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
+import { RoleNames } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
@@ -35,6 +36,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.roleId,
+      companyId: user.companyId,
     });
 
     const refreshToken = await this.prisma.refreshToken.create({
@@ -53,45 +55,21 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const {
-      email,
-      password,
-      first_name,
-      last_name,
-      phoneNumber,
-      company,
-      role,
-    } = dto;
+    const { email, password, first_name, last_name, phone_number, role } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
 
-    // Look up role by name
-    const foundRole = await this.prisma.role.findUnique({ where: { name: role } }) as { id: number; name: string } | null;
+    const foundRole = await this.prisma.role.findUnique({
+      where: { name: role as RoleNames },
+    });
     if (!foundRole) throw new UnauthorizedException('Role not found');
-
-    // let permissionId: number | null = null;
-
-    // if (role === 'SUPER_ADMIN') {
-    //   const superAdminPerm = await this.prisma.permission.findUnique({ where: { name: 'SUPER_ADMIN' } }) as { id: string; name: string } | null;
-    //   if (!superAdminPerm) throw new UnauthorizedException('SUPER_ADMIN permission not found');
-    //   permissionId = superAdminPerm.id;
-    // } else if (role === 'SUSTAINABILITY_MANAGER') {
-    //   const adminPerm = await this.prisma.permission.findUnique({ where: { name: 'ADMIN' } }) as { id: string; name: string } | null;
-    //   if (!adminPerm) throw new UnauthorizedException('ADMIN permission not found');
-    //   permissionId = adminPerm.id;
-    // } else if (permission) {
-    //   const foundPerm = await this.prisma.permission.findUnique({ where: { name: permission } }) as { id: string; name: string } | null;
-    //   if (!foundPerm) throw new UnauthorizedException('Permission not found');
-    //   permissionId = foundPerm.id;
-    // } else {
-    //   throw new UnauthorizedException('Permission is required for this role');
-    // }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-
-    // const permissionId = 2; 
+    const fallbackCompany = await this.prisma.company.findFirst();
+    if (!fallbackCompany)
+      throw new UnauthorizedException('No fallback company available');
 
     const newUser = await this.prisma.user.create({
       data: {
@@ -99,24 +77,21 @@ export class AuthService {
         password: hashedPassword,
         first_name,
         last_name,
-        phone_number: phoneNumber,
-        company,
-        roleId: +foundRole.id,
-        // permissionId: permissionId
+        phone_number,
+        roleId: foundRole.id,
+        companyId: fallbackCompany.id,
+        status: 'PENDING',
       },
     });
+
     try {
       const otp = this.otpService.generateOtp();
-      await this.emailService.sendEmail(
-        email,
-        { first_name, otp },
-        7,
-      );
+      await this.emailService.sendEmail(email, { first_name, otp }, 7);
     } catch (error) {
       console.error('Error sending welcome email:', error);
     }
-    const { password: _, ...result } = newUser;
 
+    const { password: _, ...result } = newUser;
     return result;
   }
 
