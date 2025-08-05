@@ -7,3 +7,10 @@ export class JWTUserDto extends Request {
 
 
 }
+
+
+export class TeasoAdminSendRequest {
+    email: string;
+    role: string;
+    
+}

@@ -30,12 +30,14 @@ export class OtpController {
     if (!current_user) {
       throw new NotFoundException('User not found');
     }
-    await this.otpService.storeOtp(user.userId);
-    const otp = await this.otpService.generateOtp();
+    const otp = this.otpService.generateOtp();
 
     await this.otpService.sendOtp(user?.email, otp);
+    await this.otpService.storeOtp(user.userId, otp);
+    
     return { message: `OTP sent to ${user.email}` };
   }
+
 
   @UseGuards(JwtAuthGuard)
   @Post('verify')
@@ -64,7 +66,8 @@ export class OtpController {
     if (!current_user) throw new NotFoundException('User not found');
 
     const otp = await this.otpService.generateOtp();
-    await this.otpService.storeOtp(user.userId);
+    await this.otpService.generateOtp();
+    await this.otpService.storeOtp(user.userId, otp);
     await this.otpService.sendOtp(user.email, otp);
 
     return { message: `OTP resent to ${user.email}` };

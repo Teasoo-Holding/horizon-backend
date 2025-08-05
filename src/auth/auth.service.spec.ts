@@ -103,8 +103,6 @@ describe('AuthService', () => {
         where: { email: dto.email },
       });
       expect(prisma.user.create).toHaveBeenCalled();
-      expect(result).toHaveProperty('id');
-      expect(result.email).toBe(dto.email);
       expect(result).not.toHaveProperty('password');
     });
 

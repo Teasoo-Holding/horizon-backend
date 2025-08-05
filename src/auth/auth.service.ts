@@ -85,14 +85,27 @@ export class AuthService {
     });
 
     try {
-      const otp = this.otpService.generateOtp();
+      
+      const otp = await this.otpService.generateOtp();
+      await this.otpService.storeOtp(newUser.id, otp);
       await this.emailService.sendEmail(email, { first_name, otp }, 7);
     } catch (error) {
       console.error('Error sending welcome email:', error);
     }
 
     const { password: _, ...result } = newUser;
-    return result;
+    const token = this.jwtService.sign({
+      sub: result.id,
+      email: result.email,
+      role: result.roleId,
+      companyId: result.companyId,
+    });
+    return {
+      user: result,
+      accessToken: token,
+      message: 'Registration successful, please check your email for verification.',
+      status: 'PENDING',
+    };
   }
 
   async refresh(refresh_token: string) {
@@ -108,6 +121,45 @@ export class AuthService {
 
     return { user };
   }
+
+  async verifyEmail(email: string, otp: string): Promise<{ message: string }> {
+  const user = await this.prisma.user.findUnique({ where: { email } });
+
+  if (!user || !user.otpHash || !user.otpExpiresAt) {
+    throw new UnauthorizedException('OTP not found or user does not exist');
+  }
+
+  if (user.status === 'APPROVED') {
+    throw new UnauthorizedException('User already verified');
+  }
+
+  if (new Date() > user.otpExpiresAt) {
+    throw new UnauthorizedException('OTP has expired');
+  }
+
+  const isMatch = await bcrypt.compare(otp, user.otpHash);
+  if (!isMatch) {
+    throw new UnauthorizedException('Invalid OTP');
+  }
+
+  await this.prisma.user.update({
+    where: { email },
+    data: {
+      status: 'APPROVED',
+      otpHash: null,
+      otpExpiresAt: null,
+    },
+  });
+
+  return { message: 'Email verified successfully. You can now log in.' };
+}
+
+
+  async teasoAdminSendRequest(){
+    
+
+  }
+
   async teasooAsminRegister(dto: RegisterDto) {
     const {
       email,
@@ -145,4 +197,5 @@ export class AuthService {
 
     return result;
   }
+  
 }
