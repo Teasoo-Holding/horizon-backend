@@ -17,7 +17,13 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        role: true,
+        company: true,
+      },
+    });
 
     if (!user) throw new UnauthorizedException('User not found');
 
@@ -50,7 +56,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: refreshToken.refresh_token,
-      user,
+      user: { ...user, role: user.role.name, company: user.company?.name },
     };
   }
 
