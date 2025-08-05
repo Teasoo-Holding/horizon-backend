@@ -8,15 +8,44 @@ import { RoleNames } from '@prisma/client';
 describe('EsgAuthService', () => {
   let service: EsgAuthService;
   let prisma: PrismaService;
+  
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [EsgAuthService, PrismaService],
-    }).compile();
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      EsgAuthService,
+      {
+        provide: PrismaService,
+        useValue: {
+          user: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+          },
+          company: {
+            findFirst: jest.fn(),
+            create: jest.fn(),
+          },
+          role: {
+            findUnique: jest.fn(),
+          },
+          permission: {
+            findMany: jest.fn().mockResolvedValue([
+              { id: 1, name: 'perm-1' },
+              { id: 2, name: 'perm-2' },
+            ]),
+          },
+          userPermission: {
+            createMany: jest.fn().mockResolvedValue({ count: 2 }),
+          },
+        },
+      },
+    ],
+  }).compile();
 
-    service = module.get<EsgAuthService>(EsgAuthService);
-    prisma = module.get<PrismaService>(PrismaService);
-  });
+  service = module.get<EsgAuthService>(EsgAuthService);
+  prisma = module.get<PrismaService>(PrismaService);
+});
+
 
   describe('register()', () => {
     const dto = {

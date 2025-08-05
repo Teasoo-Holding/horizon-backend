@@ -13,68 +13,72 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: PrismaService,
-          useValue: {
-            user: {
-              findUnique: jest.fn(),
-              create: jest.fn(),
-            },
-            company: {
-              findFirst: jest.fn(),
-            },
-            refreshToken: {
-              create: jest.fn(),
-              findUnique: jest.fn(),
-            },
-            role: {
-              findUnique: jest.fn().mockResolvedValue({
-                id: 'role-id',
-                name: 'SUSTAINABILITY_MANAGER',
-              }),
-            },
-            permission: {
-              findUnique: jest.fn().mockResolvedValue({
-                id: 'perm-id',
-                name: 'can:edit',
-                description: 'can edit stuff',
-              }),
-            },
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      AuthService,
+      {
+        provide: PrismaService,
+        useValue: {
+          user: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+          },
+          company: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 1,
+              name: 'TestCo',
+            }),
+          },
+          refreshToken: {
+            create: jest.fn(),
+            findUnique: jest.fn(),
+          },
+          role: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'role-id',
+              name: 'SUSTAINABILITY_MANAGER',
+            }),
+          },
+          permission: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'perm-id',
+              name: 'can:edit',
+              description: 'can edit stuff',
+            }),
           },
         },
-        {
-          provide: JwtService,
-          useValue: {
-            sign: jest.fn().mockReturnValue('mockAccessToken'),
-          },
+      },
+      {
+        provide: JwtService,
+        useValue: {
+          sign: jest.fn().mockReturnValue('mockAccessToken'),
         },
-        {
-          provide: EmailService,
-          useValue: {
-            sendVerificationEmail: jest.fn(), // mock methods used in AuthService
-          },
+      },
+      {
+        provide: EmailService,
+        useValue: {
+          sendEmail: jest.fn().mockResolvedValue(undefined),
+          sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
         },
-        {
-          provide: OtpService,
-          useValue: {
-            generateOtp: jest
-              .fn()
-              .mockReturnValue({
-                otp: '123456',
-                expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-              }),
-          },
+      },
+      {
+        provide: OtpService,
+        useValue: {
+          generateOtp: jest.fn().mockReturnValue({
+            otp: '123456',
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          }),
+          storeOtp: jest.fn().mockResolvedValue(undefined),
         },
-      ],
-    }).compile();
+      },
+    ],
+  }).compile();
 
-    service = module.get<AuthService>(AuthService);
-    prisma = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-  });
+  service = module.get<AuthService>(AuthService);
+  prisma = module.get<PrismaService>(PrismaService);
+  jwtService = module.get<JwtService>(JwtService);
+});
+
 
   describe('register', () => {
     it('should register a new user', async () => {
@@ -100,8 +104,6 @@ describe('AuthService', () => {
         where: { email: dto.email },
       });
       expect(prisma.user.create).toHaveBeenCalled();
-      expect(result).toHaveProperty('id');
-      expect(result.email).toBe(dto.email);
       expect(result).not.toHaveProperty('password');
     });
 

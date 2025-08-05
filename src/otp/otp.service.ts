@@ -16,9 +16,10 @@ export class OtpService {
 
   async storeOtp(
     userId: number,
+    otp: string,
     expiresIn: number = 30 * 60 * 1000,
   ): Promise<any> {
-    const otp = this.generateOtp();
+    
     return await this.prisma.user.update({
       where: { id: userId },
       data: {
