@@ -2,9 +2,10 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { hash } from 'bcryptjs';
-import { NotFoundError } from 'rxjs';
 import { RegisterDto } from 'src/auth/dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
@@ -20,12 +21,13 @@ export class AdminAuthService {
     private otpService: OtpService,
     private jwtService: JwtService,
   ) {}
+
   async registerAdmin(dto: RegisterDto) {
     const { email, password, first_name, last_name, phone_number } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new Error('User already exists');
+      throw new ConflictException('User already exists');
     }
 
     const hashedPassword = await hash(password, 10);
@@ -53,15 +55,18 @@ export class AdminAuthService {
 
     return newUser;
   }
+
   async verifyEmail(email: string, otp: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const verificationResult = await this.otpService.verifyOtp(user.id, otp);
     if (verificationResult !== true) {
-      throw new Error(`OTP verification failed: ${verificationResult}`);
+      throw new BadRequestException(
+        `OTP verification failed: ${verificationResult}`,
+      );
     }
 
     return this.prisma.user.update({
@@ -77,17 +82,18 @@ export class AdminAuthService {
 
     if (existing) throw new ConflictException('User with email already exists');
 
+    // Only admin (roleId 1) and super admin (roleId 2) can invite others
     if (roleId !== 1 && roleId !== 2) {
       throw new UnauthorizedException(
         'Only users with admin privileges can invite others',
       );
     }
 
-    if (dto.roleId !== 1) {
-      throw new UnauthorizedException(
-        'You cannot add another super admin',
-      );
+    // Prevent creating another super admin (roleId 1)
+    if (dto.roleId === 1) {
+      throw new UnauthorizedException('You cannot add another super admin');
     }
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -106,10 +112,18 @@ export class AdminAuthService {
     const token = this.jwtService.sign(payload, { expiresIn: '24h' });
 
     try {
-      await this.emailService.sendEmail(dto.email, { token }, 8);
+      const link = `http://localhost:3000/admin/verify-invite-token?token=${token}`;
+
+      // console.log('Sending invitation email to:', dto.email);
+      await this.emailService.sendEmail(
+        dto.email,
+        { token, first_name: dto.first_name, link, role: dto.roleId },
+        8,
+      );
     } catch (error) {
       console.error('Error sending invitation email:', error);
     }
+
     return {
       status: 'success',
       message: 'User invited successfully',
@@ -130,15 +144,22 @@ export class AdminAuthService {
       });
 
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new NotFoundException('User not found');
       }
 
       if (user.status !== 'PENDING') {
-        throw new UnauthorizedException('User is not in pending status');
+        throw new BadRequestException('User is not in pending status');
       }
 
       return user;
     } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
       throw new UnauthorizedException(
         `Token verification failed: ${error.message}`,
       );
@@ -159,13 +180,17 @@ export class AdminAuthService {
       where: { id: payload.userId },
     });
 
-    if (!user || user.status !== 'PENDING') {
-      throw new UnauthorizedException('Invalid or expired invite');
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.status !== 'PENDING') {
+      throw new BadRequestException('Invalid or expired invite');
     }
 
     const hashedPassword = await hash(dto.password, 10);
 
-    await this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
       data: {
         first_name: dto.first_name,
@@ -175,6 +200,7 @@ export class AdminAuthService {
         status: 'APPROVED',
       },
     });
+
     try {
       await this.emailService.sendEmail(
         user.email,
@@ -184,5 +210,7 @@ export class AdminAuthService {
     } catch (error) {
       console.error('Error sending welcome email:', error);
     }
+
+    return updatedUser;
   }
 }
