@@ -57,6 +57,8 @@ describe('AdminAuthService', () => {
     password: 'adminpass',
     roleId: 2,
     departmentId: 1,
+    role: "ADMIN",
+    companyId: 1,
   };
 
   beforeEach(async () => {
