@@ -5,6 +5,17 @@ enum UserStatus {
   DISABLED
 }
 
+enum AccessLevels {
+  SUPER_ADMIN
+  RESTRICTED_ADMIN
+  ADMIN_EDITOR
+  ADMIN_VIEWER
+  ESG_ADMIN
+  ESG_SUB_ADMIN
+  ESG_EDITOR
+  ESG_VIEWER
+}
+
 model User {
   id           Int     @id @default(autoincrement())
   email        String  @unique @db.VarChar(255)
@@ -20,9 +31,9 @@ model User {
   company   Company? @relation(fields: [companyId], references: [id], name: "CompanyUsers")
 
   departmentId Int?
-  department Department? @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
+  department   Department? @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
 
-  permissions UserPermission[]
+  accessLevel AccessLevels
 
   status            UserStatus     @default(PENDING)
   profile_photo_url String?        @db.VarChar(255)

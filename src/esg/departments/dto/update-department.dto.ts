@@ -1,4 +1,8 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateDepartmentDto } from './create-department.dto';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
-export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
+export class UpdateDepartmentDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  name?: string;
+}
