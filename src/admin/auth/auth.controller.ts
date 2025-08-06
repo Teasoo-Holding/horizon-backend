@@ -11,6 +11,7 @@ import { RegisterDto } from 'src/auth/dto';
 import { TeasoAdminSendRequest } from '../dto';
 import { GetUserDecorator } from 'src/auth/decorators/getuser.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiResetContentResponse } from '@nestjs/swagger';
 
 // DTO for complete registration
 export class CompleteRegistrationDto {
@@ -38,6 +39,9 @@ export class AdminAuthController {
     return this.adminAuthService.verifyEmail(dto.email, dto.otp);
   }
 
+  @ApiResetContentResponse(
+    
+  )
   @Post('complete-registration')
   async completeRegistration(
     @Body() dto: TeasoAdminSendRequest,
@@ -62,12 +66,14 @@ export class AdminAuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @ApiResetContentResponse({
+
+  })
   @Post('invite-admin')
   async inviteAdmin(
     @Body() dto: TeasoAdminSendRequest,
     @GetUserDecorator() user: { role: number },
   ) {
-    // console.log('Inviting admin with user role:', user);
     return this.adminAuthService.inviteAdminUser(dto, user.role);
   }
 }
