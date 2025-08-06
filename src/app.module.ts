@@ -15,6 +15,9 @@ import { RateLimitModule } from './infrastructure/rate_limiting/rate_limit.modul
 import { EsgModule } from './esg/esg.module';
 import { CompanyModule } from './esg/company/company.module';
 import { DepartmentsModule } from './esg/departments/departments.module';
+import { AdminAuthService } from './admin/auth/auth.service';
+import { AdminAuthController } from './admin/auth/auth.controller';
+import { AdminAuthModule } from './admin/auth/auth.module';
 
 @Module({
   imports: [
@@ -27,9 +30,10 @@ import { DepartmentsModule } from './esg/departments/departments.module';
     RateLimitModule,
     EsgModule,
     CompanyModule,
-    DepartmentsModule
+    DepartmentsModule,
+    AdminAuthModule, 
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService, AuthService, EmailService, OtpService],
+  controllers: [AppController, AdminAuthController, AuthController],
+  providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService],
 })
 export class AppModule {}
