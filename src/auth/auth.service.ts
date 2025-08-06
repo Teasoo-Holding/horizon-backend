@@ -153,49 +153,4 @@ export class AuthService {
 
   return { message: 'Email verified successfully. You can now log in.' };
 }
-
-
-  async teasoAdminSendRequest(){
-    
-
-  }
-
-  async teasooAsminRegister(dto: RegisterDto) {
-    const {
-      email,
-      password,
-      first_name,
-      last_name,
-      role,
-    } = dto;
-
-    const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) throw new UnauthorizedException('Email already in use');
-
-    // Look up role by name
-    const foundRole = await this.prisma.role.findUnique({ where: { name: role as RoleNames } }) as { id: number; name: string } | null;
-    if (!foundRole) throw new UnauthorizedException('Role not found');
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const fallbackCompany = await this.prisma.company.findFirst();
-    if (!fallbackCompany)
-      throw new UnauthorizedException('No fallback company available');
-
-    const newUser = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        first_name,
-        last_name,
-        roleId: +foundRole.id,
-        companyId: fallbackCompany.id,
-      },
-    });
-
-    const { password: _, ...result } = newUser;
-
-    return result;
-  }
-  
 }
