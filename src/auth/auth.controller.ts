@@ -1,4 +1,3 @@
-import { GetUserDecorator } from './decorators/getuser.decorator';
 import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
@@ -15,10 +14,6 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
-  }
-  @Post('test')
-  async test(@GetUserDecorator() user: any) {
-    return user;
   }
 
   @Post('verify-email')

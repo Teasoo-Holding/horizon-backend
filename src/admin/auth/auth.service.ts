@@ -12,6 +12,7 @@ import { OtpService } from 'src/otp/otp.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TeasoAdminSendRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
+import { AdminGetusersDto } from '../dto/getuser.dto';
 
 @Injectable()
 export class AdminAuthService {
@@ -213,4 +214,50 @@ export class AdminAuthService {
 
     return updatedUser;
   }
-}
+
+  async getAllUsers(
+    filters: AdminGetusersDto,
+    roleId: number = 1, 
+  )
+  {
+    const { search, status } = filters;
+    const where: any = {};
+
+    if(status) {
+      where.status = status;
+    }
+    if(roleId !== 1 && roleId !== 2 && roleId !== 3) {
+      throw new UnauthorizedException('Only admin can view all users');
+
+    }
+    if (search) {
+      where.OR = [
+        { first_name: { contains: search, mode: 'insensitive' } },
+        { last_name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone_number: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        phone_number: true,
+        status: true,
+        roleId: true,
+        departmentId: true,
+        companyId: true,
+        created_at: true,
+        updated_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+  }
+
+  }
