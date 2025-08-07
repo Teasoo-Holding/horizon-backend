@@ -5,6 +5,8 @@ import {
   UseGuards,
   Headers,
   UnauthorizedException,
+  Query,
+  Get,
 } from '@nestjs/common';
 import { AdminAuthService } from './auth.service';
 import { RegisterDto } from 'src/auth/dto';
@@ -12,6 +14,7 @@ import { TeasoAdminSendRequest } from '../dto';
 import { GetUserDecorator } from 'src/auth/decorators/getuser.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiResetContentResponse } from '@nestjs/swagger';
+import { AdminGetusersDto } from '../dto/getuser.dto';
 
 // DTO for complete registration
 export class CompleteRegistrationDto {
@@ -75,5 +78,14 @@ export class AdminAuthController {
     @GetUserDecorator() user: { role: number },
   ) {
     return this.adminAuthService.inviteAdminUser(dto, user.role);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('get-users')
+  async getAllUsers(
+    @Query() filters: AdminGetusersDto,
+    @GetUserDecorator() user: { role: number },
+  ) {
+    return this.adminAuthService.getAllUsers(filters, user.role);
   }
 }
