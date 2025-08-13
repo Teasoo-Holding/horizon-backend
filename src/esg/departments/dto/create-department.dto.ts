@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class CreateDepartmentDto {
-  @IsNotEmpty()
   @IsString()
+  @MinLength(1)
   name: string;
 }

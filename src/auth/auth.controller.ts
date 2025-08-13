@@ -2,6 +2,7 @@ import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
 import { VerifyEmailDto } from './dto/user';
+import { ApiBody } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -12,6 +13,18 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @ApiBody({
+    type: LoginDto,
+    examples: {
+      loginExample: {
+        summary: 'Example login input',
+        value: {
+          email: 'someone@email.com',
+          password: 'password',
+        },
+      },
+    },
+  })
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);

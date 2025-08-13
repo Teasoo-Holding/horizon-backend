@@ -1,3 +1,4 @@
+import { AccessLevels } from '@prisma/client';
 import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterDto {
@@ -19,9 +20,10 @@ export class RegisterDto {
   @IsOptional() @IsString()
   company?: string;
 
+  @IsOptional()
   @IsString()
-  role: string;
+  role?: string;
 
   @IsOptional() @IsString()
-  permission?: string;
+  accessLevel: AccessLevels;
 }

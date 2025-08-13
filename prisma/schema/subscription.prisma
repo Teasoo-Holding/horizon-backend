@@ -1,6 +1,6 @@
 model Subscription {
   id               Int      @id @default(autoincrement())
-  name             String
+  name             String   @unique
   description      String?
   price_monthly    Float
   price_annual     Float
