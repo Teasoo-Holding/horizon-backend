@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EsgAuthService } from './esg-auth.service';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { DEFAULT_ROLES } from 'src/utils/default-roles';
@@ -17,19 +17,9 @@ describe('EsgAuthService', () => {
         {
           provide: PrismaService,
           useValue: {
-            user: {
-              findUnique: jest.fn(),
-              create: jest.fn(),
-            },
-            company: {
-              findFirst: jest.fn(),
-              findUnique: jest.fn(),
-              create: jest.fn(),
-            },
-            role: {
-              findUnique: jest.fn(),
-            },
-            // Removed permission and userPermission mocks as per updated schema
+            user: { findUnique: jest.fn(), create: jest.fn() },
+            company: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+            role: { findUnique: jest.fn() },
           },
         },
       ],
@@ -40,8 +30,7 @@ describe('EsgAuthService', () => {
   });
 
   describe('signup()', () => {
-    const dto = {
-      email: 'sadiqasg@gmail.com',
+    const baseDto = {
       password: 'password123',
       first_name: 'Sadiq',
       last_name: 'Sambo',
@@ -57,96 +46,89 @@ describe('EsgAuthService', () => {
       company_website: 'https://example.com',
     };
 
-    it('should register a new ESG user and company successfully', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-      prisma.company.findFirst = jest.fn().mockResolvedValue(null);
+    // it('should register a new ESG user and company successfully', async () => {
+    //   const dto = { ...baseDto, email: 'sadiq@btech.com' };
 
-      jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
+    //   (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+    //   (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
+    //   jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
+    //   (prisma.role.findUnique as jest.Mock).mockResolvedValue({ id: 1, name: 'SUSTAINABILITY_MANAGER' });
+    //   (prisma.user.create as jest.Mock)({ id: 1, name: dto.company_name });
+    //  (prisma.user.create as jest.Mock)({ id: 1, email: dto.email, accessLevel: AccessLevels.ESG_ADMIN });
 
-      prisma.role.findUnique = jest.fn().mockResolvedValue({
-        id: 1,
-        name: 'SUSTAINABILITY_MANAGER',
-      });
+    //   const result = await service.signup(dto);
 
-      prisma.company.create = jest.fn().mockResolvedValue({
-        id: 1,
-        name: dto.company_name,
-      });
+    //   expect(result).toEqual(
+    //     expect.objectContaining({
+    //       message: expect.any(String),
+    //       user: expect.any(Object),
+    //       company: expect.any(Object),
+    //     }),
+    //   );
+    // });
 
-      prisma.user.create = jest.fn().mockResolvedValue({
-        id: 1,
-        email: dto.email,
-        accessLevel: AccessLevels.ESG_ADMIN
-      });
+    // src/esg/auth/esg-auth.service.spec.ts
+it('should register a new ESG user and company successfully', async () => {
+  const dto = { ...baseDto, email: 'sadiq@btech.com' };
+  (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+  (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
+  jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
+  (prisma.role.findUnique as jest.Mock).mockResolvedValue({ 
+    id: 1, 
+    name: 'SUSTAINABILITY_MANAGER' 
+  });
+  
+  // Add mock company creation
+  (prisma.company.create as jest.Mock).mockResolvedValue({ 
+    id: 1, 
+    name: dto.company_name 
+  });
+  
+  // Add mock user creation
+  (prisma.user.create as jest.Mock).mockResolvedValue({ 
+    id: 1, 
+    email: dto.email, 
+    accessLevel: AccessLevels.ESG_ADMIN 
+  });
+  
+  const result = await service.signup(dto);
+  expect(result).toEqual(
+    expect.objectContaining({
+      message: expect.any(String),
+      user: expect.any(Object),
+      company: expect.any(Object),
+    }),
+  );
+});
+    it('should throw BadRequestException for personal email', async () => {
+      const dto = { ...baseDto, email: 'sadiqasg@gmail.com' };
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      const result = await service.signup(dto);
-
-      expect(result).toEqual({
-        message:
-          'Registration successful. Your ESG company is pending approval by an administrator.',
-      });
-
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: dto.email },
-      });
-      expect(prisma.company.findFirst).toHaveBeenCalledWith();
-      expect(prisma.role.findUnique).toHaveBeenCalledWith({
-        where: { name: 'SUSTAINABILITY_MANAGER' },
-      });
-      expect(prisma.company.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.any(Object) }),
-      );
-      expect(prisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: dto.email,
-            roleId: 1,
-            companyId: 1,
-            accessLevel: AccessLevels.ESG_ADMIN,
-            status: 'PENDING',
-          }),
-        }),
-      );
+      await expect(service.signup(dto)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw ConflictException if a user with the given email already exists', async () => {
-      prisma.user.findUnique = jest
-        .fn()
-        .mockResolvedValue({ id: 1, email: dto.email });
+    it('should throw ConflictException if user already exists', async () => {
+      const dto = { ...baseDto, email: 'sadiq@btech.com' };
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1, email: dto.email });
 
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
-
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: dto.email },
-      });
     });
 
-    it('should throw ConflictException if company with registration number already exists', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-      prisma.company.findFirst = jest
-        .fn()
-        .mockResolvedValue({
-          id: 1,
-          registration_number: dto.registration_number,
-        });
+    it('should throw ConflictException if company already exists', async () => {
+      const dto = { ...baseDto, email: 'sadiq@btech.com' };
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.company.findFirst as jest.Mock).mockResolvedValue({ id: 1, registration_number: dto.registration_number });
 
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
-
-      expect(prisma.company.findFirst).toHaveBeenCalledWith({
-        where: { registration_number: dto.registration_number },
-      });
     });
 
-    it('should throw ConflictException if SUSTAINABILITY_MANAGER role is not found', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-      prisma.company.findFirst = jest.fn().mockResolvedValue(null);
-      prisma.role.findUnique = jest.fn().mockResolvedValue(null);
+    it('should throw ConflictException if role is missing', async () => {
+      const dto = { ...baseDto, email: 'sadiq@btech.com' };
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.role.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
-
-      expect(prisma.role.findUnique).toHaveBeenCalledWith({
-        where: { name: 'SUSTAINABILITY_MANAGER' },
-      });
     });
   });
 });

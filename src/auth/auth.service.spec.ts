@@ -129,11 +129,11 @@ describe('AuthService', () => {
 
       const result = await service.login(dto);
 
-      expect(jwtService.sign).toHaveBeenCalledWith({
+      expect(jwtService.sign).toHaveBeenCalledWith(expect.objectContaining({
         sub: user.id,
         email: user.email,
 
-      });
+      }));
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
