@@ -6,7 +6,6 @@ import * as crypto from 'crypto';
 import { LoginDto, RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
-import { RoleNames } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
@@ -27,6 +26,10 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('User not found');
 
+    if (user.status !== 'APPROVED') {
+      throw new UnauthorizedException('User account not approved');
+    }
+
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new UnauthorizedException('Invalid password');
 
@@ -41,7 +44,7 @@ export class AuthService {
     const accessToken = this.jwtService.sign({
       sub: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role.name,
       companyId: user.companyId,
     });
 
@@ -61,13 +64,21 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { email, password, first_name, last_name, phone_number, role } = dto;
+    const {
+      email,
+      password,
+      first_name,
+      last_name,
+      phone_number,
+      role,
+      accessLevel,
+    } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
 
     const foundRole = await this.prisma.role.findUnique({
-      where: { name: role as RoleNames },
+      where: { name: role },
     });
     if (!foundRole) throw new UnauthorizedException('Role not found');
 
@@ -87,11 +98,11 @@ export class AuthService {
         roleId: foundRole.id,
         companyId: fallbackCompany.id,
         status: 'PENDING',
+        accessLevel,
       },
     });
 
     try {
-      
       const otp = await this.otpService.generateOtp();
       await this.otpService.storeOtp(newUser.id, otp);
       await this.emailService.sendEmail(email, { first_name, otp }, 7);
@@ -109,7 +120,8 @@ export class AuthService {
     return {
       user: result,
       accessToken: token,
-      message: 'Registration successful, please check your email for verification.',
+      message:
+        'Registration successful, please check your email for verification.',
       status: 'PENDING',
     };
   }
@@ -129,34 +141,34 @@ export class AuthService {
   }
 
   async verifyEmail(email: string, otp: string): Promise<{ message: string }> {
-  const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
-  if (!user || !user.otpHash || !user.otpExpiresAt) {
-    throw new UnauthorizedException('OTP not found or user does not exist');
+    if (!user || !user.otpHash || !user.otpExpiresAt) {
+      throw new UnauthorizedException('OTP not found or user does not exist');
+    }
+
+    if (user.status === 'APPROVED') {
+      throw new UnauthorizedException('User already verified');
+    }
+
+    if (new Date() > user.otpExpiresAt) {
+      throw new UnauthorizedException('OTP has expired');
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.otpHash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    await this.prisma.user.update({
+      where: { email },
+      data: {
+        status: 'APPROVED',
+        otpHash: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return { message: 'Email verified successfully. You can now log in.' };
   }
-
-  if (user.status === 'APPROVED') {
-    throw new UnauthorizedException('User already verified');
-  }
-
-  if (new Date() > user.otpExpiresAt) {
-    throw new UnauthorizedException('OTP has expired');
-  }
-
-  const isMatch = await bcrypt.compare(otp, user.otpHash);
-  if (!isMatch) {
-    throw new UnauthorizedException('Invalid OTP');
-  }
-
-  await this.prisma.user.update({
-    where: { email },
-    data: {
-      status: 'APPROVED',
-      otpHash: null,
-      otpExpiresAt: null,
-    },
-  });
-
-  return { message: 'Email verified successfully. You can now log in.' };
-}
 }

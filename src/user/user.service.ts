@@ -23,7 +23,7 @@ export class UserService {
   }
 
   async updateMe(userId: number, dto: UpdateMeDto) {
-    const { role, permission, ...rest } = dto;
+    const { role, ...rest } = dto;
 
     const updateData: Prisma.UserUpdateInput = {};
 
@@ -44,15 +44,15 @@ export class UserService {
       updateData.role = { connect: { id: Number(foundRole.id) } };
     }
 
-    if (permission) {
-      const foundPermission = (await this.prisma.permission.findUnique({
-        where: { id: +permission },
-        select: { id: true },
-      })) as { id: number } | null;
+    // if (permission) {
+    //   const foundPermission = (await this.prisma.permission.findUnique({
+    //     where: { id: +permission },
+    //     select: { id: true },
+    //   })) as { id: number } | null;
 
-      if (!foundPermission) throw new Error('Permission not found');
-      // updateData.permission = { connect: { id: foundPermission.id } };
-    }
+    //   if (!foundPermission) throw new Error('Permission not found');
+    //   // updateData.permission = { connect: { id: foundPermission.id } };
+    // }
 
     return this.prisma.user.update({
       where: { id: userId },

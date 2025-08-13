@@ -1,14 +1,19 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import {
   UserStatus,
   CompanyStatus,
-  RoleNames,
   Company,
-  Role,
+  AccessLevels,
 } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EsgSignupDto } from './dtos/esg-signup.dto';
+import { DEFAULT_ROLES } from 'src/utils/default-roles';
+import { isCompanyEmail } from 'src/utils/blacklist-emails';
 
 @Injectable()
 export class EsgAuthService {
@@ -21,6 +26,12 @@ export class EsgAuthService {
 
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
+    }
+
+    if (!isCompanyEmail(dto.email)) {
+      throw new BadRequestException(
+        'Please register with your company email address, not a personal email.',
+      );
     }
 
     const existingCompany: Company | null = await this.prisma.company.findFirst(
@@ -37,14 +48,13 @@ export class EsgAuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    const sustainabilityManagerRole: Role | null =
-      await this.prisma.role.findUnique({
-        where: { name: RoleNames.SUSTAINABILITY_MANAGER },
-      });
+    const sustainabilityManagerRole = await this.prisma.role.findUnique({
+      where: { name: DEFAULT_ROLES.SUSTAINABILITY_MANAGER },
+    });
 
     if (!sustainabilityManagerRole) {
       throw new ConflictException(
-        'SUSTAINABILITY_MANAGER role is not configured',
+        'Sustainability Manager role is not configured',
       );
     }
 
@@ -73,20 +83,20 @@ export class EsgAuthService {
         roleId: sustainabilityManagerRole.id,
         companyId: company.id,
         status: UserStatus.PENDING,
+        accessLevel: AccessLevels.ESG_ADMIN,
       },
     });
 
-    const allPermissions = await this.prisma.permission.findMany();
-    await this.prisma.userPermission.createMany({
-      data: allPermissions.map((perm) => ({
-        userId: user.id,
-        permissionId: perm.id,
-      })),
+    await this.prisma.company.update({
+      where: { id: company.id },
+      data: { created_by: user.id, updated_by: user.id },
     });
 
     return {
       message:
         'Registration successful. Your ESG company is pending approval by an administrator.',
+      user,
+      company,
     };
   }
 }

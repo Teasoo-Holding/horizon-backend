@@ -13,6 +13,7 @@ async function main() {
         { name: 'RESTRICTED_ADMIN', description: 'Limited admin access' },
         { name: 'ADMIN_EDITOR', description: 'Data editing access' },
         { name: 'ADMIN_VIEWER', description: 'Read-only admin access' },
+        { name: 'SUSTAINABILITY_MANAGER', description: 'The ESG admin' },
         { name: 'ESG_ADMIN', description: 'The ESG admin' },
         { name: 'ESG_SUB_ADMIN', description: 'The ESG restricted admin' },
         { name: 'ESG_EDITOR', description: 'Executive level' },

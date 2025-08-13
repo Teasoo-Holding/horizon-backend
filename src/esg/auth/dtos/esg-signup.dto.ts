@@ -4,7 +4,7 @@ import { RegisterDto } from 'src/auth/dto';
 export class EsgSignupDto extends RegisterDto {
   @IsString()
   company_name: string;
-  
+
   @IsString()
   company_website: string;
 
@@ -22,6 +22,4 @@ export class EsgSignupDto extends RegisterDto {
 
   @IsString()
   contact_phone: string;
-
-  readonly role = 'SUSTAINABILITY_MANAGER';
 }
