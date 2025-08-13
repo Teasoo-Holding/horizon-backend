@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AdminAuthService } from './auth.service';
+import { AccessLevels } from '@prisma/client';
 
 // Mock bcrypt
 jest.mock('bcryptjs');
@@ -46,7 +47,9 @@ describe('AdminAuthService', () => {
     phone_number: '1234567890',
     roleId: 2,
     departmentId: 1,
-    role: "ADMIN"
+    role: "ADMIN",
+    accessLevel: AccessLevels.RESTRICTED_ADMIN
+
   };
 
   const mockTeasoAdminSendRequest = {
@@ -59,6 +62,7 @@ describe('AdminAuthService', () => {
     departmentId: 1,
     role: "ADMIN",
     companyId: 1,
+    accessLevel: AccessLevels.RESTRICTED_ADMIN
   };
 
   beforeEach(async () => {
@@ -130,6 +134,7 @@ describe('AdminAuthService', () => {
           roleId: 2,
           companyId: 0,
           status: 'PENDING',
+          accessLevel: AccessLevels.RESTRICTED_ADMIN
         },
       });
       expect(result).toEqual(mockUser);
