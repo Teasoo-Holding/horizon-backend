@@ -60,8 +60,11 @@ export class OtpService {
   const hoursFromNow = (hours: number): Date => {
     return new Date(Date.now() + hours * 60 * 60 * 1000);
   };
+  const user = await this.prisma.user.findUnique({
+    where: { email}
+  })
 
-  await this.emailService.sendEmail(email, { otp }, 3);
+  await this.emailService.sendEmail(email, { otp, first_name:  user?.first_name }, 3);
 
   await this.prisma.user.update({
     where: { email },
