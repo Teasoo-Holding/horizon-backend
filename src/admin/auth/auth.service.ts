@@ -119,7 +119,7 @@ export class AdminAuthService {
       await this.emailService.sendEmail(
         dto.email,
         { token, first_name: dto.first_name, link, role: dto.roleId },
-        8,
+        2,
       );
     } catch (error) {
       console.error('Error sending invitation email:', error);

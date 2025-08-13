@@ -68,9 +68,9 @@ export class TeasoAdminSendRequest {
         example: 1,
         required: false
       })
-    @IsString()
+    @IsInt()
     @IsOptional()
-    companyId: number = 1;
+    companyId?: number = 1;
 
     @ApiProperty({
         description: 'Password of the user',
