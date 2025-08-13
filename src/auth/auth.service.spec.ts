@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException } from '@nestjs/common';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
+import { AccessLevels } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -90,6 +91,7 @@ describe('AuthService', () => {
         phoneNumber: '08012345678',
         company: 'TestCo',
         role: 'SUSTAINABILITY_MANAGER',
+        accessLevel: AccessLevels.ESG_ADMIN,
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -116,6 +118,7 @@ describe('AuthService', () => {
         phoneNumber: '08012345678',
         company: 'TestCo',
         role: 'SUSTAINABILITY_MANAGER',
+        accessLevel: AccessLevels.ESG_ADMIN,
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1 });

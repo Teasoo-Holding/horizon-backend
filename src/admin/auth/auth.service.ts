@@ -12,6 +12,7 @@ import { OtpService } from 'src/otp/otp.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TeasoAdminSendRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
+import { AccessLevels } from '@prisma/client';
 import { AdminGetusersDto } from '../dto/getuser.dto';
 
 @Injectable()
@@ -42,6 +43,7 @@ export class AdminAuthService {
         roleId: 2,
         companyId: 0,
         status: 'PENDING',
+        accessLevel: AccessLevels.SUPER_ADMIN
       },
     });
 
@@ -106,6 +108,7 @@ export class AdminAuthService {
         phone_number: '',
         companyId: 1,
         password: '',
+        accessLevel: AccessLevels.RESTRICTED_ADMIN
       },
     });
 

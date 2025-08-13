@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
@@ -7,37 +7,46 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 export class DepartmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateDepartmentDto, companyId: number) {
+  async create(companyId: number, dto: CreateDepartmentDto) {
     return this.prisma.department.create({
       data: {
-        ...dto,
         companyId,
+        name: dto.name,
       },
     });
   }
 
-  findAll(companyId: number) {
-    return this.prisma.department.findMany({
-      where: { companyId },
-      include: { company: true },
-    });
-  }
-
-  findOne(id: number) {
-    return this.prisma.department.findUnique({
+  async findById(id: number) {
+    const department = await this.prisma.department.findUnique({
       where: { id },
-      include: { company: true },
     });
+    if (!department) throw new NotFoundException('Department not found');
+    return department;
   }
 
-  update(id: number, dto: UpdateDepartmentDto) {
-    return this.prisma.department.update({
-      where: { id },
-      data: dto,
-    });
+  async update(id: number, dto: UpdateDepartmentDto) {
+    try {
+      return await this.prisma.department.update({
+        where: { id },
+        data: dto,
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // Prisma record not found
+        throw new NotFoundException('Department not found');
+      }
+      throw error;
+    }
   }
 
-  remove(id: number) {
-    return this.prisma.department.delete({ where: { id } });
+  async delete(id: number) {
+    try {
+      return await this.prisma.department.delete({ where: { id } });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Department not found');
+      }
+      throw error;
+    }
   }
 }

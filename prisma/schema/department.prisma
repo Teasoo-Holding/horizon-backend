@@ -3,8 +3,10 @@ model Department {
   name        String
   description String?
   companyId   Int
-  company     Company  @relation(fields: [companyId], references: [id])
-  users       User[]  @relation("DepartmentUsers")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       User[]   @relation("DepartmentUsers")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, name])
 }
