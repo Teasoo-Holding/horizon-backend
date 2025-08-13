@@ -13,7 +13,8 @@ import { OtpService } from 'src/otp/otp.service';
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      global: true,
+      secret: process.env.JWT_SECRET || "shhhhhhhhh-dont-tell",
       signOptions: { expiresIn: '24h' },
     }),
   ],
