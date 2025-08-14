@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, Length } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString, Length } from "class-validator";
 
 export class JWTUserDto extends Request {
   
@@ -11,6 +11,12 @@ export class JWTUserDto extends Request {
 
 }
 
+
+export class OtpDto {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
 
 export class TeasoAdminSendRequest {
     email: string;

@@ -76,6 +76,9 @@ export class OtpService {
 }
 
 
+async testEmailSending(email:string, otp: string, first_name){
+return  await this.emailService.sendEmail(email, {otp, first_name}, 3)
+}
 
   async resendOtp(email: string): Promise<string> {
     const otp = this.generateOtp();

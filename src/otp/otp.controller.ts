@@ -12,7 +12,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { JWTUserDto } from 'src/auth/dto/user';
 import { GetUserDecorator } from 'src/auth/decorators/getuser.decorator';
-import { SendOtpDto, VerifyOtpDto } from './otp.tdo';
+import { SendOtpDto, TestEmailDto, VerifyOtpDto } from './otp.tdo';
+import { EmailService } from 'src/email/email.service';
 
 
 @ApiTags('OTP')
@@ -21,12 +22,13 @@ export class OtpController {
   constructor(
     private readonly otpService: OtpService,
     private readonly prisma: PrismaService,
+    private emailService: EmailService
   ) {}
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth()
   @Post('send')
-  @ApiOperation({ summary: 'Send OTP to logged-in user' })
+  @ApiOperation({ summary: 'Send OTP to registered user' })
   @ApiResponse({ status: 200, description: 'OTP sent successfully', schema: {
     example: { message: 'OTP sent to user@example.com' }
   }})
@@ -42,6 +44,7 @@ export class OtpController {
     const otp = this.otpService.generateOtp();
     await this.otpService.sendOtp(user?.email, otp);
     await this.otpService.storeOtp(user.email, otp);
+
 
     return { message: `OTP sent to ${user.email}` };
   }
@@ -83,4 +86,19 @@ export class OtpController {
 
     return { message: `OTP resent to ${dto.email}` };
   }
+
+ @Post('test-email')
+ @ApiBody({type: TestEmailDto})
+  async testEmailSending(
+    @Body() dto: TestEmailDto
+  ) {
+    try {
+      const otp = this.otpService.generateOtp();
+      await this.emailService.sendEmail(dto.email, {otp, first_name: dto.first_name}, 3)
+      return `Email sent to ${dto.email}`
+    } catch( error ) {
+      console.log(`Error sending email, ${error}`)
+    }
+  }
+
 }
