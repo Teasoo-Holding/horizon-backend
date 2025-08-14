@@ -50,7 +50,7 @@ export class AdminAuthService {
     // Send welcome email with OTP
     try {
       const otp = await this.otpService.generateOtp();
-      await this.otpService.storeOtp(newUser.id, otp);
+      await this.otpService.storeOtp(email, otp);
       await this.emailService.sendEmail(email, { first_name, otp }, 7);
     } catch (error) {
       console.error('Error sending welcome email:', error);
@@ -122,7 +122,7 @@ export class AdminAuthService {
       await this.emailService.sendEmail(
         dto.email,
         { token, first_name: dto.first_name, link, role: dto.roleId },
-        8,
+        2,
       );
     } catch (error) {
       console.error('Error sending invitation email:', error);

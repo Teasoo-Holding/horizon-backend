@@ -1,6 +1,7 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
+import { VerifyEmailDto } from './dto/user';
 import { ApiBody } from '@nestjs/swagger';
 
 @Controller('auth')
@@ -30,7 +31,12 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  async verifyEmail(@Body() dto: { email: string; otp: string }) {
-    return this.authService.verifyEmail(dto.email, dto.otp);
+  async verifyEmailForUserRegistration(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmailForUserRegistration(dto.email, dto.otp);
+  }
+
+  @Post("resend-token")
+  async resendToken(@Body() dto: {email: string}){
+    return await this.authService.resendToken(dto.email)
   }
 }

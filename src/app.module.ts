@@ -34,6 +34,6 @@ import { AdminAuthModule } from './admin/auth/auth.module';
     AdminAuthModule, 
   ],
   controllers: [AppController, AdminAuthController, AuthController],
-  providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService],
+  providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService]
 })
 export class AppModule {}

@@ -15,6 +15,7 @@ export class AuthService {
     private otpService: OtpService,
   ) {}
 
+  
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -104,7 +105,7 @@ export class AuthService {
 
     try {
       const otp = await this.otpService.generateOtp();
-      await this.otpService.storeOtp(newUser.id, otp);
+      await this.otpService.storeOtp(email, otp);
       await this.emailService.sendEmail(email, { first_name, otp }, 7);
     } catch (error) {
       console.error('Error sending welcome email:', error);
@@ -140,8 +141,8 @@ export class AuthService {
     return { user };
   }
 
-  async verifyEmail(email: string, otp: string): Promise<{ message: string }> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  async verifyEmailForUserRegistration(email: string, otp: string): Promise<{ message: string }> {
+  const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.otpHash || !user.otpExpiresAt) {
       throw new UnauthorizedException('OTP not found or user does not exist');
@@ -171,4 +172,17 @@ export class AuthService {
 
     return { message: 'Email verified successfully. You can now log in.' };
   }
+
+ 
+async resendToken(email: string): Promise< string>{
+ try {
+  const otp = this.otpService.generateOtp();
+    await this.otpService.storeOtp(email, otp)
+    await this.emailService.sendEmail(email, {}, 3);
+    return otp
+ } catch (error) {
+  throw new Error(`Error resending token, ${error}`)
+ }
 }
+}
+

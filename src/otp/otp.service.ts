@@ -1,4 +1,6 @@
+import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,6 +10,8 @@ export class OtpService {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
+    private jwtService: JwtService,
+    private configService: ConfigService
   ) {}
 
   generateOtp(): string {
@@ -15,13 +19,13 @@ export class OtpService {
   }
 
   async storeOtp(
-    userId: number,
+    email: string,
     otp: string,
     expiresIn: number = 30 * 60 * 1000,
   ): Promise<any> {
     
     return await this.prisma.user.update({
-      where: { id: userId },
+      where: { email },
       data: {
         otpExpiresAt: new Date(Date.now() + expiresIn),
         otpHash: await bcrypt.hash(otp, 10),
@@ -51,9 +55,26 @@ export class OtpService {
     return true;
   }
 
-  async sendOtp(email: string, otp: string): Promise<void> {
-    await this.emailService.sendEmail(email, { otp }, 2);
-  }
+ async sendOtp(email: string, otp: string): Promise<void> {
+  // mini function to get future date
+  const hoursFromNow = (hours: number): Date => {
+    return new Date(Date.now() + hours * 60 * 60 * 1000);
+  };
+  const user = await this.prisma.user.findUnique({
+    where: { email}
+  })
+
+  await this.emailService.sendEmail(email, { otp, first_name:  user?.first_name }, 3);
+
+  await this.prisma.user.update({
+    where: { email },
+    data: {
+      otpHash: this.jwtService.sign({ otp }, { expiresIn: '3h', secret: this.configService.get<string>("JWT_SECRET") }),
+      otpExpiresAt: hoursFromNow(3),
+    },
+  });
+}
+
 
 
   async resendOtp(email: string): Promise<string> {
