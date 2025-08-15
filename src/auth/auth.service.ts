@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { LoginDto, RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
+import { UserStatus } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
@@ -13,7 +14,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
-  ) {}
+  ) { }
 
   
   async validateUser(email: string, password: string) {
@@ -27,7 +28,7 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('User not found');
 
-    if (user.status !== 'APPROVED') {
+    if (user.status !== 'active') {
       throw new UnauthorizedException('User account not approved');
     }
 
@@ -42,12 +43,12 @@ export class AuthService {
     const { email, password } = dto;
     const user = await this.validateUser(email, password);
 
-    const accessToken = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      role: user.role.name,
-      companyId: user.companyId,
-    });
+
+    const accessToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, role: user.role.name, companyId: user.companyId },
+      { expiresIn: '15m' }
+    );
+
 
     const refreshToken = await this.prisma.refreshToken.create({
       data: {
@@ -65,15 +66,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const {
-      email,
-      password,
-      first_name,
-      last_name,
-      phone_number,
-      role,
-      accessLevel,
-    } = dto;
+    const { email, password, first_name, last_name, phone_number, role } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new UnauthorizedException('Email already in use');
@@ -98,8 +91,7 @@ export class AuthService {
         phone_number,
         roleId: foundRole.id,
         companyId: fallbackCompany.id,
-        status: 'PENDING',
-        accessLevel,
+        status: UserStatus.pending
       },
     });
 
@@ -123,32 +115,51 @@ export class AuthService {
       accessToken: token,
       message:
         'Registration successful, please check your email for verification.',
-      status: 'PENDING',
+      status: UserStatus.pending
     };
   }
 
   async refresh(refresh_token: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { refresh_token },
+      include: { user: { include: { role: true, company: true } } },
     });
 
     if (!stored) throw new UnauthorizedException('Invalid refresh token');
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: stored.user_id },
-    });
+    if (stored.expires_at < new Date()) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
 
-    return { user };
+    const newAccessToken = this.jwtService.sign(
+      {
+        sub: stored.user.id,
+        email: stored.user.email,
+        role: stored.user.role.name,
+        companyId: stored.user.companyId,
+      },
+      { expiresIn: '1h' }
+    );
+
+    return {
+      accessToken: newAccessToken,
+      user: {
+        ...stored.user,
+        role: stored.user.role.name,
+        company: stored.user.company?.name,
+      },
+    };
   }
 
-  async verifyEmailForUserRegistration(email: string, otp: string): Promise<{ message: string }> {
-  const user = await this.prisma.user.findUnique({ where: { email } });
+
+  async verifyEmail(email: string, otp: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.otpHash || !user.otpExpiresAt) {
       throw new UnauthorizedException('OTP not found or user does not exist');
     }
 
-    if (user.status === 'APPROVED') {
+    if (user.status === 'approved') {
       throw new UnauthorizedException('User already verified');
     }
 
@@ -164,7 +175,7 @@ export class AuthService {
     await this.prisma.user.update({
       where: { email },
       data: {
-        status: 'APPROVED',
+        status: 'approved',
         otpHash: null,
         otpExpiresAt: null,
       },

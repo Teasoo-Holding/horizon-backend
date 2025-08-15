@@ -1,19 +1,9 @@
 enum UserStatus {
-  PENDING
-  APPROVED
-  SUSPENDED
-  DISABLED
-}
-
-enum AccessLevels {
-  SUPER_ADMIN
-  RESTRICTED_ADMIN
-  ADMIN_EDITOR
-  ADMIN_VIEWER
-  ESG_ADMIN
-  ESG_SUB_ADMIN
-  ESG_EDITOR
-  ESG_VIEWER
+  pending
+  active
+  approved
+  suspended
+  disabled
 }
 
 model User {
@@ -30,17 +20,17 @@ model User {
   companyId Int
   company   Company? @relation(fields: [companyId], references: [id], name: "CompanyUsers")
 
-  departmentId Int?
-  department   Department? @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
+  departmentId    Int?
+  department      Department?  @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
+  leadDepartments Department[] @relation("DepartmentLead")
+  invitationsSent Invitation[]
 
-  accessLevel AccessLevels
-
-  status            UserStatus     @default(PENDING)
+  status            UserStatus     @default(pending)
   profile_photo_url String?        @db.VarChar(255)
   last_login        DateTime?
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
-  refreshTokens     RefreshToken[]
+  refresh_tokens    RefreshToken[]
   otpHash           String?
   otpExpiresAt      DateTime?
 

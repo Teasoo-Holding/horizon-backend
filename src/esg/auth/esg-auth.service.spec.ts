@@ -3,8 +3,7 @@ import { EsgAuthService } from './esg-auth.service';
 import { ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { DEFAULT_ROLES } from 'src/utils/default-roles';
-import { AccessLevels } from '@prisma/client';
+import { CompanyStatus, RoleName } from '@prisma/client';
 
 describe('EsgAuthService', () => {
   let service: EsgAuthService;
@@ -35,8 +34,7 @@ describe('EsgAuthService', () => {
       first_name: 'Sadiq',
       last_name: 'Sambo',
       phone_number: '+2347012345678',
-      role: DEFAULT_ROLES.SUSTAINABILITY_MANAGER,
-      accessLevel: AccessLevels.ESG_ADMIN,
+      role: 'company_esg_admin',
       company_name: 'BeelahTech Ltd.',
       registration_number: 'RC123456',
       industry_type: 'Energy',
@@ -56,7 +54,10 @@ describe('EsgAuthService', () => {
     //   (prisma.user.create as jest.Mock)({ id: 1, name: dto.company_name });
     //  (prisma.user.create as jest.Mock)({ id: 1, email: dto.email, accessLevel: AccessLevels.ESG_ADMIN });
 
-    //   const result = await service.signup(dto);
+      prisma.role.findUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        name: 'company_esg_admin',
+      });
 
     //   expect(result).toEqual(
     //     expect.objectContaining({
@@ -67,44 +68,40 @@ describe('EsgAuthService', () => {
     //   );
     // });
 
-    // src/esg/auth/esg-auth.service.spec.ts
-it('should register a new ESG user and company successfully', async () => {
-  const dto = { ...baseDto, email: 'sadiq@btech.com' };
-  (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-  (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
-  jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
-  (prisma.role.findUnique as jest.Mock).mockResolvedValue({ 
-    id: 1, 
-    name: 'SUSTAINABILITY_MANAGER' 
-  });
-  
-  // Add mock company creation
-  (prisma.company.create as jest.Mock).mockResolvedValue({ 
-    id: 1, 
-    name: dto.company_name 
-  });
-  
-  // Add mock user creation
-  (prisma.user.create as jest.Mock).mockResolvedValue({ 
-    id: 1, 
-    email: dto.email, 
-    accessLevel: AccessLevels.ESG_ADMIN 
-  });
-  
-  const result = await service.signup(dto);
-  expect(result).toEqual(
-    expect.objectContaining({
-      message: expect.any(String),
-      user: expect.any(Object),
-      company: expect.any(Object),
-    }),
-  );
-});
-    it('should throw BadRequestException for personal email', async () => {
-      const dto = { ...baseDto, email: 'sadiqasg@gmail.com' };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      prisma.user.create = jest.fn().mockResolvedValue({
+        id: 1,
+        email: dto.email,
+        role: RoleName.company_esg_admin
+      });
 
-      await expect(service.signup(dto)).rejects.toThrow(BadRequestException);
+      const result = await service.signup(dto);
+
+      expect(result).toEqual({
+        message:
+          'Registration successful. Your ESG company is pending approval by an administrator.',
+      });
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: dto.email },
+      });
+      expect(prisma.company.findFirst).toHaveBeenCalledWith();
+      expect(prisma.role.findUnique).toHaveBeenCalledWith({
+        where: { name: 'company_esg_admin' },
+      });
+      expect(prisma.company.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.any(Object) }),
+      );
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: dto.email,
+            roleId: 1,
+            companyId: 1,
+            role: RoleName.company_esg_admin,
+            status: CompanyStatus.pending
+          }),
+        }),
+      );
     });
 
     it('should throw ConflictException if user already exists', async () => {
@@ -114,21 +111,26 @@ it('should register a new ESG user and company successfully', async () => {
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException if company already exists', async () => {
-      const dto = { ...baseDto, email: 'sadiq@btech.com' };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.company.findFirst as jest.Mock).mockResolvedValue({ id: 1, registration_number: dto.registration_number });
+    it('should throw ConflictException if company with registration number already exists', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+      prisma.company.findFirst = jest.fn().mockResolvedValue({
+        id: 1,
+        registration_number: dto.registration_number,
+      });
 
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException if role is missing', async () => {
-      const dto = { ...baseDto, email: 'sadiq@btech.com' };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.role.findUnique as jest.Mock).mockResolvedValue(null);
+    it('should throw ConflictException if ESG Admin role is not found', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+      prisma.company.findFirst = jest.fn().mockResolvedValue(null);
+      prisma.role.findUnique = jest.fn().mockResolvedValue(null);
 
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
+
+      expect(prisma.role.findUnique).toHaveBeenCalledWith({
+        where: { name: 'company_esg_admin' },
+      });
     });
   });
 });

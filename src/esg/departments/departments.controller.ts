@@ -9,6 +9,7 @@ import {
   Request,
   ForbiddenException,
   ParseIntPipe,
+  Get,
 } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
@@ -28,7 +29,7 @@ import {
 @UseGuards(JwtAuthGuard, RoleGuard)
 @ApiBearerAuth()
 export class DepartmentsController {
-  constructor(private readonly departmentsService: DepartmentsService) {}
+  constructor(private readonly departmentsService: DepartmentsService) { }
 
   private checkCompanyOwnership(
     userCompanyId: number,
@@ -42,32 +43,34 @@ export class DepartmentsController {
   }
 
   @Post(':companyId')
-  @Roles('sustainability_manager', 'sub_admin')
+  @Roles('company_esg_admin', 'company_esg_subadmin')
   @ApiOperation({ summary: 'Create a department for a company' })
   @ApiForbiddenResponse({
     description: 'Forbidden: requires proper role and company ownership',
   })
   async create(
     @Param('companyId', ParseIntPipe) companyId: number,
-    @Body() dto: CreateDepartmentDto,
-    @Request() req,
+    @Body() dto: CreateDepartmentDto & { leadId?: number },
+    @Request() req: { user: { companyId: number; id: number; email: string } },
   ) {
     this.checkCompanyOwnership(req.user.companyId, companyId);
-    return this.departmentsService.create(companyId, dto);
+
+    return this.departmentsService.create(
+      companyId,
+      dto,
+      req.user.email,
+      req.user.id,
+    );
   }
 
   @Patch(':id')
-  @Roles('sustainability_manager', 'sub_admin')
+  @Roles('company_esg_admin', 'company_esg_subadmin')
   @ApiOperation({ summary: 'Update a department' })
-  @ApiForbiddenResponse({
-    description: 'Forbidden: requires proper role and company ownership',
-  })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDepartmentDto,
-    @Request() req,
+    @Request() req: { user: { companyId: number } },
   ) {
-    // Fetch existing department to check ownership
     const department = await this.departmentsService.findById(id);
     this.checkCompanyOwnership(req.user.companyId, department.companyId);
 
@@ -75,15 +78,25 @@ export class DepartmentsController {
   }
 
   @Delete(':id')
-  @Roles('sustainability_manager', 'sub_admin')
+  @Roles('company_esg_admin', 'company_esg_subadmin')
   @ApiOperation({ summary: 'Delete a department' })
-  @ApiForbiddenResponse({
-    description: 'Forbidden: requires proper role and company ownership',
-  })
-  async delete(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async delete(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { companyId: number } },
+  ) {
     const department = await this.departmentsService.findById(id);
     this.checkCompanyOwnership(req.user.companyId, department.companyId);
 
     return this.departmentsService.delete(id);
+  }
+
+  @Get(':companyId')
+  @ApiOperation({ summary: 'List all departments for a company' })
+  async findAll(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Request() req: { user: { companyId: number } },
+  ) {
+    this.checkCompanyOwnership(req.user.companyId, companyId);
+    return this.departmentsService.findAll(companyId);
   }
 }

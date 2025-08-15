@@ -16,15 +16,32 @@ export class RoleGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
-    if (!requiredRoles || requiredRoles.length === 0) return true;
+
+    if (!requiredRoles || requiredRoles.length === 0) {
+      return true;
+    }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user as {
-      role?: { name?: string };
-    };
+    const user = request.user;
 
-    if (!user?.role?.name || !requiredRoles.includes(user.role.name)) {
-      throw new ForbiddenException('You do not have permission (role)');
+    if (!user?.role) {
+      throw new ForbiddenException('You do not have permission (role missing)');
+    }
+
+    let userRoles: string[] = [];
+
+    if (typeof user.role === 'string') {
+      userRoles = [user.role];
+    } else if (Array.isArray(user.role)) {
+      userRoles = user.role;
+    } else if (typeof user.role === 'object' && user.role.name) {
+      userRoles = [user.role.name];
+    }
+
+    // Check for role match
+    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
+    if (!hasRole) {
+      throw new ForbiddenException('You do not have permission (invalid role)');
     }
 
     return true;

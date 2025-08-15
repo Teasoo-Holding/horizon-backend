@@ -18,6 +18,7 @@ export class UserService {
         last_name: true,
         email: true,
         profile_photo_url: true,
+        role: true
       },
     });
   }

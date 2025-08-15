@@ -12,8 +12,8 @@ import { OtpService } from 'src/otp/otp.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TeasoAdminSendRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
-import { AccessLevels } from '@prisma/client';
 import { AdminGetusersDto } from '../dto/getuser.dto';
+import { UserStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminAuthService {
@@ -42,8 +42,7 @@ export class AdminAuthService {
         phone_number,
         roleId: 2,
         companyId: 0,
-        status: 'PENDING',
-        accessLevel: AccessLevels.SUPER_ADMIN
+        status: UserStatus.pending,
       },
     });
 
@@ -74,7 +73,7 @@ export class AdminAuthService {
 
     return this.prisma.user.update({
       where: { id: user.id },
-      data: { status: 'APPROVED' },
+      data: { status: 'approved' },
     });
   }
 
@@ -102,13 +101,12 @@ export class AdminAuthService {
         email: dto.email,
         roleId: dto.roleId,
         departmentId: dto.departmentId,
-        status: 'PENDING',
+        status: UserStatus.pending,
         first_name: '',
         last_name: '',
         phone_number: '',
         companyId: 1,
         password: '',
-        accessLevel: AccessLevels.RESTRICTED_ADMIN
       },
     });
 
@@ -151,7 +149,7 @@ export class AdminAuthService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.status !== 'PENDING') {
+      if (user.status !== 'pending') {
         throw new BadRequestException('User is not in pending status');
       }
 
@@ -188,7 +186,7 @@ export class AdminAuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.status !== 'PENDING') {
+    if (user.status !== 'pending') {
       throw new BadRequestException('Invalid or expired invite');
     }
 
@@ -201,7 +199,7 @@ export class AdminAuthService {
         last_name: dto.last_name,
         phone_number: dto.phone_number,
         password: hashedPassword,
-        status: 'APPROVED',
+        status: 'approved',
       },
     });
 
@@ -218,20 +216,15 @@ export class AdminAuthService {
     return updatedUser;
   }
 
-  async getAllUsers(
-    filters: AdminGetusersDto,
-    roleId: number = 1, 
-  )
-  {
+  async getAllUsers(filters: AdminGetusersDto, roleId: number = 1) {
     const { search, status } = filters;
     const where: any = {};
 
-    if(status) {
+    if (status) {
       where.status = status;
     }
-    if(roleId !== 1 && roleId !== 2 && roleId !== 3) {
+    if (roleId !== 1 && roleId !== 2 && roleId !== 3) {
       throw new UnauthorizedException('Only admin can view all users');
-
     }
     if (search) {
       where.OR = [
@@ -260,7 +253,5 @@ export class AdminAuthService {
         created_at: 'desc',
       },
     });
-
   }
-
-  }
+}

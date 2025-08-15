@@ -23,6 +23,5 @@ model CompanySubscription {
   @@index([company_id])
   @@index([subscription_id])
   @@index([status])
-
   @@map("company_subscriptions")
 }

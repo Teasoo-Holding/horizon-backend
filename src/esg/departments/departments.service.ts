@@ -5,20 +5,44 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  async create(companyId: number, dto: CreateDepartmentDto) {
+  async create(
+    companyId: number,
+    dto: CreateDepartmentDto & { leadId?: number },
+    creatorEmail: string,
+    creatorId: number
+  ) {
     return this.prisma.department.create({
       data: {
         companyId,
         name: dto.name,
+        description: dto.description,
+        contact_email: dto.contact_email || creatorEmail,
+        leadId: dto.leadId ?? creatorId,
+      },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
       },
     });
   }
 
+
   async findById(id: number) {
     const department = await this.prisma.department.findUnique({
       where: { id },
+      include: {
+        lead: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+      },
     });
     if (!department) throw new NotFoundException('Department not found');
     return department;
@@ -29,10 +53,19 @@ export class DepartmentsService {
       return await this.prisma.department.update({
         where: { id },
         data: dto,
+        include: {
+          lead: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
+        },
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.code === 'P2025') {
-        // Prisma record not found
         throw new NotFoundException('Department not found');
       }
       throw error;
@@ -42,11 +75,22 @@ export class DepartmentsService {
   async delete(id: number) {
     try {
       return await this.prisma.department.delete({ where: { id } });
-    } catch (error) {
+    } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Department not found');
       }
       throw error;
     }
+  }
+
+  async findAll(companyId: number) {
+    return this.prisma.department.findMany({
+      where: { companyId },
+      include: {
+        lead: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+      },
+    });
   }
 }

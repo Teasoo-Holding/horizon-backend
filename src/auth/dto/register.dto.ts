@@ -1,29 +1,36 @@
-import { AccessLevels } from '@prisma/client';
-import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
   email: string;
 
-  @IsString() @MinLength(8)
+  @IsString()
+  @MinLength(8)
   password: string;
 
-  @IsString() @MinLength(2)
+  @IsString()
+  @MinLength(2)
   first_name: string;
 
-  @IsOptional() @IsString() @MinLength(2)
-  last_name?: string;
-
-  @IsOptional() @IsString() @Matches(/^\+?\d{10,15}$/)
-  phone_number?: string;
-
-  @IsOptional() @IsString()
-  company?: string;
+  @IsString()
+  @MinLength(2)
+  last_name: string;
 
   @IsOptional()
   @IsString()
-  role?: string;
+  @Matches(/^\+?\d{10,15}$/)
+  phone_number?: string;
 
-  @IsOptional() @IsString()
-  accessLevel: AccessLevels;
+  @IsOptional()
+  @IsString()
+  company?: string;
+
+  @IsString()
+  role: string;
 }

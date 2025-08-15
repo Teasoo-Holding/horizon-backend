@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
-import { AccessLevels } from '@prisma/client';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -39,8 +38,7 @@ describe('AuthController', () => {
       password: 'password123',
       first_name: 'Jaga',
       last_name: 'Ban',
-      role: 'SUPER_ADMIN',
-      accessLevel: AccessLevels.SUPER_ADMIN
+      role: 'super_admin'
     };
 
     const result = await controller.register(dto);

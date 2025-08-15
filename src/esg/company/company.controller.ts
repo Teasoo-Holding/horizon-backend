@@ -23,16 +23,16 @@ import {
 import { CompanyStatus } from '@prisma/client';
 
 @ApiTags('Company')
-@Controller('esg/company')
+@Controller('company/esg')
 @UseGuards(JwtAuthGuard)
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Get('all')
-  @Roles('SUPER_ADMIN')
+  @Roles('super_admin')
   @UseGuards(RoleGuard)
   @ApiOperation({ summary: 'Retrieve all companies' })
-  @ApiForbiddenResponse({ description: 'Forbidden: requires SUPER_ADMIN role' })
+  @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   findAll() {
     return this.companyService.findAll();
   }
@@ -48,12 +48,12 @@ export class CompanyController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get company details by ID' })
   @ApiForbiddenResponse({
-    description: 'Access denied: Only SUPER_ADMIN and Company User can access',
+    description: 'Access denied: Only super_admin and Company User can access',
   })
   async findOne(@Param('id') id: number, @Request() req) {
     const user = req.user;
 
-    if (user.role !== 'SUPER_ADMIN' && user.companyId !== Number(id)) {
+    if (user.role !== 'super_admin' && user.companyId !== Number(id)) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -61,11 +61,11 @@ export class CompanyController {
   }
 
   @Patch(':id/status')
-  @Roles('SUPER_ADMIN')
+  @Roles('super_admin')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update company status' })
-  @ApiForbiddenResponse({ description: 'Forbidden: requires SUPER_ADMIN role' })
+  @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   async updateStatus(
     @Param('id') id: number,
     @Body('status') status: CompanyStatus,
@@ -74,7 +74,7 @@ export class CompanyController {
   }
 
   @Patch(':id')
-  @Roles('SUSTAINABILITY_MANAGER', 'SUB_ADMIN')
+  @Roles('company_esg_admin', 'company_esg_subadmin')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update company details (excluding status)' })

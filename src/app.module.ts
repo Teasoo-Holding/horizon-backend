@@ -18,6 +18,7 @@ import { DepartmentsModule } from './esg/departments/departments.module';
 import { AdminAuthService } from './admin/auth/auth.service';
 import { AdminAuthController } from './admin/auth/auth.controller';
 import { AdminAuthModule } from './admin/auth/auth.module';
+import { InvitationsModule } from './esg/sub-users/invitations.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AdminAuthModule } from './admin/auth/auth.module';
     CompanyModule,
     DepartmentsModule,
     AdminAuthModule, 
+    InvitationsModule,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService]

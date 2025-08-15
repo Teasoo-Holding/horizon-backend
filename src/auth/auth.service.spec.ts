@@ -11,7 +11,6 @@ import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException } from '@nestjs/common';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
-import { AccessLevels } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -19,8 +18,66 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
-    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      AuthService,
+      {
+        provide: PrismaService,
+        useValue: {
+          user: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+          },
+          company: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 1,
+              name: 'TestCo',
+            }),
+          },
+          refreshToken: {
+            create: jest.fn(),
+            findUnique: jest.fn(),
+          },
+          role: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'role-id',
+              name: 'company_esg_admin',
+            }),
+          },
+          permission: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 'perm-id',
+              name: 'can:edit',
+              description: 'can edit stuff',
+            }),
+          },
+        },
+      },
+      {
+        provide: JwtService,
+        useValue: {
+          sign: jest.fn().mockReturnValue('mockAccessToken'),
+        },
+      },
+      {
+        provide: EmailService,
+        useValue: {
+          sendEmail: jest.fn().mockResolvedValue(undefined),
+          sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+        },
+      },
+      {
+        provide: OtpService,
+        useValue: {
+          generateOtp: jest.fn().mockReturnValue({
+            otp: '123456',
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          }),
+          storeOtp: jest.fn().mockResolvedValue(undefined),
+        },
+      },
+    ],
+  }).compile();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,8 +121,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: 'SUSTAINABILITY_MANAGER',
-        accessLevel: AccessLevels.ESG_ADMIN,
+        role: 'company_esg_admin',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -91,8 +147,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: 'SUSTAINABILITY_MANAGER',
-        accessLevel: AccessLevels.ESG_ADMIN,
+        role: 'company_esg_admin',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
