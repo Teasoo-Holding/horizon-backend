@@ -5,52 +5,74 @@ import {
   Param,
   Body,
   UseGuards,
-  Request,
   ForbiddenException,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CompanyService } from './company.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { RoleGuard } from 'src/common/guards/role.guards';
-import { Roles } from 'src/common/decorators/roles.decorators';
-import {
-  ApiOperation,
-  ApiTags,
-  ApiForbiddenResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiTags, ApiForbiddenResponse } from '@nestjs/swagger';
 import { CompanyStatus } from '@prisma/client';
+import { Request } from 'express';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+
+@Controller('test')
+export class TestController {
+  @Get('admin')
+  @UseGuards(JwtRolesGuard)
+  @Roles('super_admin')
+  getAdmin(@Req() req) {
+    return {
+      message: 'Authenticated Super Admin',
+      user: req.user,
+      cookies: req.cookies,
+    };
+  }
+
+  @Get('cookies')
+  getCookies(@Req() req: Request): any {
+    return req.cookies;
+  }
+}
 
 @ApiTags('Company')
 @Controller('company/esg')
-@UseGuards(JwtAuthGuard)
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
-  @Get('all')
+  @UseGuards(JwtRolesGuard)
   @Roles('super_admin')
-  @UseGuards(RoleGuard)
   @ApiOperation({ summary: 'Retrieve all companies' })
   @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
-  findAll() {
+  @Get('all')
+  findAll(@Req() request: Request) {
+    console.log(request.cookies);
     return this.companyService.findAll();
   }
 
-  @Get('me')
-  getMyCompany(@Request() req: Request & { user: { companyId: number } }) {
+  @ApiOperation({ summary: 'Retrieve my company details' })
+  @UseGuards(JwtRolesGuard)
+  @Roles(
+    'company_esg_admin',
+    'company_esg_subadmin',
+    'company_esg_data_officer',
+    'company_esg_viewer',
+  )
+  @Get('profile')
+  getMyCompany(@Req() req: Request & { user: { companyId: number } }) {
     const companyId = req.user.companyId;
     return this.companyService.findById(companyId);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
   @ApiOperation({ summary: 'Get company details by ID' })
   @ApiForbiddenResponse({
     description: 'Access denied: Only super_admin and Company User can access',
   })
-  async findOne(@Param('id') id: number, @Request() req) {
+  async findOne(@Param('id') id: number, @Req() req) {
     const user = req.user;
 
     if (user.role !== 'super_admin' && user.companyId !== Number(id)) {
@@ -61,9 +83,8 @@ export class CompanyController {
   }
 
   @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
   @Roles('super_admin')
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update company status' })
   @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   async updateStatus(
@@ -74,9 +95,8 @@ export class CompanyController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles('company_esg_admin', 'company_esg_subadmin')
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update company details (excluding status)' })
   @ApiForbiddenResponse({
     description: 'Forbidden: requires valid role and company ownership',
@@ -84,7 +104,7 @@ export class CompanyController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCompanyDto,
-    @Request() req,
+    @Req() req,
   ) {
     const user = req.user;
 

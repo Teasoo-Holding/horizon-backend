@@ -7,6 +7,8 @@ import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(cookieParser());
+
   const configService = app.get(ConfigService);
   const allowedOrigins =
     configService.get<string>('ALLOWED_ORIGINS')?.split(',') || [];
@@ -25,8 +27,6 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   });
-
-  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({

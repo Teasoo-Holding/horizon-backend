@@ -19,6 +19,7 @@ model Company {
 
   address                   String
   country                   String?
+  currency                  String?
   contact_email             String
   website                   String?
   contact_phone             String
@@ -37,7 +38,7 @@ model Company {
 
   companySubscriptions CompanySubscription[] @relation("CompanySubs")
   departments          Department[]
-  invitations     Invitation[]
+  invitations          Invitation[]
 
   @@index([status])
   @@index([created_at])

@@ -1,34 +1,23 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-
-interface JwtPayload {
-  sub: number;
-  email: string;
-  role: number;
-  companyId: number;
-}
+import { Strategy, ExtractJwt } from 'passport-jwt';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET || 'defaultSecret',
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req) => {
+          return req?.cookies?.accessToken || null;
+        },
+      ]),
+      secretOrKey: process.env.JWT_SECRET || 'a-default-secret',
     });
   }
 
-  async validate(payload: JwtPayload) {
-    if (
-      typeof payload.sub !== 'number' ||
-      typeof payload.email !== 'string' ||
-      typeof payload.companyId !== 'number'
-    ) {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
+  async validate(payload: any) {
     return {
-      userId: payload.sub,
+      id: payload.sub,
       email: payload.email,
       role: payload.role,
       companyId: payload.companyId,

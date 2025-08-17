@@ -11,11 +11,35 @@ export class UpdateCompanyDto {
 
   @IsOptional()
   @IsString()
-  industry_type?: string;
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  sicsCode?: string;
+
+  @IsOptional()
+  @IsString()
+  isinCode?: string;
+
+  @IsOptional()
+  @IsString()
+  sector?: string;
+
+  @IsOptional()
+  @IsString()
+  subSector?: string;
 
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
 
   @IsOptional()
   @IsEmail()

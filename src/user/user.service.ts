@@ -13,18 +13,31 @@ export class UserService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        id: true,
+        email: true,
         first_name: true,
         last_name: true,
-        email: true,
+        phone_number: true,
         profile_photo_url: true,
-        role: true
+        status: true,
+        last_login: true,
+        created_at: true,
+        updated_at: true,
+        company: {
+          select: { name: true },
+        },
+        department: {
+          select: { name: true },
+        },
+        role: {
+          select: { name: true },
+        },
       },
     });
   }
 
   async updateMe(userId: number, dto: UpdateMeDto) {
     const { role, ...rest } = dto;
+    console.log(role);
 
     const updateData: Prisma.UserUpdateInput = {};
 
@@ -33,27 +46,6 @@ export class UserService {
     if (rest.email !== undefined) updateData.email = rest.email;
     if (rest.phone_number !== undefined)
       updateData.phone_number = rest.phone_number;
-    // if (rest.company !== undefined) updateData.company = rest.company;
-
-    if (role) {
-      const foundRole = (await this.prisma.role.findUnique({
-        where: { name: role as any }, // cast to `any` or `as RoleNames` if enum
-        select: { id: true },
-      })) as { id: string } | null;
-
-      if (!foundRole) throw new Error('Role not found');
-      updateData.role = { connect: { id: Number(foundRole.id) } };
-    }
-
-    // if (permission) {
-    //   const foundPermission = (await this.prisma.permission.findUnique({
-    //     where: { id: +permission },
-    //     select: { id: true },
-    //   })) as { id: number } | null;
-
-    //   if (!foundPermission) throw new Error('Permission not found');
-    //   // updateData.permission = { connect: { id: foundPermission.id } };
-    // }
 
     return this.prisma.user.update({
       where: { id: userId },
@@ -61,26 +53,14 @@ export class UserService {
     });
   }
 
-  // Disabled unused methods for now
-  /*
-  create(_createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  async getAllPlatformUsers() {
+    return this.prisma.user.findMany({
+      include: {
+        company: true,
+        role: { select: { name: true } },
+        department: { select: { name: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
   }
-
-  findAll() {
-    return `This action returns all user`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
-
-  update(id: number, _updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
-  */
 }

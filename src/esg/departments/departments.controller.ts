@@ -15,18 +15,17 @@ import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RoleGuard } from 'src/common/guards/role.guards';
-import { Roles } from 'src/common/decorators/roles.decorators';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiForbiddenResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Roles } from 'src/auth/guards/jwtroles.guard';
 
-@ApiTags('departments')
+@ApiTags('Departments')
 @Controller('departments')
-@UseGuards(JwtAuthGuard, RoleGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) { }
@@ -91,6 +90,7 @@ export class DepartmentsController {
   }
 
   @Get(':companyId')
+  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
   @ApiOperation({ summary: 'List all departments for a company' })
   async findAll(
     @Param('companyId', ParseIntPipe) companyId: number,

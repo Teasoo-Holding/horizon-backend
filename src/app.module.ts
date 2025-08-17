@@ -19,6 +19,7 @@ import { AdminAuthService } from './admin/auth/auth.service';
 import { AdminAuthController } from './admin/auth/auth.controller';
 import { AdminAuthModule } from './admin/auth/auth.module';
 import { InvitationsModule } from './esg/sub-users/invitations.module';
+import { CookiesModule } from './cookies.module';
 
 @Module({
   imports: [
@@ -32,10 +33,17 @@ import { InvitationsModule } from './esg/sub-users/invitations.module';
     EsgModule,
     CompanyModule,
     DepartmentsModule,
-    AdminAuthModule, 
+    AdminAuthModule,
     InvitationsModule,
+    CookiesModule
   ],
   controllers: [AppController, AdminAuthController, AuthController],
-  providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService]
+  providers: [
+    AppService,
+    AdminAuthService,
+    EmailService,
+    OtpService,
+    AuthService,
+  ],
 })
 export class AppModule {}

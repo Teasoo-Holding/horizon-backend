@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,12 +13,18 @@ import { OtpService } from 'src/otp/otp.service';
     PassportModule,
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET || "shhhhhhhhh-dont-tell",
-      signOptions: { expiresIn: '24h' },
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '15m' },
     }),
   ],
-  providers: [AuthService, PrismaService, JwtStrategy, EmailService, OtpService],
+  providers: [
+    AuthService,
+    PrismaService,
+    JwtStrategy,
+    EmailService,
+    OtpService,
+  ],
   controllers: [AuthController],
-  exports: [JwtModule]
+  exports: [JwtModule],
 })
 export class AuthModule {}

@@ -2,8 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
-import * as crypto from 'crypto';
-import { LoginDto, RegisterDto } from './dto';
+import { RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
 import { UserStatus } from '@prisma/client';
@@ -14,9 +13,8 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
-  ) { }
+  ) {}
 
-  
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -39,29 +37,35 @@ export class AuthService {
     return result;
   }
 
-  async login(dto: LoginDto) {
-    const { email, password } = dto;
-    const user = await this.validateUser(email, password);
+  async login(user: {
+    id: number;
+    email: string;
+    role: string;
+    companyId: number;
+  }) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+    };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+    });
 
-
-    const accessToken = this.jwtService.sign(
-      { sub: user.id, email: user.email, role: user.role.name, companyId: user.companyId },
-      { expiresIn: '15m' }
-    );
-
-
-    const refreshToken = await this.prisma.refreshToken.create({
+    await this.prisma.refreshToken.create({
       data: {
-        refresh_token: crypto.randomUUID(),
         user_id: user.id,
-        expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
 
     return {
       accessToken,
-      refreshToken: refreshToken.refresh_token,
-      user: { ...user, role: user.role.name, company: user.company?.name },
+      refreshToken,
+      user: { id: user.id, email: user.email, role: user.role },
     };
   }
 
@@ -91,7 +95,7 @@ export class AuthService {
         phone_number,
         roleId: foundRole.id,
         companyId: fallbackCompany.id,
-        status: UserStatus.pending
+        status: UserStatus.pending,
       },
     });
 
@@ -115,7 +119,7 @@ export class AuthService {
       accessToken: token,
       message:
         'Registration successful, please check your email for verification.',
-      status: UserStatus.pending
+      status: UserStatus.pending,
     };
   }
 
@@ -138,7 +142,7 @@ export class AuthService {
         role: stored.user.role.name,
         companyId: stored.user.companyId,
       },
-      { expiresIn: '1h' }
+      { expiresIn: '1h' },
     );
 
     return {
@@ -150,7 +154,6 @@ export class AuthService {
       },
     };
   }
-
 
   async verifyEmail(email: string, otp: string): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -184,16 +187,14 @@ export class AuthService {
     return { message: 'Email verified successfully. You can now log in.' };
   }
 
- 
-async resendToken(email: string): Promise< string>{
- try {
-  const otp = this.otpService.generateOtp();
-    await this.otpService.storeOtp(email, otp)
-    await this.emailService.sendEmail(email, {}, 3);
-    return otp
- } catch (error) {
-  throw new Error(`Error resending token, ${error}`)
- }
+  async resendToken(email: string): Promise<string> {
+    try {
+      const otp = this.otpService.generateOtp();
+      await this.otpService.storeOtp(email, otp);
+      await this.emailService.sendEmail(email, {}, 3);
+      return otp;
+    } catch (error) {
+      throw new Error(`Error resending token, ${error}`);
+    }
+  }
 }
-}
-

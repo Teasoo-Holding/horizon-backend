@@ -1,42 +1,131 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
-import { VerifyEmailDto } from './dto/user';
-import { ApiBody } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PrismaService } from 'src/prisma/prisma.service';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) { }
+  constructor(
+    private authService: AuthService,
+    private jwtService: JwtService,
+    private prisma: PrismaService,
+  ) {}
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  @ApiBody({
-    type: LoginDto,
-    examples: {
-      loginExample: {
-        summary: 'Example login input',
-        value: {
-          email: 'someone@email.com',
-          password: 'password',
-        },
-      },
-    },
-  })
+  @ApiOperation({ summary: 'General login with email and password' })
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const userObject = await this.authService.validateUser(
+      dto.email,
+      dto.password,
+    );
+
+    const user = {
+      id: userObject.id,
+      email: userObject.email,
+      role: userObject.role?.name,
+      companyId: userObject.companyId,
+    };
+
+    const {
+      accessToken,
+      refreshToken,
+      user: userData,
+    } = await this.authService.login(user);
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: false, // change to true in production
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'none',
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'none',
+    });
+
+    return { message: 'Logged in successfully', user: userData };
   }
 
-  @Post('verify-email')
-  async verifyEmailForUserRegistration(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmailForUserRegistration(dto.email, dto.otp);
+  @ApiOperation({ summary: 'Refresh token endpoint' })
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token not found' });
+    }
+
+    try {
+      const tokenRecord = await this.prisma.refreshToken.findUnique({
+        where: { refresh_token: refreshToken },
+      });
+
+      if (!tokenRecord) {
+        return res
+          .status(401)
+          .json({ message: 'Refresh token invalid (not found in DB)' });
+      }
+
+      if (tokenRecord.expires_at < new Date()) {
+        return res.status(401).json({ message: 'Refresh token expired' });
+      }
+
+      let payload;
+      try {
+        payload = this.jwtService.verify(String(refreshToken), {
+          secret: process.env.JWT_SECRET,
+        });
+      } catch (err) {
+        console.error('JWT verification error:', err);
+        return res
+          .status(401)
+          .json({ message: 'Invalid refresh token (bad signature)' });
+      }
+
+      const accessToken = this.jwtService.sign(
+        {
+          sub: payload.sub,
+          email: payload.email,
+          role: payload.role,
+          companyId: payload.companyId,
+        },
+        { expiresIn: '15m' },
+      );
+
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: false,
+        maxAge: 15 * 60 * 1000,
+        sameSite: 'none',
+      });
+
+      return { message: 'Access token refreshed' };
+    } catch (err) {
+      console.error(err);
+      return res.status(401).json({ message: 'Refresh failed' });
+    }
   }
 
-  @Post("resend-token")
-  async resendToken(@Body() dto: {email: string}){
-    return await this.authService.resendToken(dto.email)
+  @Post('resend-token')
+  async resendToken(@Body() dto: { email: string }) {
+    return await this.authService.resendToken(dto.email);
   }
 }

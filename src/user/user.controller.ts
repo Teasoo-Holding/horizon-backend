@@ -1,72 +1,46 @@
-import {
-  Controller,
-  Get,
-  // Post,
-  Body,
-  Patch,
-  // Param,
-  // Delete,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Body, Patch, UseGuards, Req } from '@nestjs/common';
 import { UserService } from './user.service';
-// import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { Request } from 'express';
 
 interface RequestWithUser extends Request {
   user: {
-    userId: number;
+    id: number;
     email: string;
+    role?: string;
+    companyId?: number;
   };
 }
 
-@ApiTags('User')
-@Controller('user')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Users')
+@Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get('me')
+  @UseGuards(JwtRolesGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get currently authenticated user' })
-  getMe(@Request() req: RequestWithUser) {
-    return this.userService.findMe(req.user.userId);
+  @ApiOperation({ summary: 'Get current authenticated user details' })
+  getMe(@Req() req: RequestWithUser) {
+    return this.userService.findMe(Number(req.user.id));
   }
 
   @Patch('me')
+  @UseGuards(JwtRolesGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user profile' })
-  updateMe(
-    @Request() req: RequestWithUser,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.userService.updateMe(req.user.userId, updateUserDto);
+  updateMe(@Req() req: RequestWithUser, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateMe(Number(req.user.id), updateUserDto);
   }
 
-  // @Post()
-  // create(@Body() createUserDto: CreateUserDto) {
-  //   return this.userService.create(createUserDto);
-  // }
-
-  // @Get('all')
-  // findAll() {
-  //   return this.userService.findAll();
-  // }
-
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.userService.findOne(+id);
-  // }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-  //   return this.userService.update(+id, updateUserDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.userService.remove(+id);
-  // }
+  @Get('all')
+  @UseGuards(JwtRolesGuard)
+  @Roles('super_admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users on the platform (super_admin-only)' })
+  async getAllPlatformUsers() {
+    return this.userService.getAllPlatformUsers();
+  }
 }
