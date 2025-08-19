@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AdminAuthService } from './auth.service';
-import { AccessLevels } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 
 // Mock bcrypt
 jest.mock('bcryptjs');
@@ -33,11 +33,10 @@ describe('AdminAuthService', () => {
     phone_number: '1234567890',
     roleId: 2,
     companyId: 0,
-    status: 'PENDING',
+    status: UserStatus.pending,
     departmentId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    accessLevel: AccessLevels.SUPER_ADMIN,
   };
 
   const mockRegisterDto = {
@@ -49,7 +48,6 @@ describe('AdminAuthService', () => {
     roleId: 2,
     departmentId: 1,
     role: 'ADMIN',
-    accessLevel: AccessLevels.SUPER_ADMIN,
   };
 
   const mockTeasoAdminSendRequest = {
@@ -62,7 +60,6 @@ describe('AdminAuthService', () => {
     departmentId: 1,
     role: 'ADMIN',
     companyId: 1,
-    accessLevel: AccessLevels.SUPER_ADMIN,
   };
 
   beforeEach(async () => {
@@ -127,28 +124,24 @@ describe('AdminAuthService', () => {
 
   const result = await service.registerAdmin(mockRegisterDto);
 
-  // Assertions
-  expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-    where: { email: mockRegisterDto.email },
-  });
-  expect(mockedBcrypt.hash).toHaveBeenCalledWith(mockRegisterDto.password, 10);
-  
-  // Update this expectation to match your actual service implementation
-  expect(prismaService.user.create).toHaveBeenCalledWith({
-    data: {
-      email: mockRegisterDto.email,
-      password: 'hashedPassword',
-      first_name: mockRegisterDto.first_name,
-      last_name: mockRegisterDto.last_name,
-      phone_number: mockRegisterDto.phone_number,
-      roleId: 2,
-      companyId: 0,
-      status: 'PENDING',
-      accessLevel: AccessLevels.SUPER_ADMIN // Update this if needed
-    },
-  });
-  expect(result).toEqual(mockUser);
-});
+      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
+        where: { email: mockRegisterDto.email },
+      });
+      expect(mockedBcrypt.hash).toHaveBeenCalledWith(mockRegisterDto.password, 10);
+      expect(prismaService.user.create).toHaveBeenCalledWith({
+        data: {
+          email: mockRegisterDto.email,
+          password: 'hashedPassword',
+          first_name: mockRegisterDto.first_name,
+          last_name: mockRegisterDto.last_name,
+          phone_number: mockRegisterDto.phone_number,
+          roleId: 2,
+          companyId: 0,
+          status: UserStatus.pending,
+        },
+      });
+      expect(result).toEqual(mockUser);
+    });
 
     it('should throw ConflictException if user already exists', async () => {
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(mockUser);

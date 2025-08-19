@@ -1,9 +1,9 @@
 import { IsEnum } from 'class-validator';
 
 export enum CompanyStatus {
-  PENDING = 'PENDING',
-  ACTIVE = 'ACTIVE',
-  SUSPENDED = 'SUSPENDED',
+  pending = 'pending',
+  active = 'active',
+  suspended = 'suspended',
 }
 
 export class UpdateCompanyStatusDto {

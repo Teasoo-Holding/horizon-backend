@@ -1,12 +1,19 @@
 model Department {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   name        String
   description String?
-  companyId   Int
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  users       User[]   @relation("DepartmentUsers")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  leadId Int
+  lead   User   @relation("DepartmentLead", fields: [leadId], references: [id])
+  users  User[] @relation("DepartmentUsers")
+
+  contact_email String
+  companyId     Int
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitations   Invitation[]
+  
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
 
   @@unique([companyId, name])
 }

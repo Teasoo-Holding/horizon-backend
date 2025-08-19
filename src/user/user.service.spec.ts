@@ -93,7 +93,7 @@ describe('UserService', () => {
     //   const updated = await service.updateMe(1, {
     //     first_name: 'Jane',
     //     last_name: 'Smith',
-    //     role: 'SUPER_ADMIN',
+    //     role: 'super_admin',
     //   });
 
     //   expect(mockPrismaService.user.update).toHaveBeenCalledWith({

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { CompanyStatus, PrismaClient, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -9,15 +9,46 @@ async function main() {
   try {
     await prisma.role.createMany({
       data: [
-        { name: 'SUPER_ADMIN', description: 'Full system access' },
-        { name: 'RESTRICTED_ADMIN', description: 'Limited admin access' },
-        { name: 'ADMIN_EDITOR', description: 'Data editing access' },
-        { name: 'ADMIN_VIEWER', description: 'Read-only admin access' },
-        { name: 'SUSTAINABILITY_MANAGER', description: 'The ESG admin' },
-        { name: 'ESG_ADMIN', description: 'The ESG admin' },
-        { name: 'ESG_SUB_ADMIN', description: 'The ESG restricted admin' },
-        { name: 'ESG_EDITOR', description: 'Executive level' },
-        { name: 'ESG_VIEWER', description: 'Regulatory compliance access' },
+        {
+          name: 'super_admin',
+          description:
+            'Product owner with full control over the platform. Can manage platform-wide settings, companies, departments, user accounts, and all data.',
+        },
+        {
+          name: 'platform_subadmin',
+          description:
+            'Editor with elevated rights — can validate/approve ESG submissions, edit company/dept/user info (except Super Admin account), and view all reports.',
+        },
+        {
+          name: 'platform_data_officer',
+          description:
+            'Contributor who can input data (quantitative/qualitative), update existing records, and view reports',
+        },
+        {
+          name: 'platform_viewer',
+          description:
+            'View-only role for executives or stakeholders (“Ogas”) — can see dashboards, reports, and analytics but cannot edit.',
+        },
+        {
+          name: 'company_esg_admin',
+          description:
+            'Company owner account. Can manage their company profile, departments, ESG-specific settings, and assign ESG sub-user roles. Full rights for their company only.',
+        },
+        {
+          name: 'company_esg_subadmin',
+          description:
+            'Editor with rights to validate/approve ESG submissions within their company, edit data entries, and view all company reports.',
+        },
+        {
+          name: 'company_esg_data_officer',
+          description:
+            'Contributor who inputs ESG data and updates records for their company, with view access to reports',
+        },
+        {
+          name: 'company_esg_viewer',
+          description:
+            'View-only role for company executives (C-suite “Ogas”) — can access ESG dashboards and reports but cannot modify data.',
+        },
       ],
       skipDuplicates: true,
     });
@@ -28,11 +59,15 @@ async function main() {
       create: {
         name: 'Teasoo Consulting',
         registration_number: 'TEA12345',
-        industry_type: 'Advisory',
+        sicsCode: "0",
+        industry: 'Advisory',
+        isoCountryCode: 'NG',
         address: '123 Aso Villa',
+        country: "Nigeria",
+        website: 'https://teasooconsulting.com',
         contact_email: 'info@teasooconsulting.com',
         contact_phone: '+2347038334703',
-        status: 'ACTIVE',
+        status: CompanyStatus.active,
         created_by: 1,
         updated_by: 1,
       },
@@ -43,7 +78,7 @@ async function main() {
     });
 
     const superAdminRole = await prisma.role.findUnique({
-      where: { name: 'SUPER_ADMIN' },
+      where: { name: 'super_admin' },
     });
 
     if (!adminUser) {
@@ -56,8 +91,7 @@ async function main() {
           last_name: 'Admin',
           roleId: superAdminRole!.id,
           companyId: company.id,
-          status: 'APPROVED',
-          accessLevel: 'SUPER_ADMIN',
+          status: UserStatus.active
         },
       });
 

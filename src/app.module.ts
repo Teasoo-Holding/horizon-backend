@@ -12,12 +12,14 @@ import { EmailModule } from './email/email.module';
 import { OtpService } from './otp/otp.service';
 import { OtpModule } from './otp/otp.module';
 import { RateLimitModule } from './infrastructure/rate_limiting/rate_limit.module';
-import { EsgModule } from './esg/esg.module';
 import { CompanyModule } from './esg/company/company.module';
-import { DepartmentsModule } from './esg/departments/departments.module';
+import { DepartmentsModule } from './esg/company/departments/departments.module';
 import { AdminAuthService } from './admin/auth/auth.service';
 import { AdminAuthController } from './admin/auth/auth.controller';
 import { AdminAuthModule } from './admin/auth/auth.module';
+import { InvitationsModule } from './esg/company/sub-users/invitations.module';
+import { CookiesModule } from './cookies.module';
+import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
 
 @Module({
   imports: [
@@ -28,12 +30,20 @@ import { AdminAuthModule } from './admin/auth/auth.module';
     EmailModule,
     OtpModule,
     RateLimitModule,
-    EsgModule,
+    EsgAuthModule,
     CompanyModule,
     DepartmentsModule,
-    AdminAuthModule, 
+    AdminAuthModule,
+    InvitationsModule,
+    CookiesModule
   ],
   controllers: [AppController, AdminAuthController, AuthController],
-  providers: [AppService, AdminAuthService, EmailService, OtpService, AuthService]
+  providers: [
+    AppService,
+    AdminAuthService,
+    EmailService,
+    OtpService,
+    AuthService,
+  ],
 })
 export class AppModule {}

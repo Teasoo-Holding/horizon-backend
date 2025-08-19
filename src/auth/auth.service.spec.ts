@@ -11,7 +11,6 @@ import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException } from '@nestjs/common';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
-import { AccessLevels } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -19,9 +18,6 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
-    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -29,10 +25,27 @@ describe('AuthService', () => {
           provide: PrismaService,
           useValue: {
             user: { findUnique: jest.fn(), create: jest.fn() },
-            company: { findFirst: jest.fn().mockResolvedValue({ id: 1, name: 'TestCo' }) },
+            company: {
+              findFirst: jest.fn().mockResolvedValue({ id: 1, name: 'TestCo' }),
+            },
             refreshToken: { create: jest.fn(), findUnique: jest.fn() },
-            role: { findUnique: jest.fn().mockResolvedValue({ id: 'role-id', name: 'SUSTAINABILITY_MANAGER' }) },
-            permission: { findUnique: jest.fn().mockResolvedValue({ id: 'perm-id', name: 'can:edit', description: 'can edit stuff' }) },
+            role: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'role-id',
+                  name: 'SUSTAINABILITY_MANAGER',
+                }),
+            },
+            permission: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'perm-id',
+                  name: 'can:edit',
+                  description: 'can edit stuff',
+                }),
+            },
           },
         },
         {
@@ -45,7 +58,12 @@ describe('AuthService', () => {
         },
         {
           provide: OtpService,
-          useValue: { generateOtp: jest.fn().mockReturnValue({ otp: '123456', expiresAt: new Date() }), storeOtp: jest.fn() },
+          useValue: {
+            generateOtp: jest
+              .fn()
+              .mockReturnValue({ otp: '123456', expiresAt: new Date() }),
+            storeOtp: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -55,7 +73,7 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
   });
 
-    describe('register', () => {
+  describe('register', () => {
     it('should register a new user', async () => {
       const dto = {
         email: 'test@example.com',
@@ -64,8 +82,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: 'SUSTAINABILITY_MANAGER',
-        accessLevel: AccessLevels.ESG_ADMIN,
+        role: 'company_esg_admin',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -91,8 +108,7 @@ describe('AuthService', () => {
         last_name: 'Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
-        role: 'SUSTAINABILITY_MANAGER',
-        accessLevel: AccessLevels.ESG_ADMIN,
+        role: 'company_esg_admin',
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
@@ -111,17 +127,17 @@ describe('AuthService', () => {
         id: 1,
         email: dto.email,
         password: await bcrypt.hash(dto.password, 10),
-        status: "APPROVED",
-        role: "USER",
+        status: 'APPROVED',
+        role: 'USER',
         companyId: 1,
-        sub: 1
+        sub: 1,
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         ...user,
-        status: "APPROVED",
-        role: { name: "USER"},
-        company: { name: 'Test Company' }
+        status: 'APPROVED',
+        role: { name: 'USER' },
+        company: { name: 'Test Company' },
       });
       (prisma.refreshToken.create as jest.Mock).mockResolvedValue({
         refresh_token: 'mockRefreshToken',
@@ -129,11 +145,12 @@ describe('AuthService', () => {
 
       const result = await service.login(dto);
 
-      expect(jwtService.sign).toHaveBeenCalledWith(expect.objectContaining({
-        sub: user.id,
-        email: user.email,
-
-      }));
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: user.id,
+          email: user.email,
+        }),
+      );
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
@@ -162,7 +179,7 @@ describe('AuthService', () => {
 
   describe('refresh', () => {
     it('should return user with valid refresh token', async () => {
-      const mockUser = { id: 1, email: 'test@example.com' , status: 'PENDING'};
+      const mockUser = { id: 1, email: 'test@example.com', status: 'PENDING' };
 
       (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         user_id: 1,

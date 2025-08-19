@@ -1,0 +1,28 @@
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  cancelled
+}
+
+model Invitation {
+  id            Int              @id @default(autoincrement())
+  email         String
+  token         String           @unique
+  status        InvitationStatus @default(pending)
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  companyId     Int
+  company       Company          @relation(fields: [companyId], references: [id])
+
+  departmentId  Int?
+  department    Department?      @relation(fields: [departmentId], references: [id])
+
+  roleId        Int
+  role          Role             @relation(fields: [roleId], references: [id])
+
+  invitedById   Int
+  invitedBy     User             @relation(fields: [invitedById], references: [id])
+}

@@ -27,7 +27,7 @@ describe('AdminAuthController', () => {
 
   describe('getUsers', () => {
     it('should call service with query parameters', async () => {
-      const filters: AdminGetusersDto = { status: 'APPROVED', search: 'john' };
+      const filters: AdminGetusersDto = { status: UserStatus.active, search: 'john' };
       const mockResponse = [
         {
           id: 1,
@@ -38,7 +38,7 @@ describe('AdminAuthController', () => {
           roleId: 1,
           companyId: 1,
           departmentId: null,
-          status: UserStatus.APPROVED,
+          status: UserStatus.active,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -63,7 +63,7 @@ describe('AdminAuthController', () => {
           roleId: 1,
           companyId: 1,
           departmentId: null,
-          status: UserStatus.PENDING,
+          status: UserStatus.pending,
           created_at: new Date(),
           updated_at: new Date(),
         },
