@@ -3,8 +3,12 @@ import { CompanyController, TestController } from './company.controller';
 import { CompanyService } from './company.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { InvitationsModule } from './sub-users/invitations.module';
+import { CompanyUsersModule } from './sub-users/company-users.module';
 
 @Module({
+  imports: [PrismaModule, InvitationsModule, CompanyUsersModule],
   controllers: [CompanyController, TestController],
   providers: [CompanyService, PrismaService, EmailService],
 })

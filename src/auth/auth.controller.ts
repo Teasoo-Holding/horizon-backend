@@ -6,6 +6,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -46,16 +48,16 @@ export class AuthController {
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: false, // change to true in production
+      secure: isProduction,
       maxAge: 15 * 60 * 1000,
-      sameSite: 'none',
+      sameSite: isProduction ? 'none' : 'lax',
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'none',
+      sameSite: isProduction ? 'none' : 'lax',
     });
 
     return { message: 'Logged in successfully', user: userData };
@@ -112,9 +114,9 @@ export class AuthController {
 
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: false,
+        secure: isProduction,
         maxAge: 15 * 60 * 1000,
-        sameSite: 'none',
+        sameSite: isProduction ? 'none' : 'lax',
       });
 
       return { message: 'Access token refreshed' };
