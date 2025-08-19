@@ -18,67 +18,6 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
-  const module: TestingModule = await Test.createTestingModule({
-    providers: [
-      AuthService,
-      {
-        provide: PrismaService,
-        useValue: {
-          user: {
-            findUnique: jest.fn(),
-            create: jest.fn(),
-          },
-          company: {
-            findFirst: jest.fn().mockResolvedValue({
-              id: 1,
-              name: 'TestCo',
-            }),
-          },
-          refreshToken: {
-            create: jest.fn(),
-            findUnique: jest.fn(),
-          },
-          role: {
-            findUnique: jest.fn().mockResolvedValue({
-              id: 'role-id',
-              name: 'company_esg_admin',
-            }),
-          },
-          permission: {
-            findUnique: jest.fn().mockResolvedValue({
-              id: 'perm-id',
-              name: 'can:edit',
-              description: 'can edit stuff',
-            }),
-          },
-        },
-      },
-      {
-        provide: JwtService,
-        useValue: {
-          sign: jest.fn().mockReturnValue('mockAccessToken'),
-        },
-      },
-      {
-        provide: EmailService,
-        useValue: {
-          sendEmail: jest.fn().mockResolvedValue(undefined),
-          sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
-        },
-      },
-      {
-        provide: OtpService,
-        useValue: {
-          generateOtp: jest.fn().mockReturnValue({
-            otp: '123456',
-            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-          }),
-          storeOtp: jest.fn().mockResolvedValue(undefined),
-        },
-      },
-    ],
-  }).compile();
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -86,10 +25,27 @@ describe('AuthService', () => {
           provide: PrismaService,
           useValue: {
             user: { findUnique: jest.fn(), create: jest.fn() },
-            company: { findFirst: jest.fn().mockResolvedValue({ id: 1, name: 'TestCo' }) },
+            company: {
+              findFirst: jest.fn().mockResolvedValue({ id: 1, name: 'TestCo' }),
+            },
             refreshToken: { create: jest.fn(), findUnique: jest.fn() },
-            role: { findUnique: jest.fn().mockResolvedValue({ id: 'role-id', name: 'SUSTAINABILITY_MANAGER' }) },
-            permission: { findUnique: jest.fn().mockResolvedValue({ id: 'perm-id', name: 'can:edit', description: 'can edit stuff' }) },
+            role: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'role-id',
+                  name: 'SUSTAINABILITY_MANAGER',
+                }),
+            },
+            permission: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({
+                  id: 'perm-id',
+                  name: 'can:edit',
+                  description: 'can edit stuff',
+                }),
+            },
           },
         },
         {
@@ -102,7 +58,12 @@ describe('AuthService', () => {
         },
         {
           provide: OtpService,
-          useValue: { generateOtp: jest.fn().mockReturnValue({ otp: '123456', expiresAt: new Date() }), storeOtp: jest.fn() },
+          useValue: {
+            generateOtp: jest
+              .fn()
+              .mockReturnValue({ otp: '123456', expiresAt: new Date() }),
+            storeOtp: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -112,7 +73,7 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
   });
 
-    describe('register', () => {
+  describe('register', () => {
     it('should register a new user', async () => {
       const dto = {
         email: 'test@example.com',
@@ -166,17 +127,17 @@ describe('AuthService', () => {
         id: 1,
         email: dto.email,
         password: await bcrypt.hash(dto.password, 10),
-        status: "APPROVED",
-        role: "USER",
+        status: 'APPROVED',
+        role: 'USER',
         companyId: 1,
-        sub: 1
+        sub: 1,
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         ...user,
-        status: "APPROVED",
-        role: { name: "USER"},
-        company: { name: 'Test Company' }
+        status: 'APPROVED',
+        role: { name: 'USER' },
+        company: { name: 'Test Company' },
       });
       (prisma.refreshToken.create as jest.Mock).mockResolvedValue({
         refresh_token: 'mockRefreshToken',
@@ -184,11 +145,12 @@ describe('AuthService', () => {
 
       const result = await service.login(dto);
 
-      expect(jwtService.sign).toHaveBeenCalledWith(expect.objectContaining({
-        sub: user.id,
-        email: user.email,
-
-      }));
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: user.id,
+          email: user.email,
+        }),
+      );
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
@@ -217,7 +179,7 @@ describe('AuthService', () => {
 
   describe('refresh', () => {
     it('should return user with valid refresh token', async () => {
-      const mockUser = { id: 1, email: 'test@example.com' , status: 'PENDING'};
+      const mockUser = { id: 1, email: 'test@example.com', status: 'PENDING' };
 
       (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         user_id: 1,
