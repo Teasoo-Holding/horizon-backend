@@ -74,7 +74,7 @@ export class EsgAuthService {
           website: dto.website,
           contact_email: dto.contact_email,
           contact_phone: dto.contact_phone,
-          status: CompanyStatus.pending,
+          status: CompanyStatus.PENDING,
           created_by: 0,
           updated_by: 0,
         },

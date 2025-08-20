@@ -9,8 +9,16 @@ model Company {
   id                        Int           @id @default(autoincrement())
   name                      String        @unique
   registration_number       String
-  industry_type             String
+  sicsCode       String
+  isinCode       String?
+  isoCountryCode String
+  sector         String?
+  subSector      String?
+  industry       String?
+
   address                   String
+  country                   String?
+  currency                  String?
   contact_email             String
   website                   String?
   contact_phone             String

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { CompanyStatus } from '@prisma/client';
+import { CompanyStatus, RoleName, UserStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 
 @Injectable()
@@ -19,11 +19,12 @@ export class CompanyService {
     return company;
   }
   async updateStatus(id: number, status: CompanyStatus) {
+    console.log("Role:", RoleName.company_esg_admin);
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
         users: {
-          where: { role: { name: 'company_esg_admin' } },
+          where: { role: { name: RoleName.company_esg_subadmin } },
         },
       },
     });
@@ -44,13 +45,13 @@ export class CompanyService {
       data: { status },
     });
 
-    if (status === CompanyStatus.active) {
+    if (status === CompanyStatus.ACTIVE) {
       const esgAdmin = company.users[0];
 
       if (esgAdmin) {
         await this.prisma.user.update({
           where: { id: esgAdmin.id },
-          data: { status: 'active' },
+          data: { status: UserStatus.active },
         });
 
         const link = `${process.env.FRONTEND_URL}`;

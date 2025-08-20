@@ -67,7 +67,7 @@ async function main() {
         website: 'https://teasooconsulting.com',
         contact_email: 'info@teasooconsulting.com',
         contact_phone: '+2347038334703',
-        status: CompanyStatus.active,
+        status: CompanyStatus.ACTIVE,
         created_by: 1,
         updated_by: 1,
       },
