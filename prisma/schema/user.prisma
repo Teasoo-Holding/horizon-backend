@@ -33,6 +33,7 @@ model User {
   refresh_tokens    RefreshToken[]
   otpHash           String?
   otpExpiresAt      DateTime?
+  teamLeadOf        Company[]      @relation("CompanyTeamLead")
 
   @@index([email])
   @@index([status])

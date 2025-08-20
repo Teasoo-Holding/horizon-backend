@@ -1,30 +1,21 @@
 enum CompanyStatus {
-  pending
-  active
-  suspended
-  disabled
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 
 model Company {
-  id                  Int    @id @default(autoincrement())
-  name                String @unique
-  registration_number String
-
-  sicsCode       String
-  isinCode       String?
-  isoCountryCode String
-  sector         String?
-  subSector      String?
-  industry       String?
-
+  id                        Int           @id @default(autoincrement())
+  name                      String        @unique
+  registration_number       String
+  industry_type             String
   address                   String
-  country                   String?
-  currency                  String?
   contact_email             String
   website                   String?
   contact_phone             String
   company_logo_url          String?
-  status                    CompanyStatus @default(pending)
+  status                    CompanyStatus @default(PENDING)
   staff                     Json?
   created_at                DateTime      @default(now())
   created_by                Int
@@ -38,7 +29,14 @@ model Company {
 
   companySubscriptions CompanySubscription[] @relation("CompanySubs")
   departments          Department[]
-  invitations          Invitation[]
+
+  parentCompany   Company?  @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
+  parentCompanyId Int?
+  subsidiaries    Company[] @relation("Subsidiaries")
+
+  teamLead   User?        @relation("CompanyTeamLead", fields: [teamLeadId], references: [id], onDelete: SetNull)
+  teamLeadId Int?
+  Invitation Invitation[]
 
   @@index([status])
   @@index([created_at])
