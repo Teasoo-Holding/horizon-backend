@@ -25,7 +25,6 @@ export class InvitationsController {
     @Body() dto: CreateInvitationDto,
     @Request() req: { user: { id: number } },
   ) {
-    console.log(req.user)
     return this.invitationsService.create(dto, req.user.id);
   }
 

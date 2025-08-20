@@ -46,8 +46,7 @@ export class CompanyController {
   @ApiOperation({ summary: 'Retrieve all companies' })
   @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   @Get('all')
-  findAll(@Req() request: Request) {
-    console.log(request.cookies);
+  findAll() {
     return this.companyService.findAll();
   }
 

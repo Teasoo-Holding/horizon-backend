@@ -28,7 +28,7 @@ import { Roles } from 'src/auth/guards/jwtroles.guard';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class DepartmentsController {
-  constructor(private readonly departmentsService: DepartmentsService) { }
+  constructor(private readonly departmentsService: DepartmentsService) {}
 
   private checkCompanyOwnership(
     userCompanyId: number,
@@ -98,5 +98,17 @@ export class DepartmentsController {
   ) {
     this.checkCompanyOwnership(req.user.companyId, companyId);
     return this.departmentsService.findAll(companyId);
+  }
+
+  @Get(':departmentId/users')
+  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
+  @ApiOperation({ summary: 'List all users in a departments for a company' })
+  async getDepartmentUsers(
+    @Param('departmentId', ParseIntPipe) departmentId: number,
+    @Request() req: { user: { companyId: number } },
+  ) {
+    const department = await this.departmentsService.findById(departmentId);
+    this.checkCompanyOwnership(req.user.companyId, department.companyId);
+    return this.departmentsService.getUsers(departmentId);
   }
 }

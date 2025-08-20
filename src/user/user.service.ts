@@ -36,8 +36,8 @@ export class UserService {
   }
 
   async updateMe(userId: number, dto: UpdateMeDto) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { role, ...rest } = dto;
-    console.log(role);
 
     const updateData: Prisma.UserUpdateInput = {};
 

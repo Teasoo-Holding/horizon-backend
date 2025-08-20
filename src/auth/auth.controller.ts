@@ -126,6 +126,26 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({ summary: 'Logout and clear auth cookies' })
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.cookie('accessToken', '', {
+      httpOnly: true,
+      secure: isProduction,
+      maxAge: 0,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+
+    res.cookie('refreshToken', '', {
+      httpOnly: true,
+      secure: isProduction,
+      maxAge: 0,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+
+    return { message: 'Logged out successfully' };
+  }
+
   @Post('resend-token')
   async resendToken(@Body() dto: { email: string }) {
     return await this.authService.resendToken(dto.email);

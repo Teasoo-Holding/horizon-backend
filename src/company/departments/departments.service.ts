@@ -5,13 +5,13 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     companyId: number,
     dto: CreateDepartmentDto & { leadId?: number },
     creatorEmail: string,
-    creatorId: number
+    creatorId: number,
   ) {
     return this.prisma.department.create({
       data: {
@@ -33,7 +33,6 @@ export class DepartmentsService {
       },
     });
   }
-
 
   async findById(id: number) {
     const department = await this.prisma.department.findUnique({
@@ -90,6 +89,21 @@ export class DepartmentsService {
         lead: {
           select: { id: true, first_name: true, last_name: true, email: true },
         },
+      },
+    });
+  }
+
+  async getUsers(departmentId: number) {
+    return this.prisma.user.findMany({
+      where: { departmentId },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        status: true,
+        profile_photo_url: true,
       },
     });
   }
