@@ -10,32 +10,29 @@ model Company {
   name                String @unique
   registration_number String
 
-  sicsCode       String
+  industryId Int?
+  industry   Industry? @relation(fields: [industryId], references: [id])
+
   isinCode       String?
   isoCountryCode String
-  sector         String?
-  subSector      String?
-  industry       String?
 
-  address                   String
-  country                   String?
-  currency                  String?
-  contact_email             String
-  website                   String?
-  contact_phone             String
-  company_logo_url          String?
+  address          String
+  country          String?
+  currency         String?
+  contact_email    String
+  website          String?
+  contact_phone    String
+  company_logo_url String?
+
   status                    CompanyStatus @default(pending)
-  staff                     Json?
   created_at                DateTime      @default(now())
   created_by                Int
   updated_at                DateTime      @updatedAt
   updated_by                Int
   current_subscription_tier Int?
 
-  subscription Subscription? @relation(fields: [current_subscription_tier], references: [id], name: "CompanyCurrentSubscription")
-
-  users User[] @relation("CompanyUsers")
-
+  subscription         Subscription?         @relation(fields: [current_subscription_tier], references: [id], name: "CompanyCurrentSubscription")
+  users                User[]                @relation("CompanyUsers")
   companySubscriptions CompanySubscription[] @relation("CompanySubs")
   departments          Department[]
   invitations          Invitation[]

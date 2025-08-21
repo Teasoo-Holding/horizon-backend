@@ -63,4 +63,8 @@ export class UserService {
       orderBy: { created_at: 'desc' },
     });
   }
+
+  async getAllUserRoles() {
+    return this.prisma.role.findMany();
+  }
 }

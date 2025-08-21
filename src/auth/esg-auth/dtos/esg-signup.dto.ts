@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNumber } from 'class-validator';
 import { RegisterDto } from 'src/auth/dto';
 
 export class EsgSignupDto extends RegisterDto {
@@ -11,13 +11,9 @@ export class EsgSignupDto extends RegisterDto {
   @IsString()
   registration_number: string;
 
-  @IsOptional()
-  @IsString()
-  sicsCode?: string;
-
-  @ApiProperty({ example: 'Energy' })
-  @IsString()
-  industry: string;
+  @ApiProperty({ example: 'Energy - ID' })
+  @IsNumber()
+  industryId: number;
 
   @ApiProperty({ example: 'NG' })
   @IsString()

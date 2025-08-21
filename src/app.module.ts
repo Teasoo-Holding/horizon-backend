@@ -14,6 +14,7 @@ import { OtpModule } from './otp/otp.module';
 import { RateLimitModule } from './infrastructure/rate_limiting/rate_limit.module';
 import { CompanyModule } from './company/company.module';
 import { DepartmentsModule } from './company/departments/departments.module';
+import { IndustriesModule } from './company/industries/industries.module';
 import { AdminAuthService } from './admin/auth/auth.service';
 import { AdminAuthController } from './admin/auth/auth.controller';
 import { AdminAuthModule } from './admin/auth/auth.module';
@@ -33,6 +34,7 @@ import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
     EsgAuthModule,
     CompanyModule,
     DepartmentsModule,
+    IndustriesModule,
     AdminAuthModule,
     InvitationsModule,
     CookiesModule

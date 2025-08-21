@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsUrl, IsJSON } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsUrl, IsNumber } from 'class-validator';
 
 export class UpdateCompanyDto {
   @IsOptional()
@@ -10,24 +10,12 @@ export class UpdateCompanyDto {
   registration_number?: string;
 
   @IsOptional()
-  @IsString()
-  industry?: string;
-
-  @IsOptional()
-  @IsString()
-  sicsCode?: string;
+  @IsNumber()
+  industryId?: number;
 
   @IsOptional()
   @IsString()
   isinCode?: string;
-
-  @IsOptional()
-  @IsString()
-  sector?: string;
-
-  @IsOptional()
-  @IsString()
-  subSector?: string;
 
   @IsOptional()
   @IsString()
@@ -56,8 +44,4 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   company_logo_url?: string;
-
-  @IsOptional()
-  @IsJSON()
-  staff?: object;
 }

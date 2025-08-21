@@ -1,5 +1,6 @@
 import { CompanyStatus, PrismaClient, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { industries } from './industries';
 
 const prisma = new PrismaClient();
 
@@ -59,11 +60,17 @@ async function main() {
       create: {
         name: 'Teasoo Consulting',
         registration_number: 'TEA12345',
-        sicsCode: "0",
-        industry: 'Advisory',
+        industry: {
+          connect: {
+            sector_industry: {
+              sector: 'Services',
+              industry: 'Advisory',
+            },
+          },
+        },
         isoCountryCode: 'NG',
         address: '123 Aso Villa',
-        country: "Nigeria",
+        country: 'Nigeria',
         website: 'https://teasooconsulting.com',
         contact_email: 'info@teasooconsulting.com',
         contact_phone: '+2347038334703',
@@ -91,7 +98,7 @@ async function main() {
           last_name: 'Admin',
           roleId: superAdminRole!.id,
           companyId: company.id,
-          status: UserStatus.active
+          status: UserStatus.active,
         },
       });
 
@@ -177,6 +184,19 @@ async function main() {
       } else {
         console.log(`📦 Subscription already exists: ${sub.name}`);
       }
+    }
+
+    for (const ind of industries) {
+      await prisma.industry.upsert({
+        where: {
+          sector_industry: {
+            sector: ind.sector,
+            industry: ind.industry,
+          },
+        },
+        update: {},
+        create: ind,
+      });
     }
 
     console.log('🎉 Seeding completed successfully!');

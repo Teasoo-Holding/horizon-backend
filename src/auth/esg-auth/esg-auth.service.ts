@@ -66,8 +66,9 @@ export class EsgAuthService {
         data: {
           name: dto.name,
           registration_number: dto.registration_number,
-          sicsCode: dto.sicsCode || '010',
-          industry: dto.industry,
+          industry: {
+            connect: { id: dto.industryId },
+          },
           isoCountryCode: dto.isoCountryCode || 'NG',
           address: dto.address,
           country: dto.country || 'Nigeria',
@@ -132,7 +133,7 @@ export class EsgAuthService {
         admin.email,
         {
           firstname: admin.first_name,
-          company_name: company?.name ?? "New Company",
+          company_name: company?.name ?? 'New Company',
           link: companyDetailsLink,
         },
         7,

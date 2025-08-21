@@ -11,10 +11,19 @@ export class CompanyService {
     private readonly emailService: EmailService,
   ) {}
   async findAll() {
-    return this.prisma.company.findMany();
+    return this.prisma.company.findMany({
+      include: {
+        industry: true,
+      },
+    });
   }
   async findById(id: number) {
-    const company = await this.prisma.company.findUnique({ where: { id } });
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      include: {
+        industry: true,
+      },
+    });
     if (!company) throw new NotFoundException('Company not found');
     return company;
   }
@@ -22,6 +31,7 @@ export class CompanyService {
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
+        industry: true,
         users: {
           where: { role: { name: 'company_esg_admin' } },
         },
@@ -74,16 +84,21 @@ export class CompanyService {
     id: number,
     dto: Partial<UpdateCompanyDto> & { updated_by: number },
   ) {
-    try {
-      return await this.prisma.company.update({
-        where: { id },
-        data: dto,
-      });
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Company not found');
-      }
-      throw error;
-    }
+    const { industryId, ...rest } = dto;
+
+    return this.prisma.company.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(industryId && {
+          industry: {
+            connect: { id: industryId },
+          },
+        }),
+      },
+      include: {
+        industry: true,
+      },
+    });
   }
 }

@@ -1,0 +1,10 @@
+model Industry {
+    id       Int    @id @default(autoincrement())
+    sector   String
+    industry String
+
+    companies Company[]
+
+    @@unique([sector, industry])
+    @@map("industries")
+}
