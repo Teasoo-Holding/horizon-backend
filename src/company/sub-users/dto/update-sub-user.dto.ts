@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString } from 'class-validator';
 
-export class UpdateUserDto {
+export class UpdateSubUserDto {
   @ApiProperty({ example: 'Barry', required: false })
   @IsString()
   @IsOptional()

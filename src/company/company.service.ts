@@ -65,7 +65,7 @@ export class CompanyService {
 
         const link = `${process.env.FRONTEND_URL}`;
         await this.emailService.sendEmail(
-          esgAdmin.email,
+          String(esgAdmin.email),
           {
             firstName: esgAdmin.first_name,
             link,

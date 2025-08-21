@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -24,14 +24,14 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('User account not approved');
     }
 
     const passwordValid = await bcrypt.compare(password, user.password);
-    if (!passwordValid) throw new UnauthorizedException('Invalid password');
+    if (!passwordValid) throw new NotFoundException('Invalid password');
 
     const { password: _, ...result } = user;
     return result;
@@ -73,12 +73,12 @@ export class AuthService {
     const { email, password, first_name, last_name, phone_number, role } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) throw new UnauthorizedException('Email already in use');
+    if (existing) throw new BadRequestException('Email already in use');
 
     const foundRole = await this.prisma.role.findUnique({
       where: { name: role },
     });
-    if (!foundRole) throw new UnauthorizedException('Role not found');
+    if (!foundRole) throw new NotFoundException('Role not found');
 
     const hashedPassword = await bcrypt.hash(password, 10);
 

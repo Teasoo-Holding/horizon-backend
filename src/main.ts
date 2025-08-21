@@ -4,10 +4,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
+import { ResponseLoggerInterceptor } from './common/interceptors/logging.interceptor';
+import { AllExceptionsFilter } from './common/interceptors/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
+
+  app.useGlobalInterceptors(new ResponseLoggerInterceptor());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const configService = app.get(ConfigService);
   const allowedOrigins =

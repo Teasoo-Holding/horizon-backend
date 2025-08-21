@@ -12,7 +12,7 @@ import {
 import { CompanyUsersService } from './company-users.service';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateSubUserDto } from './dto/update-sub-user.dto';
 
 @ApiTags('Company Users')
 @Controller('company/users')
@@ -25,7 +25,7 @@ export class CompanyUsersController {
   @ApiOperation({ summary: 'Update a company user' })
   async updateCompanyUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateSubUserDto,
     @Req() req: { user: { id: number } },
   ) {
     return this.companyUsersService.updateCompanyUser(

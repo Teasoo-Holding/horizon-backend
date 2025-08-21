@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateSubUserDto } from './dto/update-sub-user.dto';
 
 @Injectable()
 export class CompanyUsersService {
@@ -14,7 +14,7 @@ export class CompanyUsersService {
   async updateCompanyUser(
     editorUserId: number,
     targetUserId: number,
-    updateDto: UpdateUserDto,
+    updateDto: UpdateSubUserDto,
   ) {
     const editor = await this.prisma.user.findUnique({
       where: { id: editorUserId },
