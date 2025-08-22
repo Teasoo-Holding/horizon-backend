@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -122,6 +123,19 @@ export class AuthController {
       return { message: 'Access token refreshed' };
     } catch (err) {
       console.error(err);
+
+      if (err.code === 'P1001') {
+        return res.status(503).json({
+          message: 'Database connection unavailable. Please try again later.',
+        });
+      }
+
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(503).json({
+          message: 'Database error occurred',
+        });
+      }
+
       return res.status(401).json({ message: 'Refresh failed' });
     }
   }
