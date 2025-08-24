@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && prisma generate && prisma migrate deploy",
+    "build": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/src/main.js",
     "postinstall": "npx prisma generate --schema=prisma/schema",
@@ -19,7 +19,6 @@
     "seed": "ts-node prisma/seed.ts",
     "seed:run": "prisma db seed",
     "reset:db": "prisma migrate reset && npm run seed",
-    "prestart": "prisma migrate deploy",
     "lint": "eslint src/**/*.ts test/**/*.ts --fix",
     "test": "jest --config jest.config.ts",
     "test:watch": "jest --watch",

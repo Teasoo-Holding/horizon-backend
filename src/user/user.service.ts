@@ -23,7 +23,7 @@ export class UserService {
         created_at: true,
         updated_at: true,
         company: {
-          select: { name: true },
+          select: { name: true, company_logo_url: true },
         },
         department: {
           select: { name: true },
