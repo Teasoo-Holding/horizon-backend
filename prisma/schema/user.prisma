@@ -25,6 +25,11 @@ model User {
   leadDepartments Department[] @relation("DepartmentLead")
   invitationsSent Invitation[]
 
+  teamLeadOfSubsidiary Subsidiaries? @relation("SubsidiaryTeamLead")
+
+  subsidiaryId Int?
+  subsidiary   Subsidiaries? @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
+
   status            UserStatus     @default(pending)
   profile_photo_url String?        @db.VarChar(255)
   last_login        DateTime?

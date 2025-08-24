@@ -61,8 +61,14 @@ async function main() {
         name: 'Teasoo Consulting',
         registration_number: 'TEA12345',
         industry: {
-          connect: {
-            sector_industry: {
+          connectOrCreate: {
+            where: {
+              sector_industry: {
+                sector: 'Services',
+                industry: 'Advisory',
+              },
+            },
+            create: {
               sector: 'Services',
               industry: 'Advisory',
             },

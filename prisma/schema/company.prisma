@@ -37,6 +37,8 @@ model Company {
   departments          Department[]
   invitations          Invitation[]
 
+  subsidiaries         Subsidiaries[] @relation("Subsidiaries")
+
   @@index([status])
   @@index([created_at])
   @@map("companies")
