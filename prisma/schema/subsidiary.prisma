@@ -2,7 +2,7 @@
 
 model Subsidiary {
   id                        Int           @id @default(autoincrement())
-  name                      String        @unique
+  name                      String        
   registration_number       String?
   sicsCode       String?
   isinCode       String?
@@ -41,4 +41,5 @@ model Subsidiary {
 
   @@index([status])
   @@index([created_at])
+  @@unique([name, parentCompanyId]) 
 }

@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsUrl, IsInt } from 'class-validator';
+import { CompanyStatus } from '@prisma/client';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEmail,
+  IsUrl,
+  IsInt,
+} from 'class-validator';
 export class CreateSubsidiaryDto {
   @ApiProperty({
     description: 'The name of the subsidiary',
@@ -9,18 +17,25 @@ export class CreateSubsidiaryDto {
   @IsNotEmpty()
   name: string;
 
-
-
-  @ApiPropertyOptional({ description: 'Email of the team lead', example: 'teamlead@example.com' })
+  @ApiPropertyOptional({
+    description: 'Email of the team lead',
+    example: 'teamlead@example.com',
+  })
   @IsEmail()
   teamLead_email?: string;
 
-  @ApiPropertyOptional({ description: 'Phone number of the team lead', example: '+2348012345678' })
+  @ApiPropertyOptional({
+    description: 'Phone number of the team lead',
+    example: '+2348012345678',
+  })
   @IsString()
   @IsNotEmpty()
   teamLead_name: string;
 
-  @ApiPropertyOptional({ description: 'Industry of the company', example: 'Information Technology' })
+  @ApiPropertyOptional({
+    description: 'Industry of the company',
+    example: 'Information Technology',
+  })
   @IsOptional()
   @IsString()
   industry?: string;
@@ -41,29 +56,38 @@ export class CreateSubsidiaryDto {
   })
   @IsString()
   @IsOptional()
-  sics_code: string;
+  sicsCode?: string;
 
   @ApiPropertyOptional({ description: 'ISIN code', example: 'US1234567890' })
   @IsOptional()
   @IsString()
-  isin_code?: string;
+  isinCode?: string;
 
   @ApiProperty({ description: 'ISO country code', example: 'NG' })
   @IsString()
   @IsOptional()
   isoCountryCode?: string;
 
-  @ApiPropertyOptional({ description: 'Sector of the company', example: 'Technology' })
+  @ApiPropertyOptional({
+    description: 'Sector of the company',
+    example: 'Technology',
+  })
   @IsOptional()
   @IsString()
   sector?: string;
 
-  @ApiPropertyOptional({ description: 'Sub-sector of the company', example: 'Software Development' })
+  @ApiPropertyOptional({
+    description: 'Sub-sector of the company',
+    example: 'Software Development',
+  })
   @IsOptional()
   @IsString()
   subSector?: string;
 
-  @ApiProperty({ description: 'Company address', example: '3 Olugbenga Street, Shagamu, Ogun State' })
+  @ApiProperty({
+    description: 'Company address',
+    example: '3 Olugbenga Street, Shagamu, Ogun State',
+  })
   @IsString()
   @IsOptional()
   address?: string;
@@ -73,28 +97,42 @@ export class CreateSubsidiaryDto {
   @IsString()
   country?: string;
 
-  @ApiPropertyOptional({ description: 'Currency used by the subsidiary', example: 'NGN' })
+  @ApiPropertyOptional({
+    description: 'Currency used by the subsidiary',
+    example: 'NGN',
+  })
   @IsOptional()
   @IsString()
   currency?: string;
 
-  @ApiProperty({ description: 'Contact email', example: 'info@techsolutions.com' })
+  @ApiProperty({
+    description: 'Contact email',
+    example: 'info@techsolutions.com',
+  })
   @IsEmail()
-    @IsOptional()
+  @IsOptional()
   contact_email?: string;
 
-  @ApiPropertyOptional({ description: 'Website URL', example: 'https://techsolutions.com' })
+  @ApiPropertyOptional({
+    description: 'Website URL',
+    example: 'https://techsolutions.com',
+  })
   @IsOptional()
   @IsUrl()
   website?: string;
 
-  @ApiProperty({ description: 'Contact phone number', example: '+2348012345678' })
+  @ApiProperty({
+    description: 'Contact phone number',
+    example: '+2348012345678',
+  })
   @IsString()
   @IsOptional()
   contact_phone?: string;
 
-
-  @ApiPropertyOptional({ description: 'Company logo URL', example: 'https://cdn.example.com/logo.png' })
+  @ApiPropertyOptional({
+    description: 'Company logo URL',
+    example: 'https://cdn.example.com/logo.png',
+  })
   @IsOptional()
   @IsUrl()
   company_logo_url?: string;
@@ -109,6 +147,11 @@ export class CreateSubsidiaryDto {
   @IsInt()
   teamLeadId?: number;
 
- 
-
+  @ApiPropertyOptional({
+    description: 'Status of the subsidiary',
+    example: 'active',
+  })
+  @IsOptional()
+  @IsString()
+  status?: CompanyStatus;
 }
