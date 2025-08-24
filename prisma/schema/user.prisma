@@ -25,10 +25,10 @@ model User {
   leadDepartments Department[] @relation("DepartmentLead")
   invitationsSent Invitation[]
 
-  teamLeadOfSubsidiary Subsidiaries? @relation("SubsidiaryTeamLead")
+  teamLeadOfSubsidiary Subsidiary[] @relation("SubsidiaryTeamLead")
 
   subsidiaryId Int?
-  subsidiary   Subsidiaries? @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
+  subsidiary   Subsidiary? @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
 
   status            UserStatus     @default(pending)
   profile_photo_url String?        @db.VarChar(255)

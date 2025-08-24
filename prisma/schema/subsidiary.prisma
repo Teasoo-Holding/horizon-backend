@@ -1,22 +1,22 @@
 
 
-model Subsidiaries {
+model Subsidiary {
   id                        Int           @id @default(autoincrement())
   name                      String        @unique
-  registration_number       String
-  sicsCode       String
+  registration_number       String?
+  sicsCode       String?
   isinCode       String?
-  isoCountryCode String
+  isoCountryCode String?
   sector         String?
   subSector      String?
   industry       String?
 
-  address                   String
+  address                   String?
   country                   String?
   currency                  String?
-  contact_email             String
+  contact_email             String?
   website                   String?
-  contact_phone             String
+  contact_phone             String?
   company_logo_url          String?
   status                    CompanyStatus @default(pending)
   staff                     Json?
@@ -35,7 +35,7 @@ model Subsidiaries {
   parentCompanyId Int
 
   teamLead   User      @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
-  teamLeadId Int       @unique
+  teamLeadId Int       
 
   invitations Invitation[]
 

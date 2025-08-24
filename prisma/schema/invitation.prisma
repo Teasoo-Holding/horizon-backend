@@ -27,5 +27,5 @@ model Invitation {
   invitedBy     User             @relation(fields: [invitedById], references: [id])
 
   subsidiaryId  Int?
-  subsidiary    Subsidiaries?    @relation(fields: [subsidiaryId], references: [id])
+  subsidiary    Subsidiary?    @relation(fields: [subsidiaryId], references: [id])
 }
