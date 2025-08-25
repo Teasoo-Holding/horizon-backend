@@ -22,7 +22,6 @@
     "noFallthroughCasesInSwitch": false,
     "moduleResolution": "node",
     "types": ["@prisma/client", "jest", "node"],
-    // "types": ["jest", "node"],
     "resolveJsonModule": true
   }
 }

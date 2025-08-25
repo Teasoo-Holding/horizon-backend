@@ -54,20 +54,26 @@ describe('SubsidiaryService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(
-        service.create({ name: 'Sub1', teamLead_email: 'lead@test.com' } as any, 1),
+        service.create(
+          { name: 'Sub1', teamLead_email: 'lead@test.com' } as any,
+          1,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ForbiddenException if role not allowed', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValueOnce({
         id: 1,
         companyId: 1,
         first_name: 'John',
-        role: { name: 'employee' },
+        role: { name: 'random_role' },
       } as any);
 
       await expect(
-        service.create({ name: 'Sub1', teamLead_email: 'lead@test.com' } as any, 1),
+        service.create(
+          { name: 'Sub1', teamLead_email: 'lead@test.com' } as any,
+          1,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -91,8 +97,14 @@ describe('SubsidiaryService', () => {
         return null;
       });
 
-      (prisma.company.findUnique as jest.Mock).mockResolvedValueOnce({ id: 1, name: 'MainCo' } as any);
-      (prisma.subsidiary.create as jest.Mock).mockResolvedValueOnce({ id: 10, name: 'Sub1' } as any);
+      (prisma.company.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 1,
+        name: 'MainCo',
+      } as any);
+      (prisma.subsidiary.create as jest.Mock).mockResolvedValueOnce({
+        id: 10,
+        name: 'Sub1',
+      } as any);
 
       const result = await service.create(
         { name: 'Sub1', teamLead_email: 'lead@test.com' } as any,
@@ -107,14 +119,20 @@ describe('SubsidiaryService', () => {
 
   describe('findAll', () => {
     it('should throw if user is not super_admin', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ role: { name: 'employee' } } as any);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        role: { name: 'employee' },
+      } as any);
 
       await expect(service.findAll(1)).rejects.toThrow(ForbiddenException);
     });
 
     it('should return subsidiaries if user is super_admin', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ role: { name: 'super_admin' } } as any);
-      (prisma.subsidiary.findMany as jest.Mock).mockResolvedValueOnce([{ id: 1, name: 'Sub1' }]);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        role: { name: 'super_admin' },
+      } as any);
+      (prisma.subsidiary.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 1, name: 'Sub1' },
+      ]);
 
       const result = await service.findAll(1);
 
@@ -130,7 +148,10 @@ describe('SubsidiaryService', () => {
     });
 
     it('should return a subsidiary if found', async () => {
-      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({ id: 1, name: 'Sub1' });
+      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 1,
+        name: 'Sub1',
+      });
 
       const result = await service.findOne(1);
 
@@ -140,20 +161,33 @@ describe('SubsidiaryService', () => {
 
   describe('remove', () => {
     it('should throw ForbiddenException if user does not own subsidiary', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ companyId: 1 } as any);
-      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({ parentCompanyId: 2 } as any);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        companyId: 1,
+      } as any);
+      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({
+        parentCompanyId: 2,
+      } as any);
 
       await expect(service.remove(1, 1)).rejects.toThrow(ForbiddenException);
     });
 
     it('should delete subsidiary if user owns it', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ companyId: 1 } as any);
-      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({ parentCompanyId: 1 } as any);
-      (prisma.subsidiary.delete as jest.Mock).mockResolvedValueOnce({ id: 1, name: 'Sub1' } as any);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        companyId: 1,
+      } as any);
+      (prisma.subsidiary.findUnique as jest.Mock).mockResolvedValueOnce({
+        parentCompanyId: 1,
+      } as any);
+      (prisma.subsidiary.delete as jest.Mock).mockResolvedValueOnce({
+        id: 1,
+        name: 'Sub1',
+      } as any);
 
       const result = await service.remove(1, 1);
 
-      expect(prisma.subsidiary.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prisma.subsidiary.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
       expect(result).toEqual({ id: 1, name: 'Sub1' });
     });
   });

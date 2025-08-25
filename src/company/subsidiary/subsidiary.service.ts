@@ -119,10 +119,19 @@ export class SubsidiaryService {
 
     return subsidiary;
     }
-    catch(error){
-      console.error("Error creating subsidiary:", error);
-      throw new Error("Error creating subsidiary");
-    }
+    catch (error) {
+  console.error("Error creating subsidiary:", error);
+
+  if (
+    error instanceof NotFoundException ||
+    error instanceof ForbiddenException
+  ) {
+    throw error;
+  }
+
+  throw new InternalServerErrorException("Error creating subsidiary");
+}
+
   }
 
  
