@@ -18,8 +18,7 @@ model Subsidiary {
   website                   String?
   contact_phone             String?
   company_logo_url          String?
-  status                    CompanyStatus @default(pending)
-  staff                     Json?
+  status                    CompanyStatus @default(active)
   created_at                DateTime      @default(now())
   created_by                Int
   updated_at                DateTime      @updatedAt
