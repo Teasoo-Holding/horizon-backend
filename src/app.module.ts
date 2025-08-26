@@ -21,6 +21,7 @@ import { AdminAuthModule } from './admin/auth/auth.module';
 import { InvitationsModule } from './company/sub-users/invitations.module';
 import { CookiesModule } from './cookies.module';
 import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
+import { TestModule } from './config/test/test.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
     IndustriesModule,
     AdminAuthModule,
     InvitationsModule,
-    CookiesModule
+    CookiesModule,
+    TestModule
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
