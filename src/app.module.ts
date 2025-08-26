@@ -21,6 +21,7 @@ import { AdminAuthModule } from './admin/auth/auth.module';
 import { InvitationsModule } from './company/sub-users/invitations.module';
 import { CookiesModule } from './cookies.module';
 import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
     IndustriesModule,
     AdminAuthModule,
     InvitationsModule,
-    CookiesModule
+    CookiesModule,
+    CloudinaryModule,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
