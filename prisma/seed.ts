@@ -55,30 +55,36 @@ async function main() {
     });
 
     const company = await prisma.company.upsert({
-      where: { name: 'Teasoo Consulting' },
-      update: {},
-      create: {
-        name: 'Teasoo Consulting',
-        registration_number: 'TEA12345',
-        industry: {
-          connect: {
-            sector_industry: {
-              sector: 'Services',
-              industry: 'Advisory',
-            },
+  where: { name: 'Teasoo Consulting' },
+  update: {},
+  create: {
+    name: 'Teasoo Consulting',
+    registration_number: 'TEA12345',
+    industry: {
+      connectOrCreate: {
+        where: {
+          sector_industry: {
+            sector: 'Services',
+            industry: 'Advisory',
           },
         },
-        isoCountryCode: 'NG',
-        address: '123 Aso Villa',
-        country: 'Nigeria',
-        website: 'https://teasooconsulting.com',
-        contact_email: 'info@teasooconsulting.com',
-        contact_phone: '+2347038334703',
-        status: CompanyStatus.active,
-        created_by: 1,
-        updated_by: 1,
+        create: {
+          sector: 'Services',
+          industry: 'Advisory',
+        },
       },
-    });
+    },
+    isoCountryCode: 'NG',
+    address: '123 Aso Villa',
+    country: 'Nigeria',
+    website: 'https://teasooconsulting.com',
+    contact_email: 'info@teasooconsulting.com',
+    contact_phone: '+2347038334703',
+    status: CompanyStatus.active,
+    created_by: 1,
+    updated_by: 1,
+  },
+});
 
     let adminUser = await prisma.user.findUnique({
       where: { email: 'admin@teasoo.com' },

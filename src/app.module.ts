@@ -22,6 +22,7 @@ import { InvitationsModule } from './company/sub-users/invitations.module';
 import { CookiesModule } from './cookies.module';
 import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { Scope2Module } from './assessment/scope-2/scope-2.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     InvitationsModule,
     CookiesModule,
     CloudinaryModule,
+    Scope2Module,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
