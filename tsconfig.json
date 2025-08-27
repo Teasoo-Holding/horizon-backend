@@ -21,7 +21,8 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "moduleResolution": "node",
-    "types": ["@prisma/client", "jest", "node"],
+    "types": ["@prisma/client", "jest", "node", "express", "multer"],
+    // "types": ["jest", "node"],
     "resolveJsonModule": true
   }
 }
