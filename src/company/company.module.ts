@@ -6,9 +6,10 @@ import { EmailService } from 'src/email/email.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { InvitationsModule } from './sub-users/invitations.module';
 import { CompanyUsersModule } from './sub-users/company-users.module';
+import { SubsidiaryModule } from './subsidiary/subsidiary.module';
 
 @Module({
-  imports: [PrismaModule, InvitationsModule, CompanyUsersModule],
+  imports: [PrismaModule, InvitationsModule, CompanyUsersModule, SubsidiaryModule],
   controllers: [CompanyController, TestController],
   providers: [CompanyService, PrismaService, EmailService],
 })

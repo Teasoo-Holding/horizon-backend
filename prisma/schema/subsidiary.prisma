@@ -1,0 +1,44 @@
+
+
+model Subsidiary {
+  id                        Int           @id @default(autoincrement())
+  name                      String        
+  registration_number       String?
+  sicsCode       String?
+  isinCode       String?
+  isoCountryCode String?
+  sector         String?
+  subSector      String?
+  industry       String?
+
+  address                   String?
+  country                   String?
+  currency                  String?
+  contact_email             String?
+  website                   String?
+  contact_phone             String?
+  company_logo_url          String?
+  status                    CompanyStatus @default(active)
+  created_at                DateTime      @default(now())
+  created_by                Int
+  updated_at                DateTime      @updatedAt
+  updated_by                Int
+  current_subscription_tier Int?
+
+
+  users User[] @relation("SubsidiaryUsers")
+
+  departments          Department[]
+
+  parentCompany   Company  @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
+  parentCompanyId Int
+
+  teamLead   User      @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
+  teamLeadId Int       
+
+  invitations Invitation[]
+
+  @@index([status])
+  @@index([created_at])
+  @@unique([name, parentCompanyId]) 
+}

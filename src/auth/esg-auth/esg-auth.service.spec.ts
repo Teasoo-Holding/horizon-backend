@@ -33,6 +33,7 @@ describe('EsgAuthService', () => {
       password: 'password123',
       first_name: 'Sadiq',
       last_name: 'Sambo',
+      email: 'sadiq@btech.com',
       phone_number: '+2347012345678',
       role: 'company_esg_admin',
       company_name: 'BeelahTech Ltd.',
@@ -70,11 +71,11 @@ describe('EsgAuthService', () => {
 
       prisma.user.create = jest.fn().mockResolvedValue({
         id: 1,
-        email: dto.email,
+        email: baseDto.email,
         role: RoleName.company_esg_admin
       });
 
-      const result = await service.signup(dto);
+      const result = await service.signup(baseDto);
 
       expect(result).toEqual({
         message:
