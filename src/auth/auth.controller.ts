@@ -110,7 +110,7 @@ export class AuthController {
           role: payload.role,
           companyId: payload.companyId,
         },
-        { expiresIn: '15m' },
+        { expiresIn: '24h' },
       );
 
       res.cookie('accessToken', accessToken, {

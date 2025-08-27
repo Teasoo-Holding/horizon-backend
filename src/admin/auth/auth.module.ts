@@ -9,7 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 @Module({
     imports: [ PrismaModule, EmailModule, OtpModule, JwtModule.register({
         secret: process.env.JWT_SECRET || 'a-default-secret',
-        signOptions: { expiresIn: '15m' },
+        signOptions: { expiresIn: '24h' },
     })],
     controllers: [ AdminAuthController],
     exports: [AdminAuthService],
