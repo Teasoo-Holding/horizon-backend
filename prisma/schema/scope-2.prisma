@@ -1,8 +1,8 @@
 model LocationBasedS2 {
     id                                                            Int             @id @default(autoincrement())
     name                                                          String
-    company                                                       Company         @relation(fields: [companyId], references: [id])
-    companyId                                                     Int
+    subsidiary                                                   Subsidiary     @relation(fields: [subsidiaryId], references: [id])
+    subsidiaryId                                                 Int
     creator_id                                                    Int
     total_electricity_consumption                                 Float
     reporting_period_consumption                                  ReportingPeriod @default(MONTHLY)
@@ -62,8 +62,8 @@ model MarketBasedS2 {
     name                              String
     total_electricity_consumed        Float
     supplier_specific_emission_factor Float
-    company                           Company @relation(fields: [companyId], references: [id])
-    companyId                         Int
+    subsidiary                           Subsidiary @relation(fields: [subsidiaryId], references: [id])
+    subsidiaryId                         Int
 
     electricity_supplier_contract_with_ipps_url                  String
     electricity_supplier_contract_with_ipps_url_public_id        String

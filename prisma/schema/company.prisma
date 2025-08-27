@@ -36,8 +36,6 @@ model Company {
   companySubscriptions CompanySubscription[] @relation("CompanySubs")
   departments          Department[]
   invitations          Invitation[]
-  location_based_s2    LocationBasedS2[]
-  market_based_s2      MarketBasedS2[]
 
   subsidiaries         Subsidiary[] @relation("Subsidiaries")
 

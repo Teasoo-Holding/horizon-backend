@@ -38,6 +38,9 @@ model Subsidiary {
 
   invitations Invitation[]
 
+  location_based_s2 LocationBasedS2[]
+  market_based_s2   MarketBasedS2[]
+
   @@index([status])
   @@index([created_at])
   @@unique([name, parentCompanyId]) 
