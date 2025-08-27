@@ -10,12 +10,14 @@ import { EsgSignupDto } from './dtos/esg-signup.dto';
 import { isCompanyEmail } from 'src/utils/blacklist-emails';
 import { EmailService } from 'src/email/email.service';
 import { CompleteSignupDto } from './dtos/complete-signup.dto';
+import { PhoneValidationService } from 'src/config/phone-validation.service';
 
 @Injectable()
 export class EsgAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly phoneValidationService: PhoneValidationService,
   ) {}
 
   async checkEmailExists(email: string): Promise<{ exists: boolean }> {
@@ -26,6 +28,23 @@ export class EsgAuthService {
   }
 
   async signup(dto: EsgSignupDto) {
+
+    
+
+  const isValid = this.phoneValidationService.validatePhoneNumber(
+      dto.contact_phone,
+      dto.isoCountryCode || 'NG',
+    );
+
+    if (!isValid) {
+      throw new BadRequestException('Invalid phone number');
+    }
+
+    const formattedPhone = this.phoneValidationService.formatPhoneNumber(
+      dto.contact_phone,
+      dto.isoCountryCode || 'NG',
+    );
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -74,7 +93,7 @@ export class EsgAuthService {
           country: dto.country || 'Nigeria',
           website: dto.website,
           contact_email: dto.contact_email,
-          contact_phone: dto.contact_phone,
+          contact_phone: formattedPhone || "",
           status: CompanyStatus.pending,
           created_by: 0,
           updated_by: 0,
@@ -153,6 +172,22 @@ export class EsgAuthService {
       where: { token: dto.token },
       include: { role: true, company: true, department: true },
     });
+
+
+     const isValid = this.phoneValidationService.validatePhoneNumber(
+      dto.phone_number ?? "",
+      dto.isoCountryCode || 'NG',
+    );
+
+    if (!isValid) {
+      throw new BadRequestException('Invalid phone number');
+    }
+
+    const formattedPhone = this.phoneValidationService.formatPhoneNumber(
+      dto.phone_number ?? "",
+      dto.isoCountryCode || 'NG',
+    );
+
     if (!invitation) throw new BadRequestException('Invalid invitation token');
     if (invitation.expiresAt < new Date())
       throw new BadRequestException('Invitation expired');
@@ -167,7 +202,7 @@ export class EsgAuthService {
         password: hashedPassword,
         first_name: dto.first_name,
         last_name: dto.last_name,
-        phone_number: dto.phone_number,
+        phone_number: formattedPhone,
         roleId: invitation.roleId,
         companyId: invitation.companyId,
         departmentId: invitation.departmentId,

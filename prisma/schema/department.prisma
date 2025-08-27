@@ -11,9 +11,13 @@ model Department {
   companyId     Int
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invitations   Invitation[]
-  
+
+  subsidiaryId  Int?
+  subsidiary    Subsidiary? @relation(fields: [subsidiaryId], references: [id])
+
   updatedAt     DateTime @updatedAt
   createdAt     DateTime @default(now())
+
 
   @@unique([companyId, name])
 }

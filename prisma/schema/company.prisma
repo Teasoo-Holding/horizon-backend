@@ -39,6 +39,8 @@ model Company {
   location_based_s2    LocationBasedS2[]
   market_based_s2      MarketBasedS2[]
 
+  subsidiaries         Subsidiary[] @relation("Subsidiaries")
+
   @@index([status])
   @@index([created_at])
   @@map("companies")
