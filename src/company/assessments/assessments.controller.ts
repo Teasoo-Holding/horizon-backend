@@ -1,69 +1,35 @@
-// dto/create-assessment.dto.ts
-import { IsString, IsEnum, IsOptional, IsNumber, ValidateNested } from 'class-validator';
+// assessment.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { AssessmentService } from './assessment.service';
+import { CreateAssessmentDto } from './dto/create-assessment.dto';
 
-export enum MetricType {
-  INDUSTRY_SPECIFIC = 'INDUSTRY_SPECIFIC',
-  SUPPLEMENTARY = 'SUPPLEMENTARY',
-}
+@Controller('assessments')
+export class AssessmentController {
+  constructor(private readonly assessmentService: AssessmentService) {}
 
-export class FileMetadataDto {
-  @IsString()
-  name: string;
+  @Post('save')
+  async saveAssessment(@Body() createAssessmentDto: CreateAssessmentDto) {
+    const { subsidiary, startYear, startMonth, metricType } =
+      createAssessmentDto;
+    const result = await this.assessmentService.createOrUpdateAssessment(
+      subsidiary,
+      startYear,
+      startMonth,
+      metricType,
+      createAssessmentDto,
+    );
+    return result;
+  }
 
-  @IsNumber()
-  size: number;
-
-  @IsNumber()
-  lastModified: number;
-}
-
-export class ElectricityHeatDto {
-  @IsString()
-  @IsOptional()
-  dieselFuelType?: string;
-
-  @IsNumber()
-  @IsOptional()
-  dieselVolume?: number;
-
-  @IsString()
-  @IsOptional()
-  gasFuelType?: string;
-
-  @IsNumber()
-  @IsOptional()
-  gasVolume?: number;
-
-  @IsOptional()
-  files?: Record<string, FileMetadataDto | null>;
-}
-
-export class StationarySourcesDto {
-  @IsOptional()
-  @ValidateNested()
-  electricityHeat?: ElectricityHeatDto;
-}
-
-export class CreateAssessmentDto {
-  @IsString()
-  subsidiary: string;
-
-  @IsString()
-  startMonth: string;
-
-  @IsString()
-  startYear: string;
-
-  @IsString()
-  endMonth: string;
-
-  @IsString()
-  endYear: string;
-
-  @IsEnum(MetricType)
-  metricType: MetricType;
-
-  @IsOptional()
-  @ValidateNested()
-  stationarySources?: StationarySourcesDto;
+  @Get(':id')
+  async getAssessment(@Param('id', ParseIntPipe) id: number) {
+    return this.assessmentService.findAssessmentById(id);
+  }
 }

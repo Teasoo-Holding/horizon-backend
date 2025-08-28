@@ -4,27 +4,25 @@ enum DisclosureCategory {
 }
 
 model DisclosureTopic {
-    id           String             @id @default(cuid())
-    assessmentId String
+    id           Int                @id @default(autoincrement())
+    assessmentId Int
     assessment   Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
     category     DisclosureCategory
     topic        String
     subtopic     String
-
-    ghgData GhgData?
+    ghgData      GhgData?
 
     @@unique([assessmentId, category, topic, subtopic])
+    @@index([assessmentId])
     @@map("disclosure_topics")
 }
 
 model GhgData {
-    id                String          @id @default(cuid())
-    disclosureTopicId String          @unique
+    id                Int             @id @default(autoincrement())
+    disclosureTopicId Int             @unique
     disclosureTopic   DisclosureTopic @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
+    scope1            Scope1Data?
 
-    scope1 Scope1Data?
-    scope2 Scope2Data?
-    scope3 Scope3Data?
-
+    @@index([disclosureTopicId])
     @@map("ghg_data")
 }
