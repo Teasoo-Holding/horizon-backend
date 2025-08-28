@@ -1,0 +1,30 @@
+enum DisclosureCategory {
+    industry_specific
+    supplementary
+}
+
+model DisclosureTopic {
+    id           String             @id @default(cuid())
+    assessmentId String
+    assessment   Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+    category     DisclosureCategory
+    topic        String
+    subtopic     String
+
+    ghgData GhgData?
+
+    @@unique([assessmentId, category, topic, subtopic])
+    @@map("disclosure_topics")
+}
+
+model GhgData {
+    id                String          @id @default(cuid())
+    disclosureTopicId String          @unique
+    disclosureTopic   DisclosureTopic @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
+
+    scope1 Scope1Data?
+    scope2 Scope2Data?
+    scope3 Scope3Data?
+
+    @@map("ghg_data")
+}

@@ -1,0 +1,272 @@
+model GhgScope1Data {
+  id        String  @id @default(cuid())
+  ghgDataId String  @unique
+  ghgData   GhgData @relation(fields: [ghgDataId], references: [id], onDelete: Cascade)
+  completed Boolean @default(false)
+
+  // Scope 1 Emissions
+  stationarySources StationarySources?
+  mobileSources     MobileSources?
+  processEmissions  ProcessEmissions?
+  fugitiveEmissions FugitiveEmissions?
+
+  @@map("scope1_data")
+}
+
+// Stationary Sources
+model StationarySources {
+  id           String     @id @default(cuid())
+  scope1DataId String     @unique
+  scope1Data   GhgScope1Data @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
+
+  electricityHeat     ElectricityHeat?
+  industrialProcesses IndustrialProcesses?
+  oilGasOperations    OilGasOperations?
+
+  @@map("stationary_sources")
+}
+
+model ElectricityHeat {
+  id                  String            @id @default(cuid())
+  stationarySourcesId String            @unique
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
+  dieselFuelType      String?
+  dieselVolume        Float?
+  gasFuelType         String?
+  gasVolume           Float?
+  files               Json?
+
+  @@map("electricity_heat")
+}
+
+model IndustrialProcesses {
+  id                  String            @id @default(cuid())
+  stationarySourcesId String            @unique
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
+  selectedFuelType    String
+  otherFuelType       String?
+  fuelVolume          Float
+  files               Json?
+
+  @@map("industrial_processes")
+}
+
+model OilGasOperations {
+  id                  String            @id @default(cuid())
+  stationarySourcesId String            @unique
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
+  selectedFuelType    String
+  fuelVolume          Float
+  files               Json? 
+
+  @@map("oil_gas_operations")
+}
+
+// Mobile Sources
+model MobileSources {
+  id           String     @id @default(cuid())
+  scope1DataId String     @unique
+  scope1Data   Scope1Data @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
+
+  roadTransport    RoadTransport?
+  vehicleEquipment VehicleEquipment?
+  marineAviation   MarineAviation?
+
+  @@map("mobile_sources")
+}
+
+model RoadTransport {
+  id                  String        @id @default(cuid())
+  mobileSourcesId     String        @unique
+  mobileSources       MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
+  dieselTruckFuelType String?
+  dieselTruckVolume   Float
+  carPetrolVolume     Float
+  carDieselVolume     Float
+  files               Json? // Store AssessmentFile[] as JSON
+
+  @@map("road_transport")
+}
+
+model VehicleEquipment {
+  id                String        @id @default(cuid())
+  mobileSourcesId   String        @unique
+  mobileSources     MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
+  forkliftFuelType  String
+  forkliftVolume    Float
+  heavyDutyFuelType String
+  heavyDutyVolume   Float
+  tractorFuelType   String
+  tractorVolume     Float
+  files             Json? // Store AssessmentFile[] as JSON
+
+  @@map("vehicle_equipment")
+}
+
+model MarineAviation {
+  id                 String        @id @default(cuid())
+  mobileSourcesId    String        @unique
+  mobileSources      MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
+  helicopterFuelType String
+  helicopterVolume   Float
+  vesselFuelType     String
+  otherFuelType      String?
+  vesselVolume       Float
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("marine_aviation")
+}
+
+// Process Emissions
+model ProcessEmissions {
+  id           String     @id @default(cuid())
+  scope1DataId String     @unique
+  scope1Data   Scope1Data @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
+
+  co2Release          CO2Release?
+  fertilizerEmissions FertilizerEmissions?
+  gasFlaring          GasFlaring?
+  entericFermentation EntericFermentation?
+  methaneNitrousOxide MethaneNitrousOxide?
+
+  @@map("process_emissions")
+}
+
+model CO2Release {
+  id                 String           @id @default(cuid())
+  processEmissionsId String           @unique
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
+  clinkerQuantity    Float
+  calciumOxide       Float
+  magnesiumOxide     Float
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("co2_release")
+}
+
+model FertilizerEmissions {
+  id                 String           @id @default(cuid())
+  processEmissionsId String           @unique
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
+  products           Json
+  feedstock          Float
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("fertilizer_emissions")
+}
+
+model GasFlaring {
+  id                 String           @id @default(cuid())
+  processEmissionsId String           @unique
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
+  gasVolume          Float
+  carbonContent      Float
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("gas_flaring")
+}
+
+model EntericFermentation {
+  id                 String           @id @default(cuid())
+  processEmissionsId String           @unique
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
+  animals            Json
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("enteric_fermentation")
+}
+
+model MethaneNitrousOxide {
+  id                 String           @id @default(cuid())
+  processEmissionsId String           @unique
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
+  animals            Json
+  manureSystem       String
+  otherManureSystem  String?
+  files              Json? // Store AssessmentFile[] as JSON
+
+  @@map("methane_nitrous_oxide")
+}
+
+// Fugitive Emissions
+model FugitiveEmissions {
+  id           String     @id @default(cuid())
+  scope1DataId String     @unique
+  scope1Data   Scope1Data @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
+
+  methaneLeaks         MethaneLeaks?
+  ventingNaturalGas    VentingNaturalGas?
+  incompleteCombustion IncompleteCombustion?
+  hfcLeaks             HFCLeaks?
+
+  @@map("fugitive_emissions")
+}
+
+model MethaneLeaks {
+  id                  String            @id @default(cuid())
+  fugitiveEmissionsId String            @unique
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
+  compressors         Float
+  pumps               Float
+  prds                Float
+  openEnded           Float
+  seals               Float
+  wellheads           Float
+  manifolds           Float
+  hoses               Float
+  drains              Float
+  sampling            Float
+  others              Float
+  methanePercent      Float
+  files               Json? // Store AssessmentFile[] as JSON
+
+  @@map("methane_leaks")
+}
+
+model VentingNaturalGas {
+  id                  String            @id @default(cuid())
+  fugitiveEmissionsId String            @unique
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
+  volumeOfGasVented   Float
+  methane             Float
+  carbonDioxide       Float
+  ethane              Float
+  propane             Float
+  butanes             Float
+  wellheads           Float
+  nitrogen            Float
+  hydrogenSulfide     Float
+  others              Float
+  files               Json? // Store AssessmentFile[] as JSON
+
+  @@map("venting_natural_gas")
+}
+
+model IncompleteCombustion {
+  id                  String            @id @default(cuid())
+  fugitiveEmissionsId String            @unique
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
+  volumeToFlare       Float
+  flareEfficiency     Float
+  gasComposition      Float
+  files               Json? // Store AssessmentFile[] as JSON
+
+  @@map("incomplete_combustion")
+}
+
+model HFCLeaks {
+  id                  String            @id @default(cuid())
+  fugitiveEmissionsId String            @unique
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
+  R134a               Boolean
+  R410A               Boolean
+  R404A               Boolean
+  R407C               Boolean
+  R507A               Boolean
+  others              Float
+  manureSystem        String
+  refrigerantAdded    Float
+  files               Json? // Store AssessmentFile[] as JSON
+
+  @@map("hfc_leaks")
+}

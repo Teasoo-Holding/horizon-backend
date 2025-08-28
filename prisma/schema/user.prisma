@@ -24,6 +24,7 @@ model User {
   department      Department?  @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
   leadDepartments Department[] @relation("DepartmentLead")
   invitationsSent Invitation[]
+  assessments     Assessment[]
 
   teamLeadOfSubsidiary Subsidiary[] @relation("SubsidiaryTeamLead")
 

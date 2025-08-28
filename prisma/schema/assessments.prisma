@@ -1,0 +1,24 @@
+enum AssessmentStatus {
+    draft
+    submitted
+}
+
+// Main Assessment Entry Model
+model Assessment {
+    id          String           @id @default(cuid())
+    subsidiaryId  Int
+    startMonth  DateTime
+    startYear   DateTime
+    endMonth    DateTime
+    endYear     DateTime
+    status      AssessmentStatus @default(draft)
+    createdAt   DateTime         @default(now())
+    updatedAt   DateTime         @updatedAt
+    completedAt DateTime?
+    createdById String
+    createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+    disclosureTopics DisclosureTopic[]
+
+    @@map("assessments")
+}
