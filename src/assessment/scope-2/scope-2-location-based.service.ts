@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Express } from 'express';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -19,44 +19,48 @@ export class LocationBasedS2Service {
    * Helper: Upload image or return empty string + empty publicId if not provided
    */
   private async handleFileUpload(file?: Express.Multer.File): Promise<{ url: string; publicId: string }> {
+    console.log("Upload Result")
     if (!file) {
       return { url: '', publicId: '' };
     }
     const result = await this.cloudinaryService.uploadImage(file);
-    if ('secure_url' in result && 'public_id' in result) {
-      return { url: result.secure_url, publicId: result.public_id };
+    console.log("Upload Result", result)
+    if ('url' in result && 'public_id' in result) {
+      return { url: result.url, publicId: result.public_id };
     }
     return { url: '', publicId: '' };
   }
 
  
-  async create(dto: LocationBasedS2Dto, files: Record<string, Express.Multer.File>, user_id: number): Promise<any> {
-    // Upload all file fields (map each field to Cloudinary)
-    const invoiceElectricity = await this.handleFileUpload(files['invoice_from_electricity_distribution_companies_url']);
-    const smartMeter = await this.handleFileUpload(files['smart_or_sub_meter_reading_url']);
-    const utilityContract = await this.handleFileUpload(files['utility_contract_or_purchase_agreement_url']);
-    const coolingInvoice = await this.handleFileUpload(files['cooling_energy_invoices_from_service_providers_url']);
-    const equipmentLog = await this.handleFileUpload(files['equipment_performance_log_url']);
-    const subMetering = await this.handleFileUpload(files['sub_metering_records_url']);
-    const steamInvoice = await this.handleFileUpload(files['supplier_invoice_for_steam_purchased_url']);
-    const steamMetered = await this.handleFileUpload(files['metered_record_for_steam_consumed_url']);
-    const steamContract = await this.handleFileUpload(files['contracts_with_third_party_providers_url']);
-    const heatingInvoices = await this.handleFileUpload(files['invoices_for_heating_services_url']);
-    const heatingMetered = await this.handleFileUpload(files['metered_heating_records_url']);
-    const heatingSupplier = await this.handleFileUpload(files['supplier_contracts_url']);
-    const refrigerantCert = await this.handleFileUpload(files['certification_of_refigirant_type_url']);
+  async create(dto: LocationBasedS2Dto, files: Record<string, Express.Multer.File[]>, user_id: number): Promise<any> {
+    const invoiceElectricity = await this.handleFileUpload(files['invoice_from_electricity_distribution_companies_url']?.[0]);
+    const smartMeter = await this.handleFileUpload(files['smart_or_sub_meter_reading_url']?.[0]);
+    const utilityContract = await this.handleFileUpload(files['utility_contract_or_purchase_agreement_url']?.[0]);
+    const coolingInvoice = await this.handleFileUpload(files['cooling_energy_invoices_from_service_providers_url']?.[0]);
+    const equipmentLog = await this.handleFileUpload(files['equipment_performance_log_url']?.[0]);
+    const subMetering = await this.handleFileUpload(files['sub_metering_records_url']?.[0]);
+    const steamInvoice = await this.handleFileUpload(files['supplier_invoice_for_steam_purchased_url']?.[0]);
+    const steamMetered = await this.handleFileUpload(files['metered_record_for_steam_consumed_url']?.[0]);
+    const steamContract = await this.handleFileUpload(files['contracts_with_third_party_providers_url']?.[0]);
+    const heatingInvoices = await this.handleFileUpload(files['invoices_for_heating_services_url']?.[0]);
+    const heatingMetered = await this.handleFileUpload(files['metered_heating_records_url']?.[0]);
+    const heatingSupplier = await this.handleFileUpload(files['supplier_contracts_url']?.[0]);
+    const refrigerantCert = await this.handleFileUpload(files['certification_of_refigirant_type_url']?.[0]);
 
     if(!user_id){
       throw new NotFoundError('User not found')
     }
-
+    
     const user = await this.prisma.user.findUnique({
       where: {id: user_id}
     })
+
+
+
     return this.prisma.locationBasedS2.create({
       data: {
         name: dto.name || '',
-        companyId: user?.companyId || 0 ,
+        subsidiaryId: user?.subsidiaryId || user?.companyId || 0 ,
         creator_id: user_id,
         total_electricity_consumption: dto.total_electricity_consumption || 0,
         reporting_period_consumption: dto.reporting_period_consumption || ReportingPeriod.MONTHLY,
@@ -99,6 +103,7 @@ export class LocationBasedS2Service {
       },
     });
   }
+ 
 
 
   async findAll() {
@@ -110,21 +115,69 @@ export class LocationBasedS2Service {
     return this.prisma.locationBasedS2.findUnique({ where: { id } });
   }
 
-  async update(id: number, dto: LocationBasedS2Dto, files: Record<string, Express.Multer.File>) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Record with id ${id} not found`);
+async update(
+    id: number, 
+    dto: LocationBasedS2Dto, 
+    files: Record<string, Express.Multer.File[]>,
+    userId: number
+  ): Promise<any> {
+    // First, find the existing record
+    const existingRecord = await this.prisma.locationBasedS2.findUnique({
+      where: { id },
+    });
 
-    // Handle file re-upload if new file exists, else keep old one
-    const invoiceElectricity = files['invoice_from_electricity_distribution_companies_url']
-      ? await this.handleFileUpload(files['invoice_from_electricity_distribution_companies_url'])
-      : { url: existing.invoice_from_electricity_distribution_companies_url, publicId: existing.invoice_from_electricity_distribution_companies_url_public_id };
+    if (!existingRecord) {
+      throw new NotFoundException('LocationBasedS2 record not found');
+    }
 
+    const updateData: any = { ...dto };
+
+    const fileFields = [
+      'invoice_from_electricity_distribution_companies_url',
+      'smart_or_sub_meter_reading_url',
+      'utility_contract_or_purchase_agreement_url',
+      'cooling_energy_invoices_from_service_providers_url',
+      'equipment_performance_log_url',
+      'sub_metering_records_url',
+      'supplier_invoice_for_steam_purchased_url',
+      'metered_record_for_steam_consumed_url',
+      'contracts_with_third_party_providers_url',
+      'invoices_for_heating_services_url',
+      'metered_heating_records_url',
+      'supplier_contracts_url',
+      'certification_of_refigirant_type_url',
+    ];
+
+    for (const field of fileFields) {
+      if (files[field]?.[0]) {
+        // Delete the old image from Cloudinary if it exists
+        const publicIdField = `${field}_public_id`;
+        const oldPublicId = existingRecord[publicIdField];
+        
+        if (oldPublicId) {
+          try {
+            await this.cloudinaryService.deleteImage(oldPublicId);
+          } catch (error) {
+            console.error(`Failed to delete old image for field ${field}:`, error);
+            // Continue with update even if deletion fails
+          }
+        }
+
+        // Upload the new file
+        const uploadResult = await this.handleFileUpload(files[field][0]);
+        
+        // Add the new URL and public ID to the update data
+        updateData[field] = uploadResult.url;
+        updateData[publicIdField] = uploadResult.publicId;
+      }
+    }
+
+    // Update the record
     return this.prisma.locationBasedS2.update({
       where: { id },
       data: {
-        ...dto,
-        invoice_from_electricity_distribution_companies_url: invoiceElectricity.url,
-        invoice_from_electricity_distribution_companies_url_public_id: invoiceElectricity.publicId,
+        ...updateData,
+        updated_by: userId,
       },
     });
   }

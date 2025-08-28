@@ -64,6 +64,7 @@ model MarketBasedS2 {
     supplier_specific_emission_factor Float
     subsidiary                           Subsidiary @relation(fields: [subsidiaryId], references: [id])
     subsidiaryId                         Int
+    creator_id                        Int
 
     electricity_supplier_contract_with_ipps_url                  String
     electricity_supplier_contract_with_ipps_url_public_id        String

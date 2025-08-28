@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MarketBasedS2Dto {
   @ApiPropertyOptional()
@@ -14,7 +14,7 @@ export class MarketBasedS2Dto {
   supplier_specific_emission_factor?: number;
 
   @ApiPropertyOptional()
-  companyId?: number;
+  subsidiaryId?: number;
 
   @ApiPropertyOptional()
   electricity_supplier_contract_with_ipps_url?: string;
@@ -111,4 +111,7 @@ export class MarketBasedS2Dto {
 
   @ApiPropertyOptional()
   performance_or_operational_logs_url_public_id?: string;
+
+  @ApiProperty()
+  creator_id: number;
 }

@@ -8,6 +8,7 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   try {
+    // Create roles
     await prisma.role.createMany({
       data: [
         {
@@ -54,38 +55,40 @@ async function main() {
       skipDuplicates: true,
     });
 
+    // Create or update company
     const company = await prisma.company.upsert({
-  where: { name: 'Teasoo Consulting' },
-  update: {},
-  create: {
-    name: 'Teasoo Consulting',
-    registration_number: 'TEA12345',
-    industry: {
-      connectOrCreate: {
-        where: {
-          sector_industry: {
-            sector: 'Services',
-            industry: 'Advisory',
+      where: { name: 'Teasoo Consulting' },
+      update: {},
+      create: {
+        name: 'Teasoo Consulting',
+        registration_number: 'TEA12345',
+        industry: {
+          connectOrCreate: {
+            where: {
+              sector_industry: {
+                sector: 'Services',
+                industry: 'Advisory',
+              },
+            },
+            create: {
+              sector: 'Services',
+              industry: 'Advisory',
+            },
           },
         },
-        create: {
-          sector: 'Services',
-          industry: 'Advisory',
-        },
+        isoCountryCode: 'NG',
+        address: '123 Aso Villa',
+        country: 'Nigeria',
+        website: 'https://teasooconsulting.com',
+        contact_email: 'info@teasooconsulting.com',
+        contact_phone: '+2347038334703',
+        status: CompanyStatus.active,
+        created_by: 1,
+        updated_by: 1,
       },
-    },
-    isoCountryCode: 'NG',
-    address: '123 Aso Villa',
-    country: 'Nigeria',
-    website: 'https://teasooconsulting.com',
-    contact_email: 'info@teasooconsulting.com',
-    contact_phone: '+2347038334703',
-    status: CompanyStatus.active,
-    created_by: 1,
-    updated_by: 1,
-  },
-});
+    });
 
+    // Create or find admin user
     let adminUser = await prisma.user.findUnique({
       where: { email: 'admin@teasoo.com' },
     });
@@ -121,6 +124,68 @@ async function main() {
       console.log('⚠️ Admin user already exists. Skipping creation.');
     }
 
+    // Create subsidiary
+    // const subsidiary = await prisma.subsidiary.upsert({
+    //   where: {
+    //     name_parentCompanyId: {
+    //       name: 'Teasoo Consulting West Africa',
+    //       parentCompanyId: company.id,
+    //     },
+    //   },
+    //   update: {},
+    //   create: {
+
+    //     name: 'Teasoo Consulting West Africa',
+    //     registration_number: 'TEA-WA-001',
+    //     sicsCode: '8720', // Example SIC code for consulting services
+    //     isinCode: 'NGTEA001', // Example ISIN code
+    //     isoCountryCode: 'NG',
+    //     sector: 'Services',
+    //     subSector: 'Professional Services',
+    //     industry: 'Advisory',
+    //     address: '456 Victoria Island',
+    //     country: 'Nigeria',
+    //     currency: 'NGN',
+    //     contact_email: 'westafrica@teasooconsulting.com',
+    //     website: 'https://teasooconsulting.com/west-africa',
+    //     contact_phone: '+2347038334704',
+    //     company_logo_url: null,
+    //     status: CompanyStatus.active,
+    //     created_by: adminUser.id,
+    //     updated_by: adminUser.id,
+    //     parentCompanyId: company.id,
+    //     teamLeadId: adminUser.id, // Using admin as team lead initially
+    //   },
+    // });
+    const subsidiary = await prisma.subsidiary.create({
+      data: {
+        id: 1,
+        name: 'Teasoo Foods',
+        registration_number: 'TEA-WA-001',
+        sicsCode: '8720',
+        isinCode: 'NGTEA001', 
+        isoCountryCode: 'NG',
+        sector: 'Services',
+        subSector: 'Professional Services',
+        industry: 'Advisory',
+        address: '456 Victoria Island',
+        country: 'Nigeria',
+        currency: 'NGN',
+        contact_email: 'westafrica@teasooconsulting.com',
+        website: 'https://teasooconsulting.com/west-africa',
+        contact_phone: '+2347038334704',
+        company_logo_url: null,
+        status: CompanyStatus.active,
+        created_by: adminUser.id,
+        updated_by: adminUser.id,
+        parentCompanyId: company.id,
+        teamLeadId: adminUser.id, // Using admin as team lead initially
+      },
+    });
+
+    console.log(`✅ Subsidiary created: ${subsidiary.name}`);
+
+    // Create subscriptions
     const subscriptions = [
       {
         name: 'Basic',
@@ -192,6 +257,7 @@ async function main() {
       }
     }
 
+    // Create industries
     for (const ind of industries) {
       await prisma.industry.upsert({
         where: {
