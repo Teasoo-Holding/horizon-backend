@@ -1,0 +1,110 @@
+model LocationBasedS2 {
+    id                                                            Int             @id @default(autoincrement())
+    name                                                          String
+    subsidiary                                                   Subsidiary     @relation(fields: [subsidiaryId], references: [id])
+    subsidiaryId                                                 Int
+    creator_id                                                    Int
+    total_electricity_consumption                                 Float
+    reporting_period_consumption                                  ReportingPeriod @default(MONTHLY)
+    electricity_supplier                                          String
+    invoice_from_electricity_distribution_companies_url           String
+    invoice_from_electricity_distribution_companies_url_public_id String
+    smart_or_sub_meter_reading_url                                String
+    smart_or_sub_meter_reading_url_public_id                      String
+    utility_contract_or_purchase_agreement_url                    String
+    utility_contract_or_purchase_agreement_url_public_id          String
+
+    amount_of_cooling_energy_consumed                            Float
+    purchased_cooling_type_of_cooling_system_used                String
+    purchased_cooling_reporting_period                           ReportingPeriod @default(MONTHLY)
+    cooling_energy_invoices_from_service_providers_url           String
+    cooling_energy_invoices_from_service_providers_url_public_id String
+    equipment_performance_log_url                                String
+    equipment_performance_log_url_public_id                      String
+    sub_metering_records_url                                     String
+    sub_metering_records_url_public_id                           String
+
+    total_steam_consumed                               Float
+    source_of_steam_consumed                           String
+    purchased_steam_reporting_period                   ReportingPeriod @default(MONTHLY)
+    supplier_invoice_for_steam_purchased_url           String
+    supplier_invoice_for_steam_purchased_url_public_id String
+
+    metered_record_for_steam_consumed_url           String
+    metered_record_for_steam_consumed_url_public_id String
+
+    contracts_with_third_party_providers_url           String
+    contracts_with_third_party_providers_url_public_id String
+
+    was_heating_energy_purchased Boolean
+
+    total_energyGJ Float?
+    supplier       String?
+
+    invoices_for_heating_services_url           String?
+    invoices_for_heating_services_url_public_id String?
+
+    metered_heating_records_url           String?
+    metered_heating_records_url_public_id String?
+
+    supplier_contracts_url           String?
+    supplier_contracts_url_public_id String?
+
+    certification_of_refigirant_type_url           String?
+    certification_of_refigirant_type_url_public_id String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model MarketBasedS2 {
+    id                                Int     @id @default(autoincrement())
+    name                              String
+    total_electricity_consumed        Float
+    supplier_specific_emission_factor Float
+    subsidiary                           Subsidiary @relation(fields: [subsidiaryId], references: [id])
+    subsidiaryId                         Int
+    creator_id                        Int
+
+    electricity_supplier_contract_with_ipps_url                  String
+    electricity_supplier_contract_with_ipps_url_public_id        String
+    supplier_issued_emmission_factor_documentation_url           String
+    supplier_issued_emmission_factor_documentation_url_public_id String
+    invoices_and_bills_from_ipp_url                              String
+    invoices_or_bills_from_ipp_url_public_id                     String
+
+    total_grid_energy_consumed                     Float
+    eac_or_rec_certificate_url                     String
+    eac_or_rec_certificate_url_public_id           String
+    emission_factor_applied                        Float
+    energy_attribute_certificate_url               String
+    energy_attribute_certificate_url_public_id     String
+    grid_consumption_invoices_url                  String
+    grid_consumption_invoices_url_public_id        String
+    contracts_or_purchased_agreement_url           String
+    contracts_or_purchased_agreement_url_public_id String
+
+    purchased_electricity_total_electricity_consumed          Float
+    residual_mix_emission_factor_applied                      Float
+    grid_electricity_invoices_url                             String
+    grid_electricity_invoices_url_public_id                   String
+    nigerian_grid_emission_factor_documentation_url           String
+    nigerian_grid_emission_factor_documentation_url_public_id String
+    supplier_contacts_url                                     String
+    supplier_contacts_url_public_id                           String
+
+    purchased_cooling_quantity_consumed                            Float
+    purchased_cooling_supplier_specific_emission_factor_applied    Float
+    supplier_invoices_for_cooling_or_steam_purchases_url           String
+    supplier_invoices_for_cooling_or_steam_purchases_url_public_id String
+    supplier_emission_factor_data_sheet_url                        String
+    supplier_emission_factor_data_sheet_url_public_id              String
+    performance_or_operational_logs_url                            String
+    performance_or_operational_logs_url_public_id                  String
+}
+
+enum ReportingPeriod {
+    MONTHLY
+    QUARTERLY
+    YEARLY
+}

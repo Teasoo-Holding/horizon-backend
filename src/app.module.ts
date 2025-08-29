@@ -23,6 +23,7 @@ import { CookiesModule } from './cookies.module';
 import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
 import { TestModule } from './config/test/test.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { Scope2Module } from './assessment/scope-2/scope-2.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     CookiesModule,
     TestModule,
     CloudinaryModule,
+    Scope2Module,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
