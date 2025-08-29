@@ -1,48 +1,109 @@
-import { IsString, IsEnum, IsOptional, IsNumber, ValidateNested } from 'class-validator';
-
-export enum MetricType {
-  INDUSTRY_SPECIFIC = 'INDUSTRY_SPECIFIC',
-  SUPPLEMENTARY = 'SUPPLEMENTARY',
-}
-
-export class FileMetadataDto {
-  @IsString()
-  name: string;
-
-  @IsNumber()
-  size: number;
-
-  @IsNumber()
-  lastModified: number;
-}
-
-export class ElectricityHeatDto {
-  @IsString()
+import {
+  IsString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  ValidateNested,
+  IsArray,
+  IsBoolean
+} from 'class-validator';
+import { AssessmentStatus, DisclosureCategory, FuelType } from '@prisma/client';
+import { File } from '../common/file.interface';
+import { Type } from 'class-transformer';
+class FileDto {
   @IsOptional()
-  dieselFuelType?: string;
-
-  @IsNumber()
-  @IsOptional()
-  dieselVolume?: number;
+  @IsString()
+  name?: string;
 
   @IsString()
-  @IsOptional()
-  gasFuelType?: string;
-
-  @IsNumber()
-  @IsOptional()
-  gasVolume?: number;
-
-  @IsOptional()
-  files?: Record<string, FileMetadataDto | null>;
+  url: string;
 }
 
-export class StationarySourcesDto {
+class Scope1CreateDto {
+  @IsInt()
+  ghgDataId: number;
+
+  @IsBoolean()
+  @IsOptional()
+  completed?: boolean;
+
   @IsOptional()
   @ValidateNested()
-  electricityHeat?: ElectricityHeatDto;
+  @Type(() => StationarySourcesDto)
+  stationarySources?: StationarySourcesDto | null;
+}
 
-  // Add industrialProcesses, oilGasOperations DTOs similarly...
+class StationarySourcesDto {
+  @IsBoolean()
+  @IsOptional()
+  completed?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ElectricityHeatDto)
+  electricityHeat?: ElectricityHeatDto | null;
+}
+
+class ElectricityHeatDto {
+  @IsOptional()
+  @IsEnum(FuelType)
+  dieselFuelType?: FuelType | null;
+
+  @IsOptional()
+  @IsInt()
+  dieselVolume?: number | null;
+
+  @IsOptional()
+  @IsEnum(FuelType)
+  gasFuelType?: FuelType | null;
+
+  @IsOptional()
+  @IsInt()
+  gasVolume?: number | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FileDto)
+  files?: File[] | null;
+}
+
+class GhgDataDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => Scope1CreateDto)
+  scope1?: Scope1CreateDto | null;
+}
+
+class DisclosureTopicDto {
+  @IsInt()
+  assessmentId: number;
+
+  @IsEnum(DisclosureCategory)
+  category: DisclosureCategory;
+
+  @IsString()
+  topic: string;
+
+  @IsString()
+  subtopic: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GhgDataDto)
+  ghgData?: GhgDataDto | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FileDto)
+  airQualityData?: File[] | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FileDto)
+  waterData?: File[] | null;
 }
 
 export class CreateAssessmentDto {
@@ -50,21 +111,18 @@ export class CreateAssessmentDto {
   subsidiary: string;
 
   @IsString()
-  startMonth: string;
+  reportingPeriod: string;
 
-  @IsString()
-  startYear: string;
+  @IsEnum(AssessmentStatus)
+  @IsOptional()
+  status?: AssessmentStatus;
 
-  @IsString()
-  endMonth: string;
-
-  @IsString()
-  endYear: string;
-
-  @IsEnum(MetricType)
-  metricType: MetricType;
+  @IsInt()
+  createdById: number;
 
   @IsOptional()
-  @ValidateNested()
-  stationarySources?: StationarySourcesDto;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DisclosureTopicDto)
+  disclosureTopics?: DisclosureTopicDto[];
 }

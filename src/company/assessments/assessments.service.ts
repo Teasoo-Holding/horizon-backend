@@ -1,50 +1,54 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { AssessmentDto } from './dto/assessment.dto';
 
 @Injectable()
 export class AssessmentService {
-  constructor(private prisma: PrismaService) {}
+  private assessments: any[] = [];
+  private counter = 1;
 
-  async createOrUpdateAssessment(subsidiary: string, startYear: string, startMonth: string, metricType: string, data: CreateAssessmentDto) {
-    const existing = await this.prisma.assessment.findFirst({
-      where: { subsidiary, startYear, startMonth, metricType },
-      include: { stationarySources: true },
-    });
-
-    if (existing) {
-      if (data.stationarySources) {
-        await this.prisma.stationarySources.upsert({
-          where: { assessmentId: existing.id },
-          create: { assessmentId: existing.id, ...data.stationarySources },
-          update: { ...data.stationarySources },
-        });
-      }
-
-      return this.prisma.assessment.update({
-        where: { id: existing.id },
-        data: {
-          ...data,
-        },
-        include: { stationarySources: true },
-      });
-    }
-
-    return this.prisma.assessment.create({
-      data: {
-        ...data,
-        stationarySources: {
-          create: data.stationarySources,
-        },
-      },
-      include: { stationarySources: true },
-    });
+  async create(
+    createAssessmentDto: CreateAssessmentDto,
+  ): Promise<AssessmentDto> {
+    const newAssessment: any = {
+      id: this.counter++,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...createAssessmentDto,
+    };
+    this.assessments.push(newAssessment);
+    return newAssessment;
   }
 
-  async findAssessmentById(id: number) {
-    return this.prisma.assessment.findUnique({
-      where: { id },
-      include: { stationarySources: true },
-    });
+  async findAll(): Promise<AssessmentDto[]> {
+    return this.assessments;
+  }
+
+  async findOne(id: number): Promise<AssessmentDto | null> {
+    return this.assessments.find((a) => a.id === id) || null;
+  }
+
+  async update(
+    id: number,
+    updateAssessmentDto: UpdateAssessmentDto,
+  ): Promise<AssessmentDto | null> {
+    const index = this.assessments.findIndex((a) => a.id === id);
+    if (index === -1) return null;
+
+    this.assessments[index] = {
+      ...this.assessments[index],
+      ...updateAssessmentDto,
+      updatedAt: new Date(),
+    };
+
+    return this.assessments[index];
+  }
+
+  async remove(id: number): Promise<boolean> {
+    const index = this.assessments.findIndex((a) => a.id === id);
+    if (index === -1) return false;
+    this.assessments.splice(index, 1);
+    return true;
   }
 }
