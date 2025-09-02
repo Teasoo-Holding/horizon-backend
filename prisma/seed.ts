@@ -5,10 +5,10 @@ import { industries } from './industries';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('🌱 Starting database seed for user personas...');
 
   try {
-    // Create roles
+    // 1. Create all predefined roles
     await prisma.role.createMany({
       data: [
         {
@@ -55,8 +55,10 @@ async function main() {
       skipDuplicates: true,
     });
 
-    // Create or update company
-    const company = await prisma.company.upsert({
+    console.log('✅ Roles seeded.');
+
+    // 2. Create or find default companies
+    const teasooCompany = await prisma.company.upsert({
       where: { name: 'Teasoo Consulting' },
       update: {},
       create: {
@@ -88,102 +90,140 @@ async function main() {
       },
     });
 
-    // Create or find admin user
-    let adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@teasoo.com' },
+    // Create a separate company for ESG user personas
+    const horizonCompany = await prisma.company.upsert({
+      where: { name: 'Horizon ESG Solutions' },
+      update: {},
+      create: {
+        name: 'Horizon ESG Solutions',
+        registration_number: 'HZN7890',
+        industry: {
+          connectOrCreate: {
+            where: {
+              sector_industry: {
+                sector: 'Technology',
+                industry: 'Software',
+              },
+            },
+            create: {
+              sector: 'Technology',
+              industry: 'Software',
+            },
+          },
+        },
+        isoCountryCode: 'US',
+        address: '456 Tech Avenue',
+        country: 'USA',
+        website: 'https://horizonesg.com',
+        contact_email: 'info@horizonesg.com',
+        contact_phone: '+18005551234',
+        status: CompanyStatus.active,
+        created_by: 1,
+        updated_by: 1,
+      },
     });
+    console.log('✅ Companies seeded.');
 
-    const superAdminRole = await prisma.role.findUnique({
-      where: { name: 'super_admin' },
-    });
+    // 3. Create a user for each role persona
+    const roles = await prisma.role.findMany();
+    const passwordHash = await bcrypt.hash('password123', 10);
 
-    if (!adminUser) {
-      console.log('👤 Creating admin user...');
-      adminUser = await prisma.user.create({
-        data: {
-          email: 'admin@teasoo.com',
-          password: await bcrypt.hash('Teasoo@2025', 10),
-          first_name: 'Teasoo',
-          last_name: 'Admin',
-          roleId: superAdminRole!.id,
+    const roleEmailAliases = {
+      super_admin: 'sa',
+      platform_subadmin: 'psa',
+      platform_data_officer: 'pdo',
+      platform_viewer: 'pv',
+      company_esg_admin: 'ca',
+      company_esg_subadmin: 'csa',
+      company_esg_data_officer: 'cdo',
+      company_esg_viewer: 'cv',
+    };
+
+    for (const role of roles) {
+      // Determine which company to associate the user with
+      const isPlatformRole =
+        role.name.startsWith('platform') || role.name === 'super_admin';
+      const company = isPlatformRole ? teasooCompany : horizonCompany;
+      const email = `${roleEmailAliases[role.name]}@teasoo.com`;
+
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: {},
+        create: {
+          email,
+          password: passwordHash,
+          first_name: role.name
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' '),
+          last_name: 'User',
+          roleId: role.id,
           companyId: company.id,
           status: UserStatus.active,
         },
       });
+      console.log(
+        `👤 Created or updated user for role: ${role.name} (${user.email})`,
+      );
 
-      await prisma.company.update({
-        where: { id: company.id },
-        data: {
-          created_by: adminUser.id,
-          updated_by: adminUser.id,
-        },
-      });
-
-      console.log('✅ Admin user created.');
-    } else {
-      console.log('⚠️ Admin user already exists. Skipping creation.');
+      // Update company created_by/updated_by for Teasoo if not already set
+      if (role.name === 'super_admin') {
+        await prisma.company.update({
+          where: { id: teasooCompany.id },
+          data: {
+            created_by: user.id,
+            updated_by: user.id,
+          },
+        });
+        await prisma.company.update({
+          where: { id: horizonCompany.id },
+          data: {
+            created_by: user.id,
+            updated_by: user.id,
+          },
+        });
+      }
     }
 
-    // Create subsidiary
-    // const subsidiary = await prisma.subsidiary.upsert({
-    //   where: {
-    //     name_parentCompanyId: {
-    //       name: 'Teasoo Consulting West Africa',
-    //       parentCompanyId: company.id,
-    //     },
-    //   },
-    //   update: {},
-    //   create: {
-
-    //     name: 'Teasoo Consulting West Africa',
-    //     registration_number: 'TEA-WA-001',
-    //     sicsCode: '8720', // Example SIC code for consulting services
-    //     isinCode: 'NGTEA001', // Example ISIN code
-    //     isoCountryCode: 'NG',
-    //     sector: 'Services',
-    //     subSector: 'Professional Services',
-    //     industry: 'Advisory',
-    //     address: '456 Victoria Island',
-    //     country: 'Nigeria',
-    //     currency: 'NGN',
-    //     contact_email: 'westafrica@teasooconsulting.com',
-    //     website: 'https://teasooconsulting.com/west-africa',
-    //     contact_phone: '+2347038334704',
-    //     company_logo_url: null,
-    //     status: CompanyStatus.active,
-    //     created_by: adminUser.id,
-    //     updated_by: adminUser.id,
-    //     parentCompanyId: company.id,
-    //     teamLeadId: adminUser.id, // Using admin as team lead initially
-    //   },
-    // });
-    const subsidiary = await prisma.subsidiary.create({
-      data: {
-        id: 1,
-        name: 'Teasoo Foods',
-        registration_number: 'TEA-WA-001',
-        sicsCode: '8720',
-        isinCode: 'NGTEA001', 
-        isoCountryCode: 'NG',
-        sector: 'Services',
-        subSector: 'Professional Services',
-        industry: 'Advisory',
-        address: '456 Victoria Island',
-        country: 'Nigeria',
-        currency: 'NGN',
-        contact_email: 'westafrica@teasooconsulting.com',
-        website: 'https://teasooconsulting.com/west-africa',
-        contact_phone: '+2347038334704',
-        company_logo_url: null,
-        status: CompanyStatus.active,
-        created_by: adminUser.id,
-        updated_by: adminUser.id,
-        parentCompanyId: company.id,
-        teamLeadId: adminUser.id, // Using admin as team lead initially
-      },
+    // 4. Seed other data (subsidiaries, subscriptions, industries)
+    // Create or find subsidiary
+    const superAdminUser = await prisma.user.findFirst({
+      where: { email: 'super_admin@teasoo.com' },
     });
-
-    console.log(`✅ Subsidiary created: ${subsidiary.name}`);
+    if (superAdminUser) {
+      const subsidiary = await prisma.subsidiary.upsert({
+        where: {
+          name_parentCompanyId: {
+            name: 'Teasoo Consulting West Africa',
+            parentCompanyId: teasooCompany.id,
+          },
+        },
+        update: {},
+        create: {
+          name: 'Teasoo Consulting West Africa',
+          registration_number: 'TEA-WA-001',
+          sicsCode: '8720',
+          isinCode: 'NGTEA001',
+          isoCountryCode: 'NG',
+          sector: 'Services',
+          subSector: 'Professional Services',
+          industry: 'Advisory',
+          address: '456 Victoria Island',
+          country: 'Nigeria',
+          currency: 'NGN',
+          contact_email: 'westafrica@teasooconsulting.com',
+          website: 'https://teasooconsulting.com/west-africa',
+          contact_phone: '+2347038334704',
+          company_logo_url: null,
+          status: CompanyStatus.active,
+          created_by: superAdminUser.id,
+          updated_by: superAdminUser.id,
+          parentCompanyId: teasooCompany.id,
+          teamLeadId: superAdminUser.id,
+        },
+      });
+      console.log(`✅ Subsidiary created: ${subsidiary.name}`);
+    }
 
     // Create subscriptions
     const subscriptions = [
@@ -239,22 +279,16 @@ async function main() {
     ];
 
     for (const sub of subscriptions) {
-      const existing = await prisma.subscription.findUnique({
+      await prisma.subscription.upsert({
         where: { name: sub.name },
+        update: {},
+        create: {
+          ...sub,
+          created_by: superAdminUser!.id,
+          updated_by: superAdminUser!.id,
+        },
       });
-
-      if (!existing) {
-        await prisma.subscription.create({
-          data: {
-            ...sub,
-            created_by: adminUser.id,
-            updated_by: adminUser.id,
-          },
-        });
-        console.log(`📦 Created subscription: ${sub.name}`);
-      } else {
-        console.log(`📦 Subscription already exists: ${sub.name}`);
-      }
+      console.log(`📦 Created or updated subscription: ${sub.name}`);
     }
 
     // Create industries
