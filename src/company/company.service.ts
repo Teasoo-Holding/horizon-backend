@@ -15,6 +15,9 @@ export class CompanyService {
       include: {
         industry: true,
       },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
   }
   async findById(id: number) {
