@@ -186,9 +186,8 @@ async function main() {
     }
 
     // 4. Seed other data (subsidiaries, subscriptions, industries)
-    // Create or find subsidiary
     const superAdminUser = await prisma.user.findFirst({
-      where: { email: 'super_admin@teasoo.com' },
+      where: { email: roleEmailAliases['super_admin'] + '@teasoo.com' },
     });
     if (superAdminUser) {
       const subsidiary = await prisma.subsidiary.upsert({
@@ -278,17 +277,19 @@ async function main() {
       },
     ];
 
-    for (const sub of subscriptions) {
-      await prisma.subscription.upsert({
-        where: { name: sub.name },
-        update: {},
-        create: {
-          ...sub,
-          created_by: superAdminUser!.id,
-          updated_by: superAdminUser!.id,
-        },
-      });
-      console.log(`📦 Created or updated subscription: ${sub.name}`);
+    if (superAdminUser) {
+      for (const sub of subscriptions) {
+        await prisma.subscription.upsert({
+          where: { name: sub.name },
+          update: {},
+          create: {
+            ...sub,
+            created_by: superAdminUser.id,
+            updated_by: superAdminUser.id,
+          },
+        });
+        console.log(`📦 Created or updated subscription: ${sub.name}`);
+      }
     }
 
     // Create industries
