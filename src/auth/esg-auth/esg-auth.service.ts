@@ -7,7 +7,6 @@ import * as bcrypt from 'bcryptjs';
 import { UserStatus, CompanyStatus, RoleName } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EsgSignupDto } from './dtos/esg-signup.dto';
-import { isCompanyEmail } from 'src/utils/blacklist-emails';
 import { EmailService } from 'src/email/email.service';
 import { CompleteSignupDto } from './dtos/complete-signup.dto';
 import { PhoneValidationService } from 'src/config/phone-validation.service';
@@ -50,11 +49,6 @@ export class EsgAuthService {
     });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
-    }
-    if (!isCompanyEmail(dto.email)) {
-      throw new BadRequestException(
-        'Please register with your company email address, not a personal email.',
-      );
     }
     const existingCompany = await this.prisma.company.findFirst({
       where: { registration_number: dto.registration_number },
