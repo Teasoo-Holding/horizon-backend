@@ -23,6 +23,7 @@ model Company {
   website          String?
   contact_phone    String
   company_logo_url String?
+  company_logo_url_public_id String?
 
   status                    CompanyStatus @default(pending)
   created_at                DateTime      @default(now())
