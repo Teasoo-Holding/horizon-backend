@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateInvitationDto } from './dto/invitation.dto';
 import { EmailService } from 'src/email/email.service';
 import { randomUUID } from 'crypto';
+import { formatRoleName } from 'src/utils/format-rolename';
 
 @Injectable()
 export class InvitationsService {
@@ -49,6 +50,7 @@ export class InvitationsService {
       token,
       expiresAt,
       status: 'pending',
+      subsidiaryId: dto.subsidiaryId ?? null,
       departmentId: dto.departmentId ?? null,
       roleId: roleRecord.id,
       invitedById,
@@ -67,10 +69,11 @@ export class InvitationsService {
 
     const role = roleRecord.name;
 
-    const link = `${process.env.FRONTEND_URL}/esg/auth/signup?token=${token}`;
+    const link = `${process.env.FRONTEND_URL}/invite-user?token=${token}`;
+    const formatted_role = formatRoleName(String(role));
     await this.emailService.sendEmail(
       dto.email,
-      { firstname: dto.email, admin_name, esg_name, role, link },
+      { firstname: dto.email, admin_name, esg_name, formatted_role, link },
       6,
     );
 

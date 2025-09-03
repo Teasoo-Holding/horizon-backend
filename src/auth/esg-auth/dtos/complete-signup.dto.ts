@@ -26,8 +26,8 @@ export class CompleteSignupDto {
 
   @ApiProperty({ example: 'NG' })
   @IsString()
-  isoCountryCode: string;
-
+  @IsOptional()
+  isoCountryCode?: string;
 
   @ApiProperty({ example: 'token-from-email-invite-link' })
   @IsString()

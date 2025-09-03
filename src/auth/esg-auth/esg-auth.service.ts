@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { UserStatus, CompanyStatus, RoleName } from '@prisma/client';
@@ -27,10 +28,7 @@ export class EsgAuthService {
   }
 
   async signup(dto: EsgSignupDto) {
-
-    
-
-  const isValid = this.phoneValidationService.validatePhoneNumber(
+    const isValid = this.phoneValidationService.validatePhoneNumber(
       dto.contact_phone,
       dto.isoCountryCode || 'NG',
     );
@@ -87,7 +85,7 @@ export class EsgAuthService {
           country: dto.country || 'Nigeria',
           website: dto.website,
           contact_email: dto.contact_email,
-          contact_phone: formattedPhone || "",
+          contact_phone: formattedPhone || '',
           status: CompanyStatus.pending,
           created_by: 0,
           updated_by: 0,
@@ -167,26 +165,11 @@ export class EsgAuthService {
       include: { role: true, company: true, department: true },
     });
 
-
-     const isValid = this.phoneValidationService.validatePhoneNumber(
-      dto.phone_number ?? "",
-      dto.isoCountryCode || 'NG',
-    );
-
-    if (!isValid) {
-      throw new BadRequestException('Invalid phone number');
-    }
-
-    const formattedPhone = this.phoneValidationService.formatPhoneNumber(
-      dto.phone_number ?? "",
-      dto.isoCountryCode || 'NG',
-    );
-
     if (!invitation) throw new BadRequestException('Invalid invitation token');
     if (invitation.expiresAt < new Date())
       throw new BadRequestException('Invitation expired');
     if (invitation.status !== 'pending')
-      throw new BadRequestException('Invitation already used or expired');
+      throw new UnauthorizedException('Invitation already used or expired');
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -196,13 +179,12 @@ export class EsgAuthService {
         password: hashedPassword,
         first_name: dto.first_name,
         last_name: dto.last_name,
-        phone_number: formattedPhone,
         roleId: invitation.roleId,
         companyId: invitation.companyId,
         departmentId: invitation.departmentId,
         status: 'active',
         profile_photo_url: null,
-        last_login: null,
+        last_login: new Date(Date.now()),
         otpHash: null,
         otpExpiresAt: null,
       },
