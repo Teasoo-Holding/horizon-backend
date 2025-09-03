@@ -26,12 +26,15 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
+      const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) throw new NotFoundException('Invalid credentials');
+    
+    // console.log("User", user)
     if (user.status !== 'active') {
-      throw new UnauthorizedException('User account not approved');
+      throw new UnauthorizedException('Account awaiting approval');
     }
 
-    const passwordValid = await bcrypt.compare(password, user.password);
-    if (!passwordValid) throw new NotFoundException('Invalid password');
+  
 
     const { password: _, ...result } = user;
     return result;
