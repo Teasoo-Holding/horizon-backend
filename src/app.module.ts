@@ -11,7 +11,6 @@ import { EmailService } from './email/email.service';
 import { EmailModule } from './email/email.module';
 import { OtpService } from './otp/otp.service';
 import { OtpModule } from './otp/otp.module';
-import { RateLimitModule } from './infrastructure/rate_limiting/rate_limit.module';
 import { CompanyModule } from './company/company.module';
 import { DepartmentsModule } from './company/departments/departments.module';
 import { IndustriesModule } from './company/industries/industries.module';
@@ -24,6 +23,8 @@ import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
 import { TestModule } from './config/test/test.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { Scope2Module } from './assessment/scope-2/scope-2.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -33,7 +34,6 @@ import { Scope2Module } from './assessment/scope-2/scope-2.module';
     UserModule,
     EmailModule,
     OtpModule,
-    RateLimitModule,
     EsgAuthModule,
     CompanyModule,
     DepartmentsModule,
@@ -44,6 +44,12 @@ import { Scope2Module } from './assessment/scope-2/scope-2.module';
     TestModule,
     CloudinaryModule,
     Scope2Module,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
@@ -52,6 +58,10 @@ import { Scope2Module } from './assessment/scope-2/scope-2.module';
     EmailService,
     OtpService,
     AuthService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
