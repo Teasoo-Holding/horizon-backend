@@ -164,6 +164,13 @@ export class SubsidiaryService {
           },
         },
       },
+      include: {
+        parentCompany: {
+          include: {
+            industry: true,
+          },
+        },
+      },
     });
   }
 
