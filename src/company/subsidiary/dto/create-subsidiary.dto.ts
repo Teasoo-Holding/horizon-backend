@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsUrl,
   IsInt,
+  IsNumber,
 } from 'class-validator';
 export class CreateSubsidiaryDto {
   @ApiProperty({
@@ -37,7 +38,7 @@ export class CreateSubsidiaryDto {
     example: 'Information Technology',
   })
   @IsOptional()
-  @IsString()
+  @IsNumber()
   industryId?: number;
 
   // Optional fields:
