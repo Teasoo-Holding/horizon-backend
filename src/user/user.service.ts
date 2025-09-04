@@ -24,7 +24,7 @@ export class UserService {
         created_at: true,
         updated_at: true,
         company: {
-          select: { name: true, company_logo_url: true },
+          select: { id: true, name: true, company_logo_url: true },
         },
         department: {
           select: { name: true },
@@ -42,8 +42,7 @@ export class UserService {
 
     const updateData: Prisma.UserUpdateInput = {};
 
-
-    // const { profile_photo_url, profile_photo_url_public_id } = 
+    // const { profile_photo_url, profile_photo_url_public_id } =
 
     if (rest.first_name !== undefined) updateData.first_name = rest.first_name;
     if (rest.last_name !== undefined) updateData.last_name = rest.last_name;
