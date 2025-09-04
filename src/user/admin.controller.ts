@@ -23,7 +23,7 @@ export class AdminController {
 
   @Get('dashboard')
   @UseGuards(JwtRolesGuard)
-  @Roles('super_admin')
+  @Roles('super_admin', 'platform_admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get super admin dashboard data (super_admin-only)' })
   async getSuperAdminDashboard(@Req() req: RequestWithUser) {

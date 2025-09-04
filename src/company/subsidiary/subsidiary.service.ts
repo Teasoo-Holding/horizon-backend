@@ -63,7 +63,7 @@ export class SubsidiaryService {
           first_name: createSubsidiaryDto?.teamLead_name ?? '',
           companyId: user.companyId,
           password: '', 
-          roleId: 2,
+          roleId: 6,
         },
       });
       await this.emailService.sendEmail(
@@ -80,7 +80,7 @@ export class SubsidiaryService {
 
     if (teamLead && teamLead.companyId !== user.companyId) {
       throw new ForbiddenException(
-        'You can only create subsidiaries with your own team lead',
+        'You can only create subsidiaries with your own team',
       );
     }
 
