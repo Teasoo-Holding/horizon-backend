@@ -39,4 +39,9 @@ export class EsgSignupDto extends RegisterDto {
   @ApiProperty({ example: '+2348123456789' })
   @IsString()
   contact_phone: string;
+
+  @ApiProperty({ example: 'investor' })
+  @IsString()
+  @IsOptional()
+  company_type?: string;
 }

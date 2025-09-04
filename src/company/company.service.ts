@@ -70,7 +70,7 @@ export class CompanyService {
         await this.emailService.sendEmail(
           String(esgAdmin.email),
           {
-            firstName: esgAdmin.first_name,
+            firstname: esgAdmin.first_name,
             link,
           },
           5,

@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { UserStatus, CompanyStatus, RoleName } from '@prisma/client';
+import { UserStatus, CompanyStatus, RoleName, CompanyType } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EsgSignupDto } from './dtos/esg-signup.dto';
 import { EmailService } from 'src/email/email.service';
@@ -89,6 +89,7 @@ export class EsgAuthService {
           status: CompanyStatus.pending,
           created_by: 0,
           updated_by: 0,
+          company_type: CompanyType.esg
         },
       });
 

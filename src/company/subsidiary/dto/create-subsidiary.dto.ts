@@ -38,7 +38,7 @@ export class CreateSubsidiaryDto {
   })
   @IsOptional()
   @IsString()
-  industry?: string;
+  industryId?: number;
 
   // Optional fields:
 

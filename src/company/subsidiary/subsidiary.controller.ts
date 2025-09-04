@@ -15,6 +15,7 @@ import { CreateSubsidiaryDto } from './dto/create-subsidiary.dto';
 import { UpdateSubsidiaryDto } from './dto/update-subsidiary.dto';
 import { RequestWithUser } from 'src/user/user.controller';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
+import { ApiOperation, ApiProperty } from '@nestjs/swagger';
 
 @Controller('subsidiary')
 export class SubsidiaryController {
@@ -43,6 +44,18 @@ export class SubsidiaryController {
   @UseGuards(JwtRolesGuard)
   async findCompanySubsidiaries(@Req() req: RequestWithUser) {
     return await this.subsidiaryService.findCompanySubsidiaries(req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Get all users of a subsidiary' })
+  @ApiProperty({
+    description: 'Subsidiary id',
+    example: 1,
+    required: true,
+  })
+  @Get(':id/users')
+  @UseGuards(JwtRolesGuard)
+  async findSubsidiaryUsers(@Param('id', ParseIntPipe) id: number) {
+    return await this.subsidiaryService.findSubsidiaryUsers(id);
   }
 
   @Get(':id')
