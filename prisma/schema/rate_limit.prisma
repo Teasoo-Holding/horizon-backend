@@ -1,5 +1,0 @@
-model rate_limit {
-  key        String   @id
-  hits       Int
-  expires_at DateTime
-}

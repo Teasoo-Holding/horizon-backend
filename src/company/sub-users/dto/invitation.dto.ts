@@ -15,6 +15,11 @@ export class CreateInvitationDto {
   @ApiProperty({ example: 1, required: false })
   @IsOptional()
   @IsInt()
+  subsidiaryId?: number;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsOptional()
+  @IsInt()
   departmentId?: number;
 
   @ValidateIf((o) => !o.roleName)

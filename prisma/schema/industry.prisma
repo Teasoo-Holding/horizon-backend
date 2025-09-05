@@ -4,6 +4,7 @@ model Industry {
     industry String
 
     companies Company[]
+    subsidiaries Subsidiary[]
 
     @@unique([sector, industry])
     @@map("industries")

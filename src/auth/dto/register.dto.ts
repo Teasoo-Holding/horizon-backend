@@ -33,4 +33,12 @@ export class RegisterDto {
 
   @IsString()
   role: string;
+
+  @IsString()
+  @IsOptional()
+  profile_photo_url?: string;
+
+  @IsOptional()
+  @IsString()
+  profile_photo_url_public_id?: string;
 }

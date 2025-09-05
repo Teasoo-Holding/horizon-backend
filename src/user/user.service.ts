@@ -13,6 +13,7 @@ export class UserService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
+        id: true,
         email: true,
         first_name: true,
         last_name: true,
@@ -23,7 +24,7 @@ export class UserService {
         created_at: true,
         updated_at: true,
         company: {
-          select: { name: true, company_logo_url: true },
+          select: { id: true, name: true, company_logo_url: true },
         },
         department: {
           select: { name: true },
@@ -41,9 +42,15 @@ export class UserService {
 
     const updateData: Prisma.UserUpdateInput = {};
 
+    // const { profile_photo_url, profile_photo_url_public_id } =
+
     if (rest.first_name !== undefined) updateData.first_name = rest.first_name;
     if (rest.last_name !== undefined) updateData.last_name = rest.last_name;
     if (rest.email !== undefined) updateData.email = rest.email;
+    if (rest.profile_photo_url !== undefined)
+      updateData.profile_photo_url = rest.profile_photo_url;
+    if (rest.profile_photo_url_public_id !== undefined)
+      updateData.profile_photo_url_public_id = rest.profile_photo_url_public_id;
     if (rest.phone_number !== undefined)
       updateData.phone_number = rest.phone_number;
 
@@ -77,6 +84,7 @@ export class UserService {
     if (!user || user.companyId !== 1) {
   throw new UnauthorizedException();
 }
+
 
    return
 

@@ -66,14 +66,13 @@ export class CompanyService {
           data: { status: 'active' },
         });
 
-        const link = `${process.env.FRONTEND_URL}`;
         await this.emailService.sendEmail(
           String(esgAdmin.email),
           {
-            firstName: esgAdmin.first_name,
-            link,
+            firstname: esgAdmin.first_name,
+            company_name: company.name,
           },
-          5,
+          9,
         );
       }
     }

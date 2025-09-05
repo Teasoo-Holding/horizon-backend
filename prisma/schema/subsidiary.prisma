@@ -1,15 +1,13 @@
-
-
 model Subsidiary {
-  id                        Int           @id @default(autoincrement())
-  name                      String        
-  registration_number       String?
-  sicsCode       String?
-  isinCode       String?
-  isoCountryCode String?
-  sector         String?
-  subSector      String?
-  industry       String?
+  id                  Int     @id @default(autoincrement())
+  name                String
+  registration_number String?
+  sicsCode            String?
+  isinCode            String?
+  isoCountryCode      String?
+
+  industryId Int?
+  industry   Industry? @relation(fields: [industryId], references: [id])
 
   address                   String?
   country                   String?
@@ -25,23 +23,22 @@ model Subsidiary {
   updated_by                Int
   current_subscription_tier Int?
 
-
   users User[] @relation("SubsidiaryUsers")
 
-  departments          Department[]
+  departments Department[]
 
-  parentCompany   Company  @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
+  parentCompany   Company @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
   parentCompanyId Int
 
-  teamLead   User      @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
-  teamLeadId Int       
+  teamLead   User @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
+  teamLeadId Int
 
   invitations Invitation[]
 
   location_based_s2 LocationBasedS2[]
   market_based_s2   MarketBasedS2[]
 
+  @@unique([name, parentCompanyId])
   @@index([status])
   @@index([created_at])
-  @@unique([name, parentCompanyId]) 
 }

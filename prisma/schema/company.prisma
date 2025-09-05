@@ -5,6 +5,12 @@ enum CompanyStatus {
   disabled
 }
 
+enum CompanyType {
+  esg
+  investor
+  regulator
+}
+
 model Company {
   id                  Int    @id @default(autoincrement())
   name                String @unique
@@ -16,13 +22,15 @@ model Company {
   isinCode       String?
   isoCountryCode String
 
-  address          String
-  country          String?
-  currency         String?
-  contact_email    String
-  website          String?
-  contact_phone    String
-  company_logo_url String?
+  address                    String
+  country                    String?
+  currency                   String?
+  contact_email              String
+  website                    String?
+  contact_phone              String
+  company_logo_url           String?
+  company_logo_url_public_id String?
+  company_type               CompanyType?
 
   status                    CompanyStatus @default(pending)
   created_at                DateTime      @default(now())
@@ -37,7 +45,7 @@ model Company {
   departments          Department[]
   invitations          Invitation[]
 
-  subsidiaries         Subsidiary[] @relation("Subsidiaries")
+  subsidiaries Subsidiary[] @relation("Subsidiaries")
 
   @@index([status])
   @@index([created_at])

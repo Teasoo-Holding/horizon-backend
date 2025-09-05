@@ -1,4 +1,4 @@
-import { CompanyStatus, PrismaClient, UserStatus } from '@prisma/client';
+import { CompanyStatus, CompanyType, PrismaClient, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { industries } from './industries';
 
@@ -120,6 +120,7 @@ async function main() {
         status: CompanyStatus.active,
         created_by: 1,
         updated_by: 1,
+        company_type: CompanyType.esg
       },
     });
     console.log('✅ Companies seeded.');
@@ -204,9 +205,20 @@ async function main() {
           sicsCode: '8720',
           isinCode: 'NGTEA001',
           isoCountryCode: 'NG',
-          sector: 'Services',
-          subSector: 'Professional Services',
-          industry: 'Advisory',
+          industry: {
+            connectOrCreate: {
+              where: {
+                sector_industry: {
+                  sector: 'Services',
+                  industry: 'Advisory',
+                },
+              },
+              create: {
+                sector: 'Services',
+                industry: 'Advisory',
+              },
+            },
+          },
           address: '456 Victoria Island',
           country: 'Nigeria',
           currency: 'NGN',
@@ -217,8 +229,16 @@ async function main() {
           status: CompanyStatus.active,
           created_by: superAdminUser.id,
           updated_by: superAdminUser.id,
-          parentCompanyId: teasooCompany.id,
-          teamLeadId: superAdminUser.id,
+          parentCompany: {
+            connect: {
+              id: teasooCompany.id,
+            },
+          },
+          teamLead: {
+            connect: {
+              id: superAdminUser.id,
+            },
+          },
         },
       });
       console.log(`✅ Subsidiary created: ${subsidiary.name}`);
