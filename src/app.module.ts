@@ -25,6 +25,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { Scope2Module } from './assessment/scope-2/scope-2.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ComputationModule } from './assessment/computation/computation.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { APP_GUARD } from '@nestjs/core';
         limit: 30,
       },
     ]),
+    ComputationModule,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
