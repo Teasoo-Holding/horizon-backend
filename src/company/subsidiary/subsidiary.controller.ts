@@ -27,7 +27,6 @@ export class SubsidiaryController {
     @Req() req: RequestWithUser,
     @Body() createSubsidiaryDto: CreateSubsidiaryDto,
   ) {
-    console.log('Creating subsidiary for user:', req.user);
     return await this.subsidiaryService.create(
       createSubsidiaryDto,
       req.user.id,
