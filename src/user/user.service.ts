@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 // import { CreateUserDto } from './dto/create-user.dto';
 // import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -74,4 +74,21 @@ export class UserService {
   async getAllUserRoles() {
     return this.prisma.role.findMany();
   }
+
+
+  async getEsgDashboard(userId: number){
+    const user = await this.prisma.user.findUnique({
+      where: {id: userId}
+    })
+
+    if (!user || user.companyId !== 1) {
+  throw new UnauthorizedException();
+}
+
+
+   return
+
+ 
+  }
+
 }

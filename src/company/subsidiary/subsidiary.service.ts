@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -9,6 +10,7 @@ import { UpdateSubsidiaryDto } from './dto/update-subsidiary.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class SubsidiaryService {
@@ -17,6 +19,124 @@ export class SubsidiaryService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
+
+  // async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
+  //   try {
+  //     const user = await this.prisma.user.findUnique({
+  //       where: { id: user_id },
+  //       select: {
+  //         id: true,
+  //         companyId: true,
+  //         first_name: true,
+  //         role: { select: { name: true } },
+  //       },
+  //     });
+
+  //     const company = await this.prisma.company.findUnique({
+  //       where: { id: user?.companyId ?? 0 },
+  //       select: {
+  //         id: true,
+  //         name: true,
+  //       },
+  //     });
+
+  //     if (!user) {
+  //       throw new NotFoundException(`User with id ${user_id} not found`);
+  //     }
+
+  //     if (
+  //       !['company_esg_admin', 'company_esg_subadmin', 'super_admin'].includes(
+  //         user.role.name,
+  //       )
+  //     ) {
+  //       throw new ForbiddenException(
+  //         'You are not authorized to create a subsidiary',
+  //       );
+  //     }
+
+  //     const teamLead = await this.prisma.user.findUnique({
+  //       where: { email: createSubsidiaryDto.teamLead_email },
+  //     });
+
+  //     let new_user;
+  //     if (!teamLead) {
+  //       // throw new NotFoundException(
+  //       //   `Team lead with email ${createSubsidiaryDto.teamLead_email} not found`,
+  //       // );
+  //       new_user = await this.prisma.user.create({
+  //         data: {
+  //           email: createSubsidiaryDto.teamLead_email ?? '',
+  //           first_name: createSubsidiaryDto?.teamLead_name ?? '',
+  //           companyId: user.companyId,
+  //           password: '',
+  //           roleId: 2,
+  //         },
+  //       });
+  //       await this.emailService.sendEmail(
+  //         new_user.email as string,
+  //         {
+  //           first_name: createSubsidiaryDto?.teamLead_name ?? '',
+  //           link: this.configService.get('FRONTEND_URL') + '/register',
+  //           admin_name: user.first_name,
+  //           esg_name: company?.name,
+  //         },
+  //         6,
+  //       );
+  //     }
+
+  //     if (teamLead && teamLead.companyId !== user.companyId) {
+  //       throw new ForbiddenException(
+  //         'You can only create subsidiaries with your own team lead',
+  //       );
+  //     }
+
+  //     const subsidiary = await this.prisma.subsidiary.create({
+  //       data: {
+  //         name: createSubsidiaryDto.name,
+  //         industryId: createSubsidiaryDto.industryId,
+  //         parentCompanyId: user.companyId,
+  //         created_by: user.id,
+  //         updated_by: user.id,
+  //         teamLeadId: teamLead ? teamLead.id : new_user!.id,
+  //         registration_number: createSubsidiaryDto.registration_number,
+  //         sicsCode: createSubsidiaryDto.sicsCode,
+  //         isinCode: createSubsidiaryDto.isinCode,
+  //         isoCountryCode: createSubsidiaryDto.isoCountryCode,
+  //         address: createSubsidiaryDto.address,
+  //         country: createSubsidiaryDto.country,
+  //         currency: createSubsidiaryDto.currency,
+  //         contact_email: createSubsidiaryDto.contact_email,
+  //         website: createSubsidiaryDto.website,
+  //         contact_phone: createSubsidiaryDto.contact_phone,
+  //         company_logo_url: createSubsidiaryDto.company_logo_url,
+  //       },
+  //     });
+
+  //     await this.emailService.sendEmail(
+  //       createSubsidiaryDto.teamLead_email as string,
+  //       {
+  //         first_name: createSubsidiaryDto?.teamLead_name ?? '',
+  //         admin_name: user.first_name,
+  //         esg_name: company?.name,
+  //         subsidiary_name: createSubsidiaryDto.name,
+  //       },
+  //       10,
+  //     );
+
+  //     return subsidiary;
+  //   } catch (error) {
+  //     console.error('Error creating subsidiary:', error);
+
+  //     if (
+  //       error instanceof NotFoundException ||
+  //       error instanceof ForbiddenException
+  //     ) {
+  //       throw error;
+  //     }
+
+  //     throw new InternalServerErrorException('Error creating subsidiary');
+  //   }
+  // }
 
   async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
     try {
@@ -58,9 +178,6 @@ export class SubsidiaryService {
 
       let new_user;
       if (!teamLead) {
-        // throw new NotFoundException(
-        //   `Team lead with email ${createSubsidiaryDto.teamLead_email} not found`,
-        // );
         new_user = await this.prisma.user.create({
           data: {
             email: createSubsidiaryDto.teamLead_email ?? '',
@@ -88,46 +205,62 @@ export class SubsidiaryService {
         );
       }
 
-      const subsidiary = await this.prisma.subsidiary.create({
-        data: {
-          name: createSubsidiaryDto.name,
-          industryId: createSubsidiaryDto.industryId,
-          parentCompanyId: user.companyId,
-          created_by: user.id,
-          updated_by: user.id,
-          teamLeadId: teamLead ? teamLead.id : new_user!.id,
-          registration_number: createSubsidiaryDto.registration_number,
-          sicsCode: createSubsidiaryDto.sicsCode,
-          isinCode: createSubsidiaryDto.isinCode,
-          isoCountryCode: createSubsidiaryDto.isoCountryCode,
-          address: createSubsidiaryDto.address,
-          country: createSubsidiaryDto.country,
-          currency: createSubsidiaryDto.currency,
-          contact_email: createSubsidiaryDto.contact_email,
-          website: createSubsidiaryDto.website,
-          contact_phone: createSubsidiaryDto.contact_phone,
-          company_logo_url: createSubsidiaryDto.company_logo_url,
-        },
-      });
+      try {
+        const subsidiary = await this.prisma.subsidiary.create({
+          data: {
+            name: createSubsidiaryDto.name,
+            industryId: createSubsidiaryDto.industryId,
+            parentCompanyId: user.companyId,
+            created_by: user.id,
+            updated_by: user.id,
+            teamLeadId: teamLead ? teamLead.id : new_user!.id,
+            registration_number: createSubsidiaryDto.registration_number,
+            sicsCode: createSubsidiaryDto.sicsCode,
+            isinCode: createSubsidiaryDto.isinCode,
+            isoCountryCode: createSubsidiaryDto.isoCountryCode,
+            address: createSubsidiaryDto.address,
+            country: createSubsidiaryDto.country,
+            currency: createSubsidiaryDto.currency,
+            contact_email: createSubsidiaryDto.contact_email,
+            website: createSubsidiaryDto.website,
+            contact_phone: createSubsidiaryDto.contact_phone,
+            company_logo_url: createSubsidiaryDto.company_logo_url,
+          },
+          include: {
+            industry: true,
+          },
+        });
 
-      await this.emailService.sendEmail(
-        createSubsidiaryDto.teamLead_email as string,
-        {
-          first_name: createSubsidiaryDto?.teamLead_name ?? '',
-          admin_name: user.first_name,
-          esg_name: company?.name,
-          subsidiary_name: createSubsidiaryDto.name,
-        },
-        10,
-      );
+        await this.emailService.sendEmail(
+          createSubsidiaryDto.teamLead_email as string,
+          {
+            first_name: createSubsidiaryDto?.teamLead_name ?? '',
+            admin_name: user.first_name,
+            esg_name: company?.name,
+            subsidiary_name: createSubsidiaryDto.name,
+          },
+          10,
+        );
 
-      return subsidiary;
+        return subsidiary;
+      } catch (error) {
+        if (
+          error instanceof PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException(
+            'A subsidiary with this name already exists for this company.',
+          );
+        }
+        throw error;
+      }
     } catch (error) {
       console.error('Error creating subsidiary:', error);
 
       if (
         error instanceof NotFoundException ||
-        error instanceof ForbiddenException
+        error instanceof ForbiddenException ||
+        error instanceof ConflictException
       ) {
         throw error;
       }
@@ -163,6 +296,10 @@ export class SubsidiaryService {
             },
           },
         },
+      },
+      include: {
+        industry: true,
+        parentCompany: true,
       },
     });
   }
@@ -234,36 +371,29 @@ export class SubsidiaryService {
         );
       }
 
+      const { industryId, parentCompanyId, teamLeadId, ...rest } =
+        updateSubsidiaryDto;
+
       const data: any = {
-        name: updateSubsidiaryDto.name ?? existingSubsidiary.name,
-        industry:
-          updateSubsidiaryDto.industryId ?? existingSubsidiary.industryId,
-        registration_number:
-          updateSubsidiaryDto.registration_number ??
-          existingSubsidiary.registration_number,
-        sicsCode: updateSubsidiaryDto.sicsCode ?? existingSubsidiary.sicsCode,
-        isinCode: updateSubsidiaryDto.isinCode ?? existingSubsidiary.isinCode,
-        isoCountryCode:
-          updateSubsidiaryDto.isoCountryCode ??
-          existingSubsidiary.isoCountryCode,
-        address: updateSubsidiaryDto.address ?? existingSubsidiary.address,
-        country: updateSubsidiaryDto.country ?? existingSubsidiary.country,
-        currency: updateSubsidiaryDto.currency ?? existingSubsidiary.currency,
-        contact_email:
-          updateSubsidiaryDto.contact_email ?? existingSubsidiary.contact_email,
-        website: updateSubsidiaryDto.website ?? existingSubsidiary.website,
-        contact_phone:
-          updateSubsidiaryDto.contact_phone ?? existingSubsidiary.contact_phone,
-        company_logo_url:
-          updateSubsidiaryDto.company_logo_url ??
-          existingSubsidiary.company_logo_url,
-        status: updateSubsidiaryDto.status ?? existingSubsidiary.status,
+        ...rest,
         updated_by: user.id,
       };
 
-      if (updateSubsidiaryDto.parentCompanyId) {
+      if (industryId) {
+        data.industry = {
+          connect: { id: industryId },
+        };
+      }
+
+      if (parentCompanyId) {
         data.parentCompany = {
-          connect: { id: updateSubsidiaryDto.parentCompanyId },
+          connect: { id: parentCompanyId },
+        };
+      }
+
+      if (teamLeadId) {
+        data.teamLead = {
+          connect: { id: teamLeadId },
         };
       }
 

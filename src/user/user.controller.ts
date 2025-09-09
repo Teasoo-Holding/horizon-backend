@@ -50,4 +50,12 @@ export class UserController {
   async getAllUserRoles() {
     return this.userService.getAllUserRoles();
   }
+
+  @Get('dashboard')
+  @UseGuards(JwtRolesGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user dashboard data' })
+  async getUserDashboard(@Req() req: RequestWithUser) {
+    return this.userService.getEsgDashboard(Number(req.user.id));
+  }
 }
