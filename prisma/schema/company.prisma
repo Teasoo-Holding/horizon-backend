@@ -14,7 +14,7 @@ enum CompanyType {
 model Company {
   id                  Int    @id @default(autoincrement())
   name                String @unique
-  registration_number String
+  registration_number String?
 
   industryId Int?
   industry   Industry? @relation(fields: [industryId], references: [id])

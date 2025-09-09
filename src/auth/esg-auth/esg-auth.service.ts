@@ -48,9 +48,11 @@ export class EsgAuthService {
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
-    const existingCompany = await this.prisma.company.findFirst({
+    const existingCompany = dto.registration_number
+  ? await this.prisma.company.findFirst({
       where: { registration_number: dto.registration_number },
-    });
+    })
+  : null;
     if (existingCompany) {
       throw new ConflictException(
         'Company with this registration number already exists',
