@@ -1,34 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { ComputationService } from './computation.service';
-import { CreateComputationDto } from './dto/create-computation.dto';
-import { UpdateComputationDto } from './dto/update-computation.dto';
+import { ApiBody, ApiOperation } from '@nestjs/swagger';
+import { MobileSourcesDto, StationarySourcesDto } from './dto/create-computation.dto';
 
 @Controller('computation')
 export class ComputationController {
   constructor(private readonly computationService: ComputationService) {}
 
-  @Post()
-  create(@Body() createComputationDto: CreateComputationDto) {
-    return this.computationService.create(createComputationDto);
+  @Post('stationary-sources')
+  @ApiOperation({ summary: 'Compute emissions from stationary sources' })
+  @ApiBody({ type: StationarySourcesDto })
+  async stationarySources(@Body() dto: StationarySourcesDto) {
+    return this.computationService.stationarySources(dto)
   }
-
-  @Get()
-  findAll() {
-    return this.computationService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.computationService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateComputationDto: UpdateComputationDto) {
-    return this.computationService.update(+id, updateComputationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.computationService.remove(+id);
+  
+  @Post('mobile-sources')
+  @ApiOperation({summary: "Emissions from moving equipment or vehicles, such as trucks, ships, or planes."})
+  @ApiBody({type: MobileSourcesDto})
+  async mobileSources(
+    @Body() dto: MobileSourcesDto
+  ){
+    return await this.computationService.mobileSources(dto)
   }
 }

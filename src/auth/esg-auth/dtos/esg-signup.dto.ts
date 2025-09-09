@@ -9,7 +9,8 @@ export class EsgSignupDto extends RegisterDto {
 
   @ApiProperty({ example: 'RC123456' })
   @IsString()
-  registration_number: string;
+  @IsOptional()
+  registration_number?: string;
 
   @ApiProperty({ example: 'Energy - ID' })
   @IsNumber()

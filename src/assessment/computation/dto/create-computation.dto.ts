@@ -22,6 +22,117 @@ export class BasicComputationDto {
   emission_factor: number;
 }
 
+export class MultipleEnergyComputationDto {
+   @ApiProperty({
+    description: 'Array of energy types used for computation',
+    type: [BasicComputationDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true})
+  @Type(()=> BasicComputationDto)
+  energy_types: BasicComputationDto[];
+
+}
+
+
+export class StationarySourcesDto {
+  @ApiProperty({
+    description: 'Fuel-powered generator computations',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  fuel_dto: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Gas-powered turbine computations',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  gas_powered: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Boilers and furnaces in manufacturing computations',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  boilers_dto: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Heaters and boilers at oil production facilities computations',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  heater_dto: MultipleEnergyComputationDto;
+}
+
+
+
+export class MobileSourcesDto {
+  @ApiProperty({
+    description: 'Fleet of diesel trucks for product distribution and logistics.',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  diesel_truck: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Company cars and buses used for employee transportation.',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  cars_and_buses: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Forklifts and other machinery used in warehouses and factory floors.',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  forklifts_and_other_machinery: MultipleEnergyComputationDto;
+
+  @ApiProperty({
+    description: 'Heavy-duty vehicles and equipment used in construction and mining Subsidiaries ',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  heavy_duty_vehicles: MultipleEnergyComputationDto;
+  
+  @ApiProperty({
+    description: 'Tractors and other machinery on large commercial farms.',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  tractor_and_other_machineries: MultipleEnergyComputationDto;
+  
+  
+  @ApiProperty({
+    description: 'Helicopters used for transporting personnel and equipment to offshore oil platforms.',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  helocopters: MultipleEnergyComputationDto;
+  
+  
+  @ApiProperty({
+    description: 'Company-owned boats and vessels for transport in the Niger Delta and offshore Subsidiaries .',
+    type: MultipleEnergyComputationDto,
+  })
+  @ValidateNested()
+  @Type(() => MultipleEnergyComputationDto)
+  boats_and_vessels: MultipleEnergyComputationDto;
+}
+
+
+
 // ✅ DTO for oil & gas venting / leaks
 export class OilGasVentingDto {
   @ApiProperty({ description: 'Gas volume released (in m³)', example: 1000 })

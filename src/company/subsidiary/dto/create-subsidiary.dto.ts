@@ -48,7 +48,7 @@ export class CreateSubsidiaryDto {
   })
   @IsString()
   @IsOptional()
-  registration_number: string;
+  registration_number?: string;
 
   @ApiProperty({
     description: 'SIC code',
