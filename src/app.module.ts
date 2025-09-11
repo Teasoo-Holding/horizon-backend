@@ -48,7 +48,7 @@ import { CustomThrottlerGuard } from './config/CustomThrottleGuard';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 30,
+        limit: 100,
       },
     ]),
   ],
