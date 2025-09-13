@@ -44,4 +44,8 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   company_logo_url?: string;
+  
+  @IsOptional()
+  @IsString()
+  staff_strength?: string;
 }

@@ -83,14 +83,10 @@ export class CompanyUsersService {
     return this.prisma.user.delete({ where: { id: targetUserId } });
   }
 
-  async getAllUsersOfCompany(requestingUserId: number, companyId: number) {
-    const requestingUser = await this.prisma.user.findUnique({
-      where: { id: requestingUserId },
-      include: { role: true },
-    });
-
-    if (!requestingUser) throw new ForbiddenException('Invalid user');
-
+  async getAllUsersOfCompany(
+    requestingUser: { id: number; companyId: number; role: { name: string } },
+    companyId: number,
+  ) {
     if (
       requestingUser.role.name !== 'super_admin' &&
       requestingUser.companyId !== companyId

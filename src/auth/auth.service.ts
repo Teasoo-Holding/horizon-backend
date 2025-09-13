@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -26,15 +33,13 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
-      const passwordValid = await bcrypt.compare(password, user.password);
+    const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new NotFoundException('Invalid credentials');
-    
+
     // console.log("User", user)
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account awaiting approval');
     }
-
-  
 
     const { password: _, ...result } = user;
     return result;
@@ -199,5 +204,76 @@ export class AuthService {
     } catch (error) {
       throw new Error(`Error resending token, ${error}`);
     }
+  }
+
+  async sendPasswordResetOtp(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      // Intentionally not throwing an error to prevent email enumeration.
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { email },
+      data: {
+        otpHash: await bcrypt.hash(otp, 10),
+        otpExpiresAt: otpExpiresAt,
+      },
+    });
+
+    await this.emailService.sendEmail(
+      email,
+      { first_name: user.first_name, otp },
+      3,
+    );
+  }
+
+  async verifyOtp(email: string, otp: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user || !user.otpHash || !user.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP.');
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.otpHash);
+    if (!isMatch || new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP.');
+    }
+
+    // OTP is valid
+    return;
+  }
+
+  async resetPassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+  ): Promise<void> {
+    // Step 1: Verify the OTP again to ensure the request is valid
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.otpHash || !user.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP.');
+    }
+    const isMatch = await bcrypt.compare(otp, user.otpHash);
+    if (!isMatch || new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP.');
+    }
+
+    // Step 2: Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Step 3: Update the password and clear the OTP
+    await this.prisma.user.update({
+      where: { email },
+      data: {
+        password: hashedPassword,
+        otpHash: null, // Clear the OTP to prevent reuse
+        otpExpiresAt: null,
+      },
+    });
   }
 }

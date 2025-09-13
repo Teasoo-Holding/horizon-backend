@@ -12,8 +12,8 @@ enum CompanyType {
 }
 
 model Company {
-  id                  Int    @id @default(autoincrement())
-  name                String @unique
+  id                  Int     @id @default(autoincrement())
+  name                String  @unique
   registration_number String?
 
   industryId Int?
@@ -31,6 +31,7 @@ model Company {
   company_logo_url           String?
   company_logo_url_public_id String?
   company_type               CompanyType?
+  staff_strength             String?
 
   status                    CompanyStatus @default(pending)
   created_at                DateTime      @default(now())

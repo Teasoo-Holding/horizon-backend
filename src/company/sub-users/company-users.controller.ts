@@ -10,7 +10,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { CompanyUsersService } from './company-users.service';
-import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UpdateSubUserDto } from './dto/update-sub-user.dto';
 
@@ -46,17 +46,16 @@ export class CompanyUsersController {
 
   @Get(':companyId')
   @UseGuards(JwtRolesGuard)
+  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get all users of a company (super admin and company users only)',
+    summary: 'Get all users of a company',
   })
-  async getUsersByCompany(
-    @Req() req: { user: { id: number } },
+  async getCompanyUsers(
+    @Req()
+    req: { user: { id: number; companyId: number; role: { name: string } } },
     @Param('companyId', ParseIntPipe) companyId: number,
   ) {
-    return this.companyUsersService.getAllUsersOfCompany(
-      req.user.id,
-      companyId,
-    );
+    return this.companyUsersService.getAllUsersOfCompany(req.user, companyId);
   }
 }
