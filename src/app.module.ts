@@ -23,9 +23,9 @@ import { EsgAuthModule } from './auth/esg-auth/esg-auth.module';
 import { TestModule } from './config/test/test.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { Scope2Module } from './assessment/scope-2/scope-2.module';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { ComputationModule } from './assessment/computation/computation.module';
+import { CustomThrottlerGuard } from './config/CustomThrottleGuard';
 
 @Module({
   imports: [
@@ -48,10 +48,9 @@ import { ComputationModule } from './assessment/computation/computation.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 30,
+        limit: 100,
       },
     ]),
-    ComputationModule,
   ],
   controllers: [AppController, AdminAuthController, AuthController],
   providers: [
@@ -62,7 +61,7 @@ import { ComputationModule } from './assessment/computation/computation.module';
     AuthService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: CustomThrottlerGuard,
     },
   ],
 })

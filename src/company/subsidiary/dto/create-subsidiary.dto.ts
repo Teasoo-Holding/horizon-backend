@@ -22,8 +22,9 @@ export class CreateSubsidiaryDto {
     description: 'Email of the team lead',
     example: 'teamlead@example.com',
   })
+  @IsOptional()
   @IsEmail()
-  teamLead_email: string;
+  teamLead_email?: string;
 
   @ApiPropertyOptional({
     description: 'Phone number of the team lead',

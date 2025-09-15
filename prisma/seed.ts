@@ -14,42 +14,42 @@ async function main() {
         {
           name: 'super_admin',
           description:
-            'Product owner with full control over the platform. Can manage platform-wide settings, companies, departments, user accounts, and all data.',
+            "Grants the highest level of authority over the ESG-Horizon platform. Intended for key personnel responsible for the system's integrity, this role provides unrestricted access and should be assigned with extreme caution.",
         },
         {
           name: 'platform_subadmin',
           description:
-            'Editor with elevated rights — can validate/approve ESG submissions, edit company/dept/user info (except Super Admin account), and view all reports.',
+            "Manages the day-to-day administrative and content oversight tasks within the platform. This role has powerful permissions to manage organizational data and the ESG submission lifecycle.",
         },
         {
           name: 'platform_data_officer',
           description:
-            'Contributor who can input data (quantitative/qualitative), update existing records, and view reports',
+            "Responsible for submitting timely and accurate ESG data and monitoring performance through reports. Data officers have the necessary reporting access to understand the impact of their contributions.",
         },
         {
           name: 'platform_viewer',
           description:
-            'View-only role for executives or stakeholders (“Ogas”) — can see dashboards, reports, and analytics but cannot edit.',
+            "Provides read-only access to all dashboards and reports across the platform. This role is ideal for stakeholders who require visibility into ESG performance without needing to edit data.",
         },
         {
           name: 'company_esg_admin',
           description:
-            'Company owner account. Can manage their company profile, departments, ESG-specific settings, and assign ESG sub-user roles. Full rights for their company only.',
+            "The primary administrator responsible for managing all users, settings, and ESG data for their specific company. This role has full administrative rights, but strictly within their own organization ONLY.",
         },
         {
           name: 'company_esg_subadmin',
           description:
-            'Editor with rights to validate/approve ESG submissions within their company, edit data entries, and view all company reports.',
+            "Responsible for reviewing, editing, and approving all ESG data submissions for their company. This role ensures the quality and accuracy of the company's data.Their access is limited to their own company's data and reports.",
         },
         {
           name: 'company_esg_data_officer',
           description:
-            'Contributor who inputs ESG data and updates records for their company, with view access to reports',
+            "The primary role for ensuring the ESG-Horizon platform is populated with accurate, up-to-date information. Contributors are the primary users responsible for the day-to-day entry and management of their company's ESG data.",
         },
         {
           name: 'company_esg_viewer',
           description:
-            'View-only role for company executives (C-suite “Ogas”) — can access ESG dashboards and reports but cannot modify data.',
+            "Provides read-only access to all ESG dashboards and reports to stakeholders who require a comprehensive overview of their company’s ESG performance. ",
         },
       ],
       skipDuplicates: true,

@@ -10,13 +10,14 @@ import { tap } from 'rxjs/operators';
 @Injectable()
 export class ResponseLoggerInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const { method, originalUrl } = request;
     const now = Date.now();
     return next.handle().pipe(
       tap((data) => {
         const responseSize = JSON.stringify(data).length;
-        // Object.keys(data).length
         console.log(
-          `Response: took ${Date.now() - now}ms, size: ${responseSize} bytes`,
+          `[${method}] ${originalUrl} took ${Date.now() - now}ms, size: ${responseSize} bytes`,
         );
       }),
     );

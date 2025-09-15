@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Res, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
 import { Request, Response } from 'express';
@@ -6,6 +14,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -163,5 +174,62 @@ export class AuthController {
   @Post('resend-token')
   async resendToken(@Body() dto: { email: string }) {
     return await this.authService.resendToken(dto.email);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: "Send a password reset OTP to a user's email" })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    try {
+      await this.authService.sendPasswordResetOtp(dto.email);
+      return { message: 'OTP sent to email.' };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to send OTP. Please try again.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify the OTP provided by the user' })
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    try {
+      await this.authService.verifyOtp(dto.email, dto.otp);
+      return { message: 'OTP verified successfully.' };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Invalid or expired OTP.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: "Reset a user's password using their email and OTP",
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    try {
+      await this.authService.resetPassword(
+        dto.email,
+        dto.otp,
+        dto.new_password,
+      );
+      return { message: 'Password reset successfully.' };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to reset password.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
