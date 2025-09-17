@@ -23,7 +23,7 @@ export class LocationBasedS2Dto {
   @ApiPropertyOptional()
   @IsNumber()
   @IsOptional()
-  subsriptionId?: number;
+  subsidiaryId?: number;
 
   @ApiPropertyOptional()
   @IsNumber()

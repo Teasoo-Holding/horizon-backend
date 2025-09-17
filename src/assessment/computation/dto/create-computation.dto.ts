@@ -42,7 +42,7 @@ export class StationarySourcesDto {
   })
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
-  fuel_dto: MultipleEnergyComputationDto;
+  fuel_powered: MultipleEnergyComputationDto;
 
   @ApiProperty({
     description: 'Gas-powered turbine computations',
@@ -58,7 +58,7 @@ export class StationarySourcesDto {
   })
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
-  boilers_dto: MultipleEnergyComputationDto;
+  boilers_and_furnance: MultipleEnergyComputationDto;
 
   @ApiProperty({
     description: 'Heaters and boilers at oil production facilities computations',
@@ -66,7 +66,7 @@ export class StationarySourcesDto {
   })
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
-  heater_dto: MultipleEnergyComputationDto;
+  heaters_and_boilers: MultipleEnergyComputationDto;
 }
 
 
