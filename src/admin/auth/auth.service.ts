@@ -25,20 +25,24 @@ export class AdminAuthService {
   ) {}
 
   async registerAdmin(dto: RegisterDto) {
-    const { email, password, first_name, last_name, phone_number } = dto;
+    const { email, password, full_name, phone_number } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('User already exists');
     }
 
+    const nameParts = full_name.split(' ');
+    const first_name = nameParts[0] || '';
+    const last_name = nameParts.slice(1).join(' ') || '';
+
     const hashedPassword = await hash(password, 10);
     const newUser = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        first_name,
-        last_name,
+        first_name: first_name,
+        last_name: last_name,
         phone_number,
         roleId: 2,
         companyId: 0,

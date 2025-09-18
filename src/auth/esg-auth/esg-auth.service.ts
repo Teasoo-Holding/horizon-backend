@@ -5,7 +5,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { UserStatus, CompanyStatus, RoleName, CompanyType } from '@prisma/client';
+import {
+  UserStatus,
+  CompanyStatus,
+  RoleName,
+  CompanyType,
+} from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EsgSignupDto } from './dtos/esg-signup.dto';
 import { EmailService } from 'src/email/email.service';
@@ -28,36 +33,13 @@ export class EsgAuthService {
   }
 
   async signup(dto: EsgSignupDto) {
-    const isValid = this.phoneValidationService.validatePhoneNumber(
-      dto.contact_phone,
-      dto.isoCountryCode || 'NG',
-    );
-
-    if (!isValid) {
-      throw new BadRequestException('Invalid phone number');
-    }
-
-    const formattedPhone = this.phoneValidationService.formatPhoneNumber(
-      dto.contact_phone,
-      dto.isoCountryCode || 'NG',
-    );
-
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
-    const existingCompany = dto.registration_number
-  ? await this.prisma.company.findFirst({
-      where: { registration_number: dto.registration_number },
-    })
-  : null;
-    if (existingCompany) {
-      throw new ConflictException(
-        'Company with this registration number already exists',
-      );
-    }
+
     const existingCompanyByName = await this.prisma.company.findUnique({
       where: { name: dto.name },
     });
@@ -74,24 +56,23 @@ export class EsgAuthService {
       throw new ConflictException('Company ESG Admin role is not configured');
     }
 
+    const nameParts = dto.full_name.split(' ');
+    const first_name = nameParts[0] || '';
+    const last_name = nameParts.slice(1).join(' ') || '';
+
     const [company, user] = await this.prisma.$transaction(async (prisma) => {
       const createdCompany = await prisma.company.create({
         data: {
           name: dto.name,
-          registration_number: dto.registration_number,
           industry: {
             connect: { id: dto.industryId },
           },
-          isoCountryCode: dto.isoCountryCode || 'NG',
-          address: dto.address,
-          country: dto.country || 'Nigeria',
-          website: dto.website,
-          contact_email: dto.contact_email,
-          contact_phone: formattedPhone || '',
           status: CompanyStatus.pending,
-          created_by: 0,
-          updated_by: 0,
-          company_type: CompanyType.esg
+          company_type: CompanyType.esg,
+          isoCountryCode: '',
+          address: '',
+          contact_email: '',
+          contact_phone: '',
         },
       });
 
@@ -99,9 +80,9 @@ export class EsgAuthService {
         data: {
           email: dto.email,
           password: hashedPassword,
-          first_name: dto.first_name,
-          last_name: dto.last_name,
-          phone_number: dto.phone_number,
+          first_name: first_name,
+          last_name: last_name,
+          phone_number: '',
           roleId: companyESGAdminRole.id,
           companyId: createdCompany.id,
           status: UserStatus.pending,
@@ -126,7 +107,7 @@ export class EsgAuthService {
     await this.emailService.sendEmail(
       dto.email,
       {
-        firstname: dto.first_name,
+        firstname: first_name,
       },
       4,
     );

@@ -20,24 +20,27 @@ model Company {
   industry   Industry? @relation(fields: [industryId], references: [id])
 
   isinCode       String?
-  isoCountryCode String
+  isoCountryCode String?
 
-  address                    String
+  address                    String?
   country                    String?
   currency                   String?
-  contact_email              String
+  contact_email              String?
   website                    String?
-  contact_phone              String
+  contact_phone              String?
   company_logo_url           String?
   company_logo_url_public_id String?
   company_type               CompanyType?
   staff_strength             String?
 
-  status                    CompanyStatus @default(pending)
-  created_at                DateTime      @default(now())
-  created_by                Int
-  updated_at                DateTime      @updatedAt
-  updated_by                Int
+  status     CompanyStatus @default(pending)
+  created_at DateTime      @default(now())
+  created_by Int?
+  updated_at DateTime      @updatedAt
+  updated_by Int?
+  creator    User?         @relation("CreatedCompanies", fields: [created_by], references: [id])
+  updater    User?         @relation("UpdatedCompanies", fields: [updated_by], references: [id])
+
   current_subscription_tier Int?
 
   subscription         Subscription?         @relation(fields: [current_subscription_tier], references: [id], name: "CompanyCurrentSubscription")

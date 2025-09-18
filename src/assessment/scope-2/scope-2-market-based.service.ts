@@ -115,7 +115,7 @@ export class MarketBasedS2Service {
         total_electricity_consumed: dto.total_electricity_consumed || 0,
         supplier_specific_emission_factor:
           dto.supplier_specific_emission_factor || 0,
-        subsidiaryId: dto.subsidiaryId || user.companyId,
+        subsidiaryId: dto.subsidiaryId || (user.companyId as number),
         electricity_supplier_contract_with_ipps_url: electricityContract.url,
         electricity_supplier_contract_with_ipps_url_public_id:
           electricityContract.publicId,
@@ -169,18 +169,15 @@ export class MarketBasedS2Service {
     });
   }
 
-
-   async findOne(id: number) {
+  async findOne(id: number) {
     return this.prisma.marketBasedS2.findUnique({ where: { id } });
   }
 
-
-
   async update(
-    id: number, 
-    dto: MarketBasedS2Dto, 
+    id: number,
+    dto: MarketBasedS2Dto,
     files: Record<string, Express.Multer.File[]>,
-    userId: number
+    userId: number,
   ): Promise<any> {
     const existingRecord = await this.prisma.marketBasedS2.findUnique({
       where: { id },
@@ -191,7 +188,9 @@ export class MarketBasedS2Service {
     }
 
     if (existingRecord.creator_id !== userId) {
-      throw new NotFoundException('You do not have permission to update this record');
+      throw new NotFoundException(
+        'You do not have permission to update this record',
+      );
     }
 
     const updateData: any = { ...dto };
@@ -217,20 +216,23 @@ export class MarketBasedS2Service {
       if (files[field]?.[0]) {
         // Delete the old image from Cloudinary if it exists
         const publicIdField = `${field}_public_id`;
-        const oldPublicId = existingRecord[publicIdField];
-        
+        const oldPublicId: string | undefined = existingRecord[publicIdField];
+
         if (oldPublicId) {
           try {
             await this.cloudinaryService.deleteImage(oldPublicId);
           } catch (error) {
-            console.error(`Failed to delete old image for field ${field}:`, error);
+            console.error(
+              `Failed to delete old image for field ${field}:`,
+              error,
+            );
             // Continue with update even if deletion fails
           }
         }
 
         // Upload the new file
         const uploadResult = await this.handleFileUpload(files[field][0]);
-        
+
         // Add the new URL and public ID to the update data
         updateData[field] = uploadResult.url;
         updateData[publicIdField] = uploadResult.publicId;
@@ -242,7 +244,7 @@ export class MarketBasedS2Service {
       where: { id },
       data: {
         ...updateData,
-        updated_by: userId, 
+        updated_by: userId,
       },
     });
   }

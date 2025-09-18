@@ -1,4 +1,18 @@
-import { OmitType } from "@nestjs/swagger";
-import { RegisterDto } from "src/auth/dto";
+import { IsOptional, IsString, MinLength } from 'class-validator';
+import { BaseUserDto } from './base-user.dto';
 
-export class CreateUserDto extends OmitType(RegisterDto, ['password'] as const) {}
+export class CreateUserDto extends BaseUserDto {
+  @IsString()
+  @MinLength(2)
+  full_name: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  first_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  last_name?: string;
+}

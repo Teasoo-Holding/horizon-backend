@@ -37,22 +37,24 @@ export class UserService {
   }
 
   async updateMe(userId: number, dto: UpdateMeDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { role, ...rest } = dto;
+    const updateData: Prisma.UserUpdateInput = {
+      ...dto,
+    };
 
-    const updateData: Prisma.UserUpdateInput = {};
+    if (dto.first_name !== undefined) {
+      updateData.first_name = dto.first_name;
+    }
+    if (dto.last_name !== undefined) {
+      updateData.last_name = dto.last_name;
+    }
 
-    // const { profile_photo_url, profile_photo_url_public_id } =
-
-    if (rest.first_name !== undefined) updateData.first_name = rest.first_name;
-    if (rest.last_name !== undefined) updateData.last_name = rest.last_name;
-    if (rest.email !== undefined) updateData.email = rest.email;
-    if (rest.profile_photo_url !== undefined)
-      updateData.profile_photo_url = rest.profile_photo_url;
-    if (rest.profile_photo_url_public_id !== undefined)
-      updateData.profile_photo_url_public_id = rest.profile_photo_url_public_id;
-    if (rest.phone_number !== undefined)
-      updateData.phone_number = rest.phone_number;
+    if (dto.email !== undefined) updateData.email = dto.email;
+    if (dto.profile_photo_url !== undefined)
+      updateData.profile_photo_url = dto.profile_photo_url;
+    if (dto.profile_photo_url_public_id !== undefined)
+      updateData.profile_photo_url_public_id = dto.profile_photo_url_public_id;
+    if (dto.phone_number !== undefined)
+      updateData.phone_number = dto.phone_number;
 
     return this.prisma.user.update({
       where: { id: userId },
@@ -75,20 +77,15 @@ export class UserService {
     return this.prisma.role.findMany();
   }
 
-
-  async getEsgDashboard(userId: number){
+  async getEsgDashboard(userId: number) {
     const user = await this.prisma.user.findUnique({
-      where: {id: userId}
-    })
+      where: { id: userId },
+    });
 
     if (!user || user.companyId !== 1) {
-  throw new UnauthorizedException();
-}
+      throw new UnauthorizedException();
+    }
 
-
-   return
-
- 
+    return;
   }
-
 }

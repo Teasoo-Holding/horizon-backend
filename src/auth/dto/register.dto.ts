@@ -16,11 +16,7 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(2)
-  first_name: string;
-
-  @IsString()
-  @MinLength(2)
-  last_name: string;
+  full_name: string;
 
   @IsOptional()
   @IsString()
@@ -30,9 +26,10 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   company?: string;
-
+  
+  @IsOptional()
   @IsString()
-  role: string;
+  role?: string;
 
   @IsString()
   @IsOptional()

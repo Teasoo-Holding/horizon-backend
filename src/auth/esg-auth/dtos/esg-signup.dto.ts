@@ -7,39 +7,9 @@ export class EsgSignupDto extends RegisterDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'RC123456' })
-  @IsString()
-  @IsOptional()
-  registration_number?: string;
-
   @ApiProperty({ example: 'Energy - ID' })
   @IsNumber()
   industryId: number;
-
-  @ApiProperty({ example: 'NG' })
-  @IsString()
-  isoCountryCode: string;
-
-  @ApiProperty({ example: '123 Green Street, Abuja, Nigeria' })
-  @IsString()
-  address: string;
-
-  @ApiProperty({ example: 'Nigeria' })
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @ApiProperty({ example: 'https://example.com' })
-  @IsString()
-  website: string;
-
-  @ApiProperty({ example: 'info@btech.com' })
-  @IsString()
-  contact_email: string;
-
-  @ApiProperty({ example: '+2348123456789' })
-  @IsString()
-  contact_phone: string;
 
   @ApiProperty({ example: 'investor' })
   @IsString()

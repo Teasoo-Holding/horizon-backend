@@ -49,7 +49,7 @@ export class AuthController {
       id: userObject.id,
       email: userObject.email,
       role: userObject.role?.name,
-      companyId: userObject.companyId,
+      companyId: userObject.companyId as number,
     };
 
     const {
@@ -231,5 +231,17 @@ export class AuthController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Post('social')
+  async socialLogin(
+    @Body() userDto: { email: string; name: string; provider: string },
+  ) {
+    const user = await this.authService.socialLogin(
+      userDto.email,
+      userDto.name,
+      userDto.provider,
+    );
+    return user;
   }
 }

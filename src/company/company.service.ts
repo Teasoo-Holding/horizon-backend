@@ -97,7 +97,7 @@ export class CompanyService {
             connect: { id: industryId },
           },
         }),
-      },
+      } as any,
       include: {
         industry: true,
       },

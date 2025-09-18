@@ -217,7 +217,7 @@ export class SubsidiaryService {
         data: {
           name: createSubsidiaryDto.name,
           industryId: createSubsidiaryDto.industryId,
-          parentCompanyId: user.companyId,
+          parentCompanyId: user.companyId as number,
           created_by: user.id,
           updated_by: user.id,
           teamLeadId: teamLead.id,

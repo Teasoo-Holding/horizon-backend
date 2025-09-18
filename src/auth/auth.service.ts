@@ -12,7 +12,7 @@ import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
-import { UserStatus } from '@prisma/client';
+import { CompanyStatus, CompanyType, UserStatus } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
@@ -32,6 +32,12 @@ export class AuthService {
     });
 
     if (!user) throw new NotFoundException('User not found');
+
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account was created with social login. Please sign in with Google.',
+      );
+    }
 
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new NotFoundException('Invalid credentials');
@@ -78,7 +84,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { email, password, first_name, last_name, phone_number, role } = dto;
+    const { email, password, full_name, phone_number, role } = dto;
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new BadRequestException('Email already in use');
@@ -94,12 +100,16 @@ export class AuthService {
     if (!fallbackCompany)
       throw new UnauthorizedException('No fallback company available');
 
+    const nameParts = full_name.split(' ');
+    const first_name = nameParts[0] || '';
+    const last_name = nameParts.slice(1).join(' ') || '';
+
     const newUser = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        first_name,
-        last_name,
+        first_name: first_name,
+        last_name: last_name,
         phone_number,
         roleId: foundRole.id,
         companyId: fallbackCompany.id,
@@ -275,5 +285,50 @@ export class AuthService {
         otpExpiresAt: null,
       },
     });
+  }
+
+  async socialLogin(email: string, fullName: string, provider: string) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+      include: { role: true, company: true },
+    });
+
+    if (existingUser) {
+      if (existingUser.status !== UserStatus.active) {
+        throw new UnauthorizedException('Account awaiting approval');
+      }
+      return existingUser;
+    } else {
+      const defaultRole = await this.prisma.role.findUnique({
+        where: { name: 'company_esg_admin' },
+      });
+
+      if (!defaultRole) {
+        throw new NotFoundException('Default role not found.');
+      }
+
+      const placeholderCompany = await this.prisma.company.create({
+        data: {
+          name: 'Pending Company Name',
+          status: CompanyStatus.pending,
+          company_type: CompanyType.esg,
+        },
+      });
+
+      const newUser = await this.prisma.user.create({
+        data: {
+          email,
+          first_name: fullName.split(' ')[0] || '',
+          last_name: fullName.split(' ').slice(1).join(' ') || '',
+          roleId: defaultRole.id,
+          companyId: placeholderCompany.id,
+          status: UserStatus.pending,
+          providerId: provider,
+        },
+        include: { role: true, company: true },
+      });
+
+      return newUser;
+    }
   }
 }
