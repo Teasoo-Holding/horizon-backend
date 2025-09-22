@@ -104,8 +104,8 @@ export class CompanyUsersService {
         first_name: true,
         last_name: true,
         phone_number: true,
-        role: { select: { name: true } },
-        department: { select: { name: true } },
+        role: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
         status: true,
         profile_photo_url: true,
         last_login: true,
@@ -115,6 +115,39 @@ export class CompanyUsersService {
       orderBy: { created_at: 'desc' },
     });
 
-    return users;
+    const invitations = await this.prisma.invitation.findMany({
+      where: { companyId, status: 'pending' },
+      select: {
+        id: true,
+        email: true,
+        role: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+        subsidiary: { select: { id: true, name: true } },
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const combinedList = [
+      ...users,
+      ...invitations.map((inv) => ({
+        id: inv.id,
+        email: inv.email,
+        first_name: null,
+        last_name: null,
+        phone_number: null,
+        profile_photo_url: null,
+        last_login: null,
+        role: inv.role,
+        department: inv.department,
+        subsidiary: inv.subsidiary,
+        status: 'pending',
+        created_at: inv.createdAt,
+        updated_at: null,
+      })),
+    ];
+
+    return combinedList;
   }
 }

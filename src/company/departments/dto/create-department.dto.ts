@@ -14,7 +14,10 @@ export class CreateDepartmentDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: 5, description: 'The department lead id on this portal' })
+  @ApiProperty({
+    example: 5,
+    description: 'The department lead id on this portal',
+  })
   leadId: number;
 
   @ApiPropertyOptional({
@@ -24,4 +27,12 @@ export class CreateDepartmentDto {
   @IsOptional()
   @IsEmail()
   contact_email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Name of the subsidiary this department belongs to',
+    example: 'Lighthouse LLC',
+  })
+  @IsString()
+  @IsOptional()
+  subsidiaryName?: string;
 }

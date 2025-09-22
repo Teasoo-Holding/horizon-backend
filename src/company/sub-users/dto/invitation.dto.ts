@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsInt,
@@ -33,4 +33,14 @@ export class CreateInvitationDto {
   @IsString()
   @IsOptional()
   roleName?: string;
+
+  @ApiPropertyOptional({ description: 'Name of the subsidiary to link to' })
+  @IsString()
+  @IsOptional()
+  subsidiaryName?: string;
+
+  @ApiPropertyOptional({ description: 'Name of the department to link to' })
+  @IsString()
+  @IsOptional()
+  departmentName?: string;
 }

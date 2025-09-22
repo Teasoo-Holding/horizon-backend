@@ -26,8 +26,15 @@ export class UserService {
         company: {
           select: { id: true, name: true, company_logo_url: true },
         },
+        // department: {
+        //   select: { id: true, name: true },
+        // },
         department: {
-          select: { name: true },
+          select: {
+            id: true,
+            name: true,
+            subsidiary: { select: { id: true, name: true } },
+          },
         },
         role: {
           select: { name: true },
