@@ -40,6 +40,7 @@ model User {
   refresh_tokens              RefreshToken[]
   otpHash                     String?
   otpExpiresAt                DateTime?
+  activities                  Activities[]
 
   @@index([email])
   @@index([status])

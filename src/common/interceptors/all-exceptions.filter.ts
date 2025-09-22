@@ -26,11 +26,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const res = exception.getResponse();
       if (typeof res === 'string') {
         message = res;
-      } else if (typeof res === 'object' && res !== null && 'message' in res) {
-        message = (res as any).message;
+      } else if (typeof res === 'object' && res !== null) {
+        if (Array.isArray((res as any).message)) {
+          message = (res as any).message; // keep full validation errors
+        } else if ('message' in res) {
+          message = (res as any).message;
+        }
       }
     }
-    Logger.error(`HTTP Status: ${status} Error Message: ${message}`);
+
+    Logger.error(`HTTP Status: ${status} Error Message: ${JSON.stringify(message)}`);
 
     response.status(status).json({
       statusCode: status,
@@ -40,3 +45,4 @@ export class AllExceptionsFilter implements ExceptionFilter {
     });
   }
 }
+
