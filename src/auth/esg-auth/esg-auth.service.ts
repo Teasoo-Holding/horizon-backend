@@ -10,6 +10,7 @@ import {
   CompanyStatus,
   RoleName,
   CompanyType,
+  Prisma,
 } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EsgSignupDto } from './dtos/esg-signup.dto';
@@ -61,21 +62,6 @@ export class EsgAuthService {
     const last_name = nameParts.slice(1).join(' ') || '';
 
     const [company, user] = await this.prisma.$transaction(async (prisma) => {
-      const createdCompany = await prisma.company.create({
-        data: {
-          name: dto.name,
-          industry: {
-            connect: { id: dto.industryId },
-          },
-          status: CompanyStatus.pending,
-          company_type: CompanyType.esg,
-          isoCountryCode: '',
-          address: '',
-          contact_email: '',
-          contact_phone: '',
-        },
-      });
-
       const createdUser = await prisma.user.create({
         data: {
           email: dto.email,
@@ -84,24 +70,35 @@ export class EsgAuthService {
           last_name: last_name,
           phone_number: '',
           roleId: companyESGAdminRole.id,
-          companyId: createdCompany.id,
           status: UserStatus.pending,
         },
       });
 
-      await prisma.company.update({
-        where: { id: createdCompany.id },
+      const companyData: Prisma.CompanyUncheckedCreateInput = {
+        name: dto.name,
+        industryId: dto.industryId,
+        status: CompanyStatus.pending,
+        company_type: CompanyType.esg,
+        isoCountryCode: '',
+        address: '',
+        contact_email: '',
+        contact_phone: '',
+        created_by: createdUser.id,
+        updated_by: createdUser.id,
+      };
+
+      const createdCompany = await prisma.company.create({
+        data: companyData,
+      });
+
+      await prisma.user.update({
+        where: { id: createdUser.id },
         data: {
-          created_by: createdUser.id,
-          updated_by: createdUser.id,
+          companyId: createdCompany.id,
         },
       });
 
-      const updatedCompany = await prisma.company.findUnique({
-        where: { id: createdCompany.id },
-      });
-
-      return [updatedCompany, createdUser];
+      return [createdCompany, createdUser];
     });
 
     await this.emailService.sendEmail(
