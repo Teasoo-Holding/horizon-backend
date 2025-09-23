@@ -5,7 +5,7 @@ import {
   IsOptional,
   ValidateNested,
   IsArray,
-  IsBoolean
+  IsBoolean,
 } from 'class-validator';
 import { AssessmentStatus, DisclosureCategory, FuelType } from '@prisma/client';
 import { File } from '../common/file.interface';
@@ -18,7 +18,6 @@ class FileDto {
   @IsString()
   url: string;
 }
-
 class Scope1CreateDto {
   @IsInt()
   ghgDataId: number;

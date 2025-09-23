@@ -138,144 +138,143 @@ export class SubsidiaryService {
   //   }
   // }
 
- async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
-  try {
-    const user = await this.prisma.user.findUnique({
-      where: { id: user_id },
-      select: {
-        id: true,
-        email: true,
-        companyId: true,
-        first_name: true,
-        role: { select: { name: true } },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with id ${user_id} not found`);
-    }
-
-    const company = await this.prisma.company.findUnique({
-      where: { id: user.companyId ?? 0 },
-      select: { id: true, name: true },
-    });
-
-    if (
-      !['company_esg_admin', 'company_esg_subadmin', 'super_admin'].includes(
-        user.role.name,
-      )
-    ) {
-      throw new ForbiddenException(
-        'You are not authorized to create a subsidiary',
-      );
-    }
-
-    let teamLead;
-
-    // ✅ CASE 1: teamLead_email was provided
-    if (createSubsidiaryDto.teamLead_email) {
-      teamLead = await this.prisma.user.findUnique({
-        where: { email: createSubsidiaryDto.teamLead_email },
+  async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: user_id },
+        select: {
+          id: true,
+          email: true,
+          companyId: true,
+          first_name: true,
+          role: { select: { name: true } },
+        },
       });
 
-      if (!teamLead) {
-        teamLead = await this.prisma.user.create({
-          data: {
-            email: createSubsidiaryDto.teamLead_email,
-            first_name: createSubsidiaryDto?.teamLead_name ?? '',
-            companyId: user.companyId,
-            password: '',
-            roleId: 2,
-          },
+      if (!user) {
+        throw new NotFoundException(`User with id ${user_id} not found`);
+      }
+
+      const company = await this.prisma.company.findUnique({
+        where: { id: user.companyId ?? 0 },
+        select: { id: true, name: true },
+      });
+
+      if (
+        !['company_esg_admin', 'company_esg_subadmin', 'super_admin'].includes(
+          user.role.name,
+        )
+      ) {
+        throw new ForbiddenException(
+          'You are not authorized to create a subsidiary',
+        );
+      }
+
+      let teamLead;
+
+      // ✅ CASE 1: teamLead_email was provided
+      if (createSubsidiaryDto.teamLead_email) {
+        teamLead = await this.prisma.user.findUnique({
+          where: { email: createSubsidiaryDto.teamLead_email },
         });
 
+        if (!teamLead) {
+          teamLead = await this.prisma.user.create({
+            data: {
+              email: createSubsidiaryDto.teamLead_email,
+              first_name: createSubsidiaryDto?.teamLead_name ?? '',
+              companyId: user.companyId,
+              password: '',
+              roleId: 2,
+            },
+          });
+
+          await this.emailService.sendEmail(
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+            teamLead.email,
+            {
+              first_name: createSubsidiaryDto?.teamLead_name ?? '',
+              link: this.configService.get('FRONTEND_URL') + '/register',
+              admin_name: user.first_name,
+              esg_name: company?.name,
+            },
+            6,
+          );
+        }
+
+        if (teamLead.companyId !== user.companyId) {
+          throw new ForbiddenException(
+            'You can only create subsidiaries with your own team lead',
+          );
+        }
+      } else {
+        // ✅ CASE 2: No teamLead provided → use current user as teamLead
+        teamLead = user;
+      }
+
+      try {
+        const subsidiary = await this.prisma.subsidiary.create({
+          data: {
+            name: createSubsidiaryDto.name,
+            industryId: createSubsidiaryDto.industryId,
+            parentCompanyId: user.companyId as number,
+            created_by: user.id,
+            updated_by: user.id,
+            teamLeadId: teamLead.id,
+            registration_number: createSubsidiaryDto.registration_number,
+            sicsCode: createSubsidiaryDto.sicsCode,
+            isinCode: createSubsidiaryDto.isinCode,
+            isoCountryCode: createSubsidiaryDto.isoCountryCode,
+            address: createSubsidiaryDto.address,
+            country: createSubsidiaryDto.country,
+            currency: createSubsidiaryDto.currency,
+            contact_email: createSubsidiaryDto.contact_email,
+            website: createSubsidiaryDto.website,
+            contact_phone: createSubsidiaryDto.contact_phone,
+            company_logo_url: createSubsidiaryDto.company_logo_url,
+          },
+          include: { industry: true },
+        });
+
+        // ✅ Notify teamLead (whether new user or current user)
         await this.emailService.sendEmail(
           // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           teamLead.email,
           {
-            first_name: createSubsidiaryDto?.teamLead_name ?? '',
-            link: this.configService.get('FRONTEND_URL') + '/register',
+            first_name: teamLead?.first_name,
             admin_name: user.first_name,
             esg_name: company?.name,
+            subsidiary_name: createSubsidiaryDto.name,
           },
-          6,
+          10,
         );
+
+        return subsidiary;
+      } catch (error) {
+        if (
+          error instanceof PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException(
+            'A subsidiary with this name already exists for this company.',
+          );
+        }
+        throw error;
       }
-
-      if (teamLead.companyId !== user.companyId) {
-        throw new ForbiddenException(
-          'You can only create subsidiaries with your own team lead',
-        );
-      }
-    } else {
-      // ✅ CASE 2: No teamLead provided → use current user as teamLead
-      teamLead = user;
-    }
-
-    try {
-      const subsidiary = await this.prisma.subsidiary.create({
-        data: {
-          name: createSubsidiaryDto.name,
-          industryId: createSubsidiaryDto.industryId,
-          parentCompanyId: user.companyId as number,
-          created_by: user.id,
-          updated_by: user.id,
-          teamLeadId: teamLead.id,
-          registration_number: createSubsidiaryDto.registration_number,
-          sicsCode: createSubsidiaryDto.sicsCode,
-          isinCode: createSubsidiaryDto.isinCode,
-          isoCountryCode: createSubsidiaryDto.isoCountryCode,
-          address: createSubsidiaryDto.address,
-          country: createSubsidiaryDto.country,
-          currency: createSubsidiaryDto.currency,
-          contact_email: createSubsidiaryDto.contact_email,
-          website: createSubsidiaryDto.website,
-          contact_phone: createSubsidiaryDto.contact_phone,
-          company_logo_url: createSubsidiaryDto.company_logo_url,
-        },
-        include: { industry: true },
-      });
-
-      // ✅ Notify teamLead (whether new user or current user)
-      await this.emailService.sendEmail(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        teamLead.email,
-        {
-          first_name: teamLead?.first_name,
-          admin_name: user.first_name,
-          esg_name: company?.name,
-          subsidiary_name: createSubsidiaryDto.name,
-        },
-        10,
-      );
-
-      return subsidiary;
     } catch (error) {
+      console.error('Error creating subsidiary:', error);
+
       if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException ||
+        error instanceof ConflictException
       ) {
-        throw new ConflictException(
-          'A subsidiary with this name already exists for this company.',
-        );
+        throw error;
       }
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error creating subsidiary:', error);
 
-    if (
-      error instanceof NotFoundException ||
-      error instanceof ForbiddenException ||
-      error instanceof ConflictException
-    ) {
-      throw error;
+      throw new InternalServerErrorException('Error creating subsidiary');
     }
-
-    throw new InternalServerErrorException('Error creating subsidiary');
   }
-}
-
 
   async findAll(user_id: number) {
     const user = await this.prisma.user.findUnique({

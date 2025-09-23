@@ -9,6 +9,8 @@ import { CompanyUsersModule } from './sub-users/company-users.module';
 import { SubsidiaryModule } from './subsidiary/subsidiary.module';
 import { AssessmentModule } from './assessments/assessments.module';
 import { Scope1Module } from './assessments/scope1/scope1.module';
+import { CompanySetupController } from './company-setup.controller';
+import { CompanySetupService } from './company-setup.service';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { Scope1Module } from './assessments/scope1/scope1.module';
     AssessmentModule,
     Scope1Module,
   ],
-  controllers: [CompanyController, TestController],
-  providers: [CompanyService, PrismaService, EmailService],
+  controllers: [CompanyController, TestController, CompanySetupController],
+  providers: [CompanyService, PrismaService, EmailService, CompanySetupService],
 })
 export class CompanyModule {}

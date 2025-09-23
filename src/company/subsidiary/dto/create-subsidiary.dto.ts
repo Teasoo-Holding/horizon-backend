@@ -8,6 +8,7 @@ import {
   IsUrl,
   IsInt,
   IsNumber,
+  ValidateIf,
 } from 'class-validator';
 export class CreateSubsidiaryDto {
   @ApiProperty({
@@ -23,6 +24,7 @@ export class CreateSubsidiaryDto {
     example: 'teamlead@example.com',
   })
   @IsOptional()
+  @ValidateIf((o) => o.teamLead_email)
   @IsEmail()
   teamLead_email?: string;
 
