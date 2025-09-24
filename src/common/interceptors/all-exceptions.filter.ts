@@ -35,7 +35,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    Logger.error(`HTTP Status: ${status} Error Message: ${JSON.stringify(message)}`);
+    // Logger.error(`HTTP Status: ${status} Error Message: ${JSON.stringify(message)}`);
+    Logger.error(
+      `HTTP Status: ${status} - Error Message: ${JSON.stringify(message)}`,
+      (exception as any).stack,
+    );
 
     response.status(status).json({
       statusCode: status,
