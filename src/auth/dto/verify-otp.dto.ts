@@ -1,6 +1,6 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
-export class VerifyOtpDto {
+export class LeanVerifyOtpDto {
   @IsEmail()
   email: string;
 

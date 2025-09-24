@@ -15,7 +15,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { LeanVerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -195,7 +195,7 @@ export class AuthController {
 
   @Post('verify-otp')
   @ApiOperation({ summary: 'Verify the OTP provided by the user' })
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
+  async verifyOtp(@Body() dto: LeanVerifyOtpDto) {
     try {
       await this.authService.verifyOtp(dto.email, dto.otp);
       return { message: 'OTP verified successfully.' };
