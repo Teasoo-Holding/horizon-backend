@@ -1,36 +1,69 @@
-import { AssessmentStatus, DisclosureCategory } from '@prisma/client';
-import { Scope1Dto } from '../scope1/scope1-dto/scope1.dto';
-import { File } from '../common/file.interface';
+import { IsNotEmpty, IsString, IsOptional, IsObject } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class AssessmentDto {
-  id: number;
+export class AssessmentPayloadDto {
+  @ApiProperty({
+    description: 'The subsidiary for which the assessment is being conducted.',
+    example: 'HQ',
+  })
+  @IsNotEmpty()
+  @IsString()
   subsidiary: string;
-  reportingPeriod: string;
-  status: AssessmentStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  completedAt?: Date | null;
-  createdById: number;
-  disclosureTopics?:
-    | {
-        id: number;
-        assessmentId: number;
-        category: DisclosureCategory;
-        topic: string;
-        subtopic: string;
-        ghgData?:
-          | {
-              id: number;
-              disclosureTopicId: number;
-              scope1?: Scope1Dto | null;
-              scope2?: any | null;
-              scope3?: any | null;
-            }
-          | null
-          | undefined;
-        airQualityData?: File[] | null;
-        waterData?: File[] | null;
-      }[]
-    | null
-    | undefined;
+
+  @ApiProperty({
+    description: 'The start month of the assessment period.',
+    example: 'January',
+  })
+  @IsNotEmpty()
+  @IsString()
+  startMonth: string;
+
+  @ApiProperty({
+    description: 'The start year of the assessment period.',
+    example: '2023',
+  })
+  @IsNotEmpty()
+  @IsString()
+  startYear: string;
+
+  @ApiProperty({
+    description: 'The end month of the assessment period.',
+    example: 'December',
+  })
+  @IsNotEmpty()
+  @IsString()
+  endMonth: string;
+
+  @ApiProperty({
+    description: 'The end year of the assessment period.',
+    example: '2023',
+  })
+  @IsNotEmpty()
+  @IsString()
+  endYear: string;
+
+  @ApiProperty({
+    description:
+      'JSON object containing all detailed assessment data for stationary sources.',
+    example: {
+      electricityHeat: {
+        dieselGenerators: [
+          {
+            fuelType: 'Diesel (HFO)',
+            volume: '5000',
+            unit: 'litres',
+            source: 'Generator 1',
+            emissionFactor: 2.7,
+          },
+        ],
+      },
+    },
+    type: 'object',
+    additionalProperties: true, // This line fixes the TypeScript error
+  })
+  @IsOptional()
+  @IsObject()
+  stationarySources?: any;
+
+  // Future scopes will be included here with their own API properties
 }

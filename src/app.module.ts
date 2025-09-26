@@ -27,6 +27,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CustomThrottlerGuard } from './config/CustomThrottleGuard';
 import { ComputationModule } from './assessment/computation/computation.module';
+import { AssessmentModule } from './company/assessments/assessments.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ComputationModule } from './assessment/computation/computation.module';
     CookiesModule,
     TestModule,
     CloudinaryModule,
+    AssessmentModule,
     Scope2Module,
     ComputationModule,
     ThrottlerModule.forRoot([

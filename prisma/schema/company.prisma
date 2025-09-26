@@ -51,6 +51,8 @@ model Company {
 
   subsidiaries Subsidiary[] @relation("Subsidiaries")
 
+  assessments Assessment[]
+
   @@index([status])
   @@index([created_at])
   @@map("companies")
