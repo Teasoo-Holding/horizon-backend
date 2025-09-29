@@ -1,9 +1,4 @@
-import {
-  CompanyStatus,
-  CompanyType,
-  PrismaClient,
-  UserStatus,
-} from '@prisma/client';
+import { CompanyStatus, CompanyType, PrismaClient, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { industries } from './industries';
 
@@ -24,22 +19,22 @@ async function main() {
         {
           name: 'platform_subadmin',
           description:
-            'Manages the day-to-day administrative and content oversight tasks within the platform. This role has powerful permissions to manage organizational data and the ESG submission lifecycle.',
+            "Manages the day-to-day administrative and content oversight tasks within the platform. This role has powerful permissions to manage organizational data and the ESG submission lifecycle.",
         },
         {
           name: 'platform_data_officer',
           description:
-            'Responsible for submitting timely and accurate ESG data and monitoring performance through reports. Data officers have the necessary reporting access to understand the impact of their contributions.',
+            "Responsible for submitting timely and accurate ESG data and monitoring performance through reports. Data officers have the necessary reporting access to understand the impact of their contributions.",
         },
         {
           name: 'platform_viewer',
           description:
-            'Provides read-only access to all dashboards and reports across the platform. This role is ideal for stakeholders who require visibility into ESG performance without needing to edit data.',
+            "Provides read-only access to all dashboards and reports across the platform. This role is ideal for stakeholders who require visibility into ESG performance without needing to edit data.",
         },
         {
           name: 'company_esg_admin',
           description:
-            'The primary administrator responsible for managing all users, settings, and ESG data for their specific company. This role has full administrative rights, but strictly within their own organization ONLY.',
+            "The primary administrator responsible for managing all users, settings, and ESG data for their specific company. This role has full administrative rights, but strictly within their own organization ONLY.",
         },
         {
           name: 'company_esg_subadmin',
@@ -54,15 +49,87 @@ async function main() {
         {
           name: 'company_esg_viewer',
           description:
-            'Provides read-only access to all ESG dashboards and reports to stakeholders who require a comprehensive overview of their company’s ESG performance. ',
+            "Provides read-only access to all ESG dashboards and reports to stakeholders who require a comprehensive overview of their company’s ESG performance. ",
         },
       ],
       skipDuplicates: true,
     });
+
     console.log('✅ Roles seeded.');
 
-    // Declare role aliases before they are used
-    const roleEmailAliases: { [key: string]: string } = {
+    // 2. Create or find default companies
+    const teasooCompany = await prisma.company.upsert({
+      where: { name: 'Teasoo Consulting' },
+      update: {},
+      create: {
+        name: 'Teasoo Consulting',
+        registration_number: 'TEA12345',
+        industry: {
+          connectOrCreate: {
+            where: {
+              sector_industry: {
+                sector: 'Services',
+                industry: 'Advisory',
+              },
+            },
+            create: {
+              sector: 'Services',
+              industry: 'Advisory',
+            },
+          },
+        },
+        isoCountryCode: 'NG',
+        address: '123 Aso Villa',
+        country: 'Nigeria',
+        website: 'https://teasooconsulting.com',
+        contact_email: 'info@teasooconsulting.com',
+        contact_phone: '+2347038334703',
+        status: CompanyStatus.active,
+        created_by: 1,
+        updated_by: 1,
+      },
+    });
+
+    // Create a separate company for ESG user personas
+    const horizonCompany = await prisma.company.upsert({
+      where: { name: 'Horizon ESG Solutions' },
+      update: {},
+      create: {
+        name: 'Horizon ESG Solutions',
+        registration_number: 'HZN7890',
+        industry: {
+          connectOrCreate: {
+            where: {
+              sector_industry: {
+                sector: 'Technology',
+                industry: 'Software',
+              },
+            },
+            create: {
+              sector: 'Technology',
+              industry: 'Software',
+            },
+          },
+        },
+        isoCountryCode: 'US',
+        address: '456 Tech Avenue',
+        country: 'USA',
+        website: 'https://horizonesg.com',
+        contact_email: 'info@horizonesg.com',
+        contact_phone: '+18005551234',
+        status: CompanyStatus.active,
+        created_by: 1,
+        updated_by: 1,
+        company_type: CompanyType.esg
+      },
+    });
+    console.log('✅ Companies seeded.');
+
+    // 3. Create a user for each role persona
+    const roles = await prisma.role.findMany();
+    const passwordHash = await bcrypt.hash('password123', 10);
+
+    const roleEmailAliases = {
       super_admin: 'sa',
       platform_subadmin: 'psa',
       platform_data_officer: 'pdo',
@@ -73,112 +140,8 @@ async function main() {
       company_esg_viewer: 'cv',
     };
 
-    const superAdminRole = await prisma.role.findUnique({
-      where: { name: 'super_admin' },
-    });
-    if (!superAdminRole) {
-      throw new Error(
-        'Super Admin role not found. Cannot proceed with seeding.',
-      );
-    }
-
-    // 2. Create the super_admin user first
-    const passwordHash = await bcrypt.hash('password123', 10);
-    const superAdminUser = await prisma.user.upsert({
-      where: { email: roleEmailAliases.super_admin + '@teasoo.com' },
-      update: {},
-      create: {
-        email: roleEmailAliases.super_admin + '@teasoo.com',
-        password: passwordHash,
-        first_name: 'Super Admin',
-        last_name: 'User',
-        roleId: superAdminRole.id,
-        status: UserStatus.active,
-      },
-    });
-    console.log(
-      `👤 Created or updated super admin user: ${superAdminUser.email}`,
-    );
-
-    // 3. Create or find default companies using the super admin's ID
-    const teasooCompany = await prisma.company.upsert({
-      where: { name: 'Teasoo Consulting' },
-      update: {},
-      create: {
-        name: 'Teasoo Consulting',
-        registration_number: 'TEA12345',
-        industry: {
-          connectOrCreate: {
-            where: {
-              sector_industry: { sector: 'Services', industry: 'Advisory' },
-            },
-            create: { sector: 'Services', industry: 'Advisory' },
-          },
-        },
-        isoCountryCode: 'NG',
-        address: '123 Aso Villa',
-        country: 'Nigeria',
-        website: 'https://teasooconsulting.com',
-        contact_email: 'info@teasooconsulting.com',
-        contact_phone: '+2347038334703',
-        status: CompanyStatus.active,
-        creator: {
-          connect: { id: superAdminUser.id },
-        },
-        updater: {
-          connect: { id: superAdminUser.id },
-        },
-      } as any,
-    });
-
-    const horizonCompany = await prisma.company.upsert({
-      where: { name: 'Horizon ESG Solutions' },
-      update: {},
-      create: {
-        name: 'Horizon ESG Solutions',
-        registration_number: 'HZN7890',
-        industry: {
-          connectOrCreate: {
-            where: {
-              sector_industry: { sector: 'Technology', industry: 'Software' },
-            },
-            create: { sector: 'Technology', industry: 'Software' },
-          },
-        },
-        isoCountryCode: 'US',
-        address: '456 Tech Avenue',
-        country: 'USA',
-        website: 'https://horizonesg.com',
-        contact_email: 'info@horizonesg.com',
-        contact_phone: '+18005551234',
-        status: CompanyStatus.active,
-        creator: {
-          connect: { id: superAdminUser.id },
-        },
-        updater: {
-          connect: { id: superAdminUser.id },
-        },
-        company_type: CompanyType.esg,
-      } as any,
-    });
-    console.log('✅ Companies seeded.');
-
-    // 4. Update the super admin user with their company ID
-    await prisma.user.update({
-      where: { id: superAdminUser.id },
-      data: { companyId: teasooCompany.id },
-    });
-    console.log(`✅ Super admin user's company set to: ${teasooCompany.name}`);
-
-    // 5. Create a user for each role persona
-    const roles = await prisma.role.findMany();
-    const passwordHashForAllUsers = await bcrypt.hash('password123', 10);
-
     for (const role of roles) {
-      if (role.name === 'super_admin') {
-        continue;
-      }
-
+      // Determine which company to associate the user with
       const isPlatformRole =
         role.name.startsWith('platform') || role.name === 'super_admin';
       const company = isPlatformRole ? teasooCompany : horizonCompany;
@@ -189,7 +152,7 @@ async function main() {
         update: {},
         create: {
           email,
-          password: passwordHashForAllUsers,
+          password: passwordHash,
           first_name: role.name
             .split('_')
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -203,9 +166,30 @@ async function main() {
       console.log(
         `👤 Created or updated user for role: ${role.name} (${user.email})`,
       );
+
+      // Update company created_by/updated_by for Teasoo if not already set
+      if (role.name === 'super_admin') {
+        await prisma.company.update({
+          where: { id: teasooCompany.id },
+          data: {
+            created_by: user.id,
+            updated_by: user.id,
+          },
+        });
+        await prisma.company.update({
+          where: { id: horizonCompany.id },
+          data: {
+            created_by: user.id,
+            updated_by: user.id,
+          },
+        });
+      }
     }
 
-    // 6. Seed other data (subsidiaries, subscriptions, industries)
+    // 4. Seed other data (subsidiaries, subscriptions, industries)
+    const superAdminUser = await prisma.user.findFirst({
+      where: { email: roleEmailAliases['super_admin'] + '@teasoo.com' },
+    });
     if (superAdminUser) {
       const subsidiary = await prisma.subsidiary.upsert({
         where: {
@@ -260,6 +244,7 @@ async function main() {
       console.log(`✅ Subsidiary created: ${subsidiary.name}`);
     }
 
+    // Create subscriptions
     const subscriptions = [
       {
         name: 'Basic',
@@ -327,6 +312,7 @@ async function main() {
       }
     }
 
+    // Create industries
     for (const ind of industries) {
       await prisma.industry.upsert({
         where: {
