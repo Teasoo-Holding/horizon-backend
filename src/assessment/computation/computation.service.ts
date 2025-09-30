@@ -23,16 +23,20 @@ import {
 } from './dto/create-computation.dto';
 import { ProcessEmissionDto } from './dto/process-emission.dto';
 import { FugitiveEmissionCalculationDto } from './dto/fugutive-emission.dto';
-import { LocationBasedEmissionDto, MarketBasedEmissionDto } from './dto/scope2-computation.dto';
+import {
+  LocationBasedEmissionDto,
+  MarketBasedEmissionDto,
+} from './dto/scope2-computation.dto';
 import { UpstreamEmissionDto } from './dto/upstream-computation.dto';
 import { DownstreamEmisionDto } from './dto/downstream-computation.dto';
 
 @Injectable()
 export class Scope1ComputationService {
-  private readonly DEFAULT_GWP = 28;
-  private readonly DEFAULT_METHANE_DENSITY = 0.65;
-  constructor(
-  ) {}
+  private readonly EF_VENTING = 0.656; // kgCO2/m³
+  private readonly EF_HFC = 1300; // kgCO2e/kg
+  private readonly EF_CEMENT = 0.4985; // tCO2/t cement
+  private readonly EF_FLARING = 2.89; // kgCO2/m³ gas
+  constructor() {}
 
   //  Diesel Generators, Diesel Vehicles, Fuel Oil (LPFO/HPFO)
   async directEmissionComputations(dto: BasicComputationDto) {
@@ -344,16 +348,17 @@ export class Scope1ComputationService {
     const heaters_and_boilers_at_oil_production_facilities =
       await this.generalEnergyTypesComputation(dto.heaters_and_boilers);
 
-   return {
-  fuel_powered_generator,
-  gas_powered_turbine,
-  boilers_and_furnaces_in_manufacturing,
-  heaters_and_boilers_at_oil_production_facilities,
-  sum: (fuel_powered_generator?.value ?? 0) +
-       (gas_powered_turbine?.value ?? 0) +
-       (boilers_and_furnaces_in_manufacturing?.value ?? 0) +
-       (heaters_and_boilers_at_oil_production_facilities?.value ?? 0)
-};
+    return {
+      fuel_powered_generator,
+      gas_powered_turbine,
+      boilers_and_furnaces_in_manufacturing,
+      heaters_and_boilers_at_oil_production_facilities,
+      sum:
+        (fuel_powered_generator?.value ?? 0) +
+        (gas_powered_turbine?.value ?? 0) +
+        (boilers_and_furnaces_in_manufacturing?.value ?? 0) +
+        (heaters_and_boilers_at_oil_production_facilities?.value ?? 0),
+    };
   }
 
   async mobileSources(dto: MobileSourcesDto) {
@@ -389,59 +394,68 @@ export class Scope1ComputationService {
       tractor_and_other_machineries,
       helocopters,
       boats_and_vessels,
-      sum: (diesel_truck.value ?? 0) +
-      (cars_and_buses.value ?? 0) +
-      (forklifts_and_other_machinery.value ?? 0) +
-      (heavy_duty_vehicles.value ?? 0) +
-      (tractor_and_other_machineries.value ?? 0) +
-      (helocopters.value ?? 0) +
-      (boats_and_vessels.value  ?? 0)
+      sum:
+        (diesel_truck.value ?? 0) +
+        (cars_and_buses.value ?? 0) +
+        (forklifts_and_other_machinery.value ?? 0) +
+        (heavy_duty_vehicles.value ?? 0) +
+        (tractor_and_other_machineries.value ?? 0) +
+        (helocopters.value ?? 0) +
+        (boats_and_vessels.value ?? 0),
     };
   }
 
-  async ProcessEmission(dto: ProcessEmissionDto) {
-    const cement = {
-      value: (dto.mass_of_cement * dto.cement_emission_factor) / 1000,
-      unit: 'tCO2e',
-    };
-    const flared_gas = {
-      value: (dto.volume_of_flared_gas * dto.gas_emission_factor) / 1000,
-      unit: 'tCO2e',
-    };
+  // async ProcessEmission(dto: ProcessEmissionDto) {
+  //   const cement = {
+  //     value: (dto.mass_of_cement * dto.cement_emission_factor) / 1000,
+  //     unit: 'tCO2e',
+  //   };
+  //   const flared_gas = {
+  //     value: (dto.volume_of_flared_gas * dto.gas_emission_factor) / 1000,
+  //     unit: 'tCO2e',
+  //   };
 
-    return {
-      cement,
-      flared_gas,
-      sum: (cement.value ?? 0) + 
-      (flared_gas.value ?? 0)
-    };
-  }
+  //   return {
+  //     cement,
+  //     flared_gas,
+  //     sum: (cement.value ?? 0) + (flared_gas.value ?? 0),
+  //   };
+  // }
+
+  // async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
+  //   const methaneDensity = dto.methaneDensity || this.DEFAULT_METHANE_DENSITY;
+  //   const gwp = dto.gwp || this.DEFAULT_GWP;
+
+  //   const gas_venting = (dto.volume * methaneDensity * gwp) / 1000;
+
+  //   return {
+  //     value: gas_venting,
+  //     unit: 'tCO2e',
+  //     sum: gas_venting,
+  //   };
+  // }
 
   async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
-    const methaneDensity = dto.methaneDensity || this.DEFAULT_METHANE_DENSITY;
-    const gwp = dto.gwp || this.DEFAULT_GWP;
+  const venting = (dto.volume || 0) * this.EF_VENTING / 1000;
+  const hfc = (dto as any).hfcMass ? (dto as any).hfcMass * this.EF_HFC / 1000 : 0;
 
-    const gas_venting = (dto.volume * methaneDensity * gwp / 1000);
-   
-
-    return {
-      value: gas_venting,
-      unit: "tCO2e",
-      sum: gas_venting
-    };
-
-
-  }
+  return { venting, hfc, sum: venting + hfc, unit: 'tCO2e' };
 }
 
+async ProcessEmission(dto: ProcessEmissionDto) {
+  const cement = (dto.mass_of_cement || 0) * this.EF_CEMENT;
+  const flaring = (dto.volume_of_flared_gas || 0) * this.EF_FLARING / 1000;
 
+  return { cement, flaring, sum: cement + flaring, unit: 'tCO2e' };
+}
 
+}
 
-export class Scope2Computation{
-private readonly ELECTRIC_EMISSION_FACTOR = 0.526;
-private readonly COOLING_EMISSION_FACTOR = 0.25
+export class Scope2Computation {
+  private readonly ELECTRIC_EMISSION_FACTOR = 0.526;
+  private readonly COOLING_EMISSION_FACTOR = 0.25;
 
-async directEmissionComputations(amount, ef) {
+  async directEmissionComputations(amount, ef) {
     const value = (amount * ef) / 1000;
     return {
       value,
@@ -449,160 +463,236 @@ async directEmissionComputations(amount, ef) {
     };
   }
 
-  async locationBasedEmission(dto: LocationBasedEmissionDto){
+  async locationBasedEmission(dto: LocationBasedEmissionDto) {
     const electric_EF = dto.electiricity_emission_factor || 0.526;
-    const cooling_EF = dto.amt_of_c_emission_factor || this.COOLING_EMISSION_FACTOR
+    const cooling_EF =
+      dto.amt_of_c_emission_factor || this.COOLING_EMISSION_FACTOR;
 
-   
-    const amount_of_cooling_energy_consumed = await this.directEmissionComputations(dto.amount_of_cooling_energy_consumed, cooling_EF);
+    const amount_of_cooling_energy_consumed =
+      await this.directEmissionComputations(
+        dto.amount_of_cooling_energy_consumed,
+        cooling_EF,
+      );
 
-    const electricity_consumed = await this.directEmissionComputations(dto.electiricity_consumed, electric_EF);
-    const total_steam_consumed = await this.directEmissionComputations(dto.total_steam_consumed, cooling_EF);
-    const total_heating_energy_consumed = await this.directEmissionComputations(dto.total_heating_energy_consumed, dto.total_heating_energy_consumed_EF);
-
-
+    const electricity_consumed = await this.directEmissionComputations(
+      dto.electiricity_consumed,
+      electric_EF,
+    );
+    const total_steam_consumed = await this.directEmissionComputations(
+      dto.total_steam_consumed,
+      cooling_EF,
+    );
+    const total_heating_energy_consumed = await this.directEmissionComputations(
+      dto.total_heating_energy_consumed,
+      dto.total_heating_energy_consumed_EF,
+    );
 
     return {
       electricity_consumed,
       amount_of_cooling_energy_consumed,
       total_steam_consumed,
       total_heating_energy_consumed,
-      sum:  (electricity_consumed.value ?? 0) + 
-      (amount_of_cooling_energy_consumed.value ?? 0) + 
-      (total_heating_energy_consumed.value ?? 0) +
-      (total_steam_consumed.value ?? 0) 
-    }
+      sum:
+        (electricity_consumed.value ?? 0) +
+        (amount_of_cooling_energy_consumed.value ?? 0) +
+        (total_heating_energy_consumed.value ?? 0) +
+        (total_steam_consumed.value ?? 0),
+    };
   }
 
-  async marketBasedEmission(dto: MarketBasedEmissionDto){
+  async marketBasedEmission(dto: MarketBasedEmissionDto) {
     const electric_EF = dto.eac_total_grid_electricity_consumed_EF || 0.526;
-    const cooling_EF = dto.purchased_cooling_or_steam_quantity_consumed_EF || this.COOLING_EMISSION_FACTOR
+    const cooling_EF =
+      dto.purchased_cooling_or_steam_quantity_consumed_EF ||
+      this.COOLING_EMISSION_FACTOR;
 
-    const ipp_total_electricity_consumed = await this.directEmissionComputations(dto.ipp_total_electricity_consumed, cooling_EF);
-    const eac_total_grid_electricity_consumed = await this.directEmissionComputations(dto.eac_total_grid_electricity_consumed, electric_EF);
-    const total_purchased_electricity_consumed = await this.directEmissionComputations(dto.total_purchased_electricity_consumed, electric_EF);
-    const purchased_cooling_steam = await this.directEmissionComputations(dto.purchased_cooling_or_steam_quantity_consumed, dto.purchased_cooling_or_steam_quantity_consumed_EF )
-    
+    const ipp_total_electricity_consumed =
+      await this.directEmissionComputations(
+        dto.ipp_total_electricity_consumed,
+        cooling_EF,
+      );
+    const eac_total_grid_electricity_consumed =
+      await this.directEmissionComputations(
+        dto.eac_total_grid_electricity_consumed,
+        electric_EF,
+      );
+    const total_purchased_electricity_consumed =
+      await this.directEmissionComputations(
+        dto.total_purchased_electricity_consumed,
+        electric_EF,
+      );
+    const purchased_cooling_steam = await this.directEmissionComputations(
+      dto.purchased_cooling_or_steam_quantity_consumed,
+      dto.purchased_cooling_or_steam_quantity_consumed_EF,
+    );
+
     return {
       ipp_total_electricity_consumed,
       eac_total_grid_electricity_consumed,
       total_purchased_electricity_consumed,
       purchased_cooling_steam,
-      sum: (ipp_total_electricity_consumed.value ?? 0) + 
-      (eac_total_grid_electricity_consumed.value ?? 0) + 
-      (total_purchased_electricity_consumed.value ?? 0) + 
-      (purchased_cooling_steam.value ?? 0)
-    }
+      sum:
+        (ipp_total_electricity_consumed.value ?? 0) +
+        (eac_total_grid_electricity_consumed.value ?? 0) +
+        (total_purchased_electricity_consumed.value ?? 0) +
+        (purchased_cooling_steam.value ?? 0),
+    };
   }
-
-
 }
 
 export class Scope3ComputationService {
-
-
-
-   async transportationEmissionComputations(mass, distance, emission_factor) {
+  async transportationEmissionComputations(mass, distance, emission_factor) {
     const value = (mass * distance * emission_factor) / 1000;
-    return value
+    return value;
   }
 
   async directEmissionComputations(mass, emission_factor) {
     const value = (mass * emission_factor) / 1000;
-    return value
+    return value;
   }
 
-  async travelEmissionComputation(distance, ef){
-    return (distance * ef)/1000
+  async travelEmissionComputation(distance, ef) {
+    return (distance * ef) / 1000;
   }
 
-async upstreamEmission(dto: UpstreamEmissionDto){
-  const total_amount_spent_on_goods_and_services = await this.directEmissionComputations(dto.total_amount_spent_on_goods_and_services, dto.total_amount_spent_on_goods_and_services_ef || 0.45);
+  async upstreamEmission(dto: UpstreamEmissionDto) {
+    const total_amount_spent_on_goods_and_services =
+      await this.directEmissionComputations(
+        dto.total_amount_spent_on_goods_and_services,
+        dto.total_amount_spent_on_goods_and_services_ef || 0.45,
+      );
 
-  const total_cost_of_capital_goods_purchased = await this.directEmissionComputations(dto.total_cost_of_capital_goods_purchased, dto.total_cost_of_capital_goods_purchased_ef || 0.55)
+    const total_cost_of_capital_goods_purchased =
+      await this.directEmissionComputations(
+        dto.total_cost_of_capital_goods_purchased,
+        dto.total_cost_of_capital_goods_purchased_ef || 0.55,
+      );
 
-  const volume_of_fuel_consumed = await this.directEmissionComputations(dto.volume_of_fuel_consumed, dto.volume_of_fuel_consumed_ef || 0.55);
+    const volume_of_fuel_consumed = await this.directEmissionComputations(
+      dto.volume_of_fuel_consumed,
+      dto.volume_of_fuel_consumed_ef || 0.55,
+    );
 
- const mass_of_goods_transported = await this.transportationEmissionComputations(dto.mass_of_goods_transported, dto.distance_travelled, dto.mass_of_goods_transported_ef);
+    const mass_of_goods_transported =
+      await this.transportationEmissionComputations(
+        dto.mass_of_goods_transported,
+        dto.distance_travelled,
+        dto.mass_of_goods_transported_ef,
+      );
 
- const total_weight_of_waste_generated = await this.directEmissionComputations(dto.total_weight_of_waste_generated, dto.total_weight_of_waste_generated_ef);
+    const total_weight_of_waste_generated =
+      await this.directEmissionComputations(
+        dto.total_weight_of_waste_generated,
+        dto.total_weight_of_waste_generated_ef,
+      );
 
- const ground_travel = await this.travelEmissionComputation(dto.total_distance_travelled, dto.total_distance_travelled_ef || 0.11);
-const air_travel = await this.travelEmissionComputation(dto.total_number_of_flights_taken * dto.total_number_of_employee_for_all_trips * dto.total_passenger_kilometers_travelled, dto.total_passenger_kilometers_travelled_ef || 0.35);
+    const ground_travel = await this.travelEmissionComputation(
+      dto.total_distance_travelled,
+      dto.total_distance_travelled_ef || 0.11,
+    );
+    const air_travel = await this.travelEmissionComputation(
+      dto.total_number_of_flights_taken *
+        dto.total_number_of_employee_for_all_trips *
+        dto.total_passenger_kilometers_travelled,
+      dto.total_passenger_kilometers_travelled_ef || 0.35,
+    );
 
-const employee_commuting = (dto.number_of_employees_commuting * dto.average_distance_commuting * (dto.number_of_employees_commuting_ef || 0.20 ) * dto.average_number_of_workdays_per_year || 250) / 1000;
+    const employee_commuting =
+      (dto.number_of_employees_commuting *
+        dto.average_distance_commuting *
+        (dto.number_of_employees_commuting_ef || 0.2) *
+        dto.average_number_of_workdays_per_year || 250) / 1000;
 
-const upstream_leased_asset = ((dto.total_electricity_consumedby_leased_assets * dto.total_electricity_consumedby_leased_assets_ef || 0.526)/1000 ) + ((dto.total_fuel_consumedby_leased_assets * dto.total_fuel_consumedby_leased_assets_ef)/ 1000)
+    const upstream_leased_asset =
+      (dto.total_electricity_consumedby_leased_assets *
+        dto.total_electricity_consumedby_leased_assets_ef || 0.526) /
+        1000 +
+      (dto.total_fuel_consumedby_leased_assets *
+        dto.total_fuel_consumedby_leased_assets_ef) /
+        1000;
 
- return {
-  total_amount_spent_on_goods_and_services,
-  total_cost_of_capital_goods_purchased,
-  volume_of_fuel_consumed,
-  mass_of_goods_transported,
-  total_weight_of_waste_generated,
-  ground_travel,
-  air_travel,
-  employee_commuting,
-  upstream_leased_asset,
-  sum:
-    total_amount_spent_on_goods_and_services +
-    total_cost_of_capital_goods_purchased +
-    volume_of_fuel_consumed +
-    mass_of_goods_transported +
-    total_weight_of_waste_generated +
-    ground_travel +
-    air_travel +
-    employee_commuting +
-    upstream_leased_asset,
-};
+    return {
+      total_amount_spent_on_goods_and_services,
+      total_cost_of_capital_goods_purchased,
+      volume_of_fuel_consumed,
+      mass_of_goods_transported,
+      total_weight_of_waste_generated,
+      ground_travel,
+      air_travel,
+      employee_commuting,
+      upstream_leased_asset,
+      sum:
+        total_amount_spent_on_goods_and_services +
+        total_cost_of_capital_goods_purchased +
+        volume_of_fuel_consumed +
+        mass_of_goods_transported +
+        total_weight_of_waste_generated +
+        ground_travel +
+        air_travel +
+        employee_commuting +
+        upstream_leased_asset,
+    };
+  }
 
+  async downstreamEmission(dto: DownstreamEmisionDto) {
+    const mass_of_products_sold =
+      (dto.mass_of_products_sold * dto.mass_of_products_sold_ef) / 1000;
 
-}
+    const use_of_sold_products =
+      (dto.number_of_unit_products_sold *
+        dto.expected_lifetime_of_the_product *
+        dto.average_annual_fuel_or_energy_consumption_of_product *
+        dto.emission_factor_of_energy || 0.526) / 1000;
 
-async downstreamEmission(dto: DownstreamEmisionDto){
+    const eol_emissions: { type: string; value: number }[] = [];
 
-const mass_of_products_sold = (dto.mass_of_products_sold * dto.mass_of_products_sold_ef)/1000;
+    for (const item of dto.end_of_life_treatments) {
+      const result = item.mass_of_products * item.type_of_material_ef;
 
-const use_of_sold_products = (dto.number_of_unit_products_sold * dto.expected_lifetime_of_the_product * dto.average_annual_fuel_or_energy_consumption_of_product * dto.emission_factor_of_energy || 0.526) / 1000
+      eol_emissions.push({
+        type: item.type_of_material,
+        value: result,
+      });
+    }
+    let eol_emission_summation = eol_emissions.reduce(
+      (sum, val) => sum + val.value,
+      0,
+    );
+    eol_emission_summation = eol_emission_summation / 1000;
 
-const eol_emissions: { type: string; value: number }[] = [];
+    const downstream_leased_asset =
+      (dto.total_fuel_consumed_by_tennant *
+        dto.total_fuel_consumed_by_tennant_ef +
+        dto.total_electiricity_consumed_by_tennant *
+          dto.total_electiricity_consumed_by_tennant_ef) /
+      1000;
 
-for (const item of dto.end_of_life_treatments) {
-  const result = (item.mass_of_products * item.type_of_material_ef) ;
+    const franchise =
+      (dto.total_fuel_consumed_by_franchise *
+        dto.total_fuel_consumed_by_franchise_ef +
+        dto.total_electiricity_consumed_by_franchise *
+          dto.total_electiricity_consumed_by_franchise_ef) /
+      1000;
 
-  eol_emissions.push({
-    type: item.type_of_material,
-    value: result,
-  });
-}
-let eol_emission_summation = eol_emissions.reduce(
-  (sum, val) => sum + val.value,
-  0
-);
-eol_emission_summation = eol_emission_summation/1000
+    const investment =
+      (dto.investment_equity_share *
+        dto.investment_reported_scope_1and2_of_portfolio_company) /
+      1000;
 
-const downstream_leased_asset = (dto.total_fuel_consumed_by_tennant * dto.total_fuel_consumed_by_tennant_ef +
-dto.total_electiricity_consumed_by_tennant * dto.total_electiricity_consumed_by_tennant_ef ) / 1000;
-
-const franchise = (dto.total_fuel_consumed_by_franchise * dto.total_fuel_consumed_by_franchise_ef +
-dto.total_electiricity_consumed_by_franchise * dto.total_electiricity_consumed_by_franchise_ef ) / 1000;
-
-const investment = (dto.investment_equity_share * dto.investment_reported_scope_1and2_of_portfolio_company) / 1000
-
-return {
-  mass_of_products_sold,
-  use_of_sold_products,
-  eol_emission_summation,
-  downstream_leased_asset,
-  franchise,
-  investment,
-  sum: mass_of_products_sold +
-  use_of_sold_products +
-  eol_emission_summation +
-  downstream_leased_asset +
-  franchise +
-  investment 
-}
-}
-
+    return {
+      mass_of_products_sold,
+      use_of_sold_products,
+      eol_emission_summation,
+      downstream_leased_asset,
+      franchise,
+      investment,
+      sum:
+        mass_of_products_sold +
+        use_of_sold_products +
+        eol_emission_summation +
+        downstream_leased_asset +
+        franchise +
+        investment,
+    };
+  }
 }
