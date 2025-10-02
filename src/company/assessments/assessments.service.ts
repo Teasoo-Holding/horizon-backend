@@ -5,89 +5,112 @@ import { Assessment, AssessmentStatus } from '@prisma/client';
 
 @Injectable()
 export class AssessmentService {
-    constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-    private getAssessmentDataPayload(data: AssessmentPayloadDto) {
-        const { subsidiary, startMonth, startYear, endMonth, endYear, stationarySources, ...rest } = data;
-        return {
-            subsidiary,
-            startMonth,
-            startYear,
-            endMonth,
-            endYear,
-            stationarySources,
-            ...rest,
-        };
-    }
+  private getAssessmentDataPayload(data: AssessmentPayloadDto) {
+    const {
+      subsidiary,
+      startMonth,
+      startYear,
+      endMonth,
+      endYear,
+      stationarySources,
+      ...rest
+    } = data;
+    return {
+      subsidiary,
+      startMonth,
+      startYear,
+      endMonth,
+      endYear,
+      stationarySources,
+      ...rest,
+    };
+  }
 
-    async getAssessments(companyId: number): Promise<Assessment[]> {
-        return this.prisma.assessment.findMany({
-            where: { companyId },
-        });
-    }
+  async getAssessments(companyId: number): Promise<Assessment[]> {
+    return this.prisma.assessment.findMany({
+      where: { companyId },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 
-    async createAssessment(
-        companyId: number,
-        currentUserId: number,
-    ): Promise<Assessment> {
-        return this.prisma.assessment.create({
-            data: {
-                companyId,
-                created_by: currentUserId,
-                updated_by: currentUserId,
-                status: AssessmentStatus.draft,
-                subsidiary: '',
-                startMonth: '',
-                startYear: '',
-                endMonth: '',
-                endYear: '',
-                assessmentData: {},
-            },
-        });
-    }
+  async getAssessmentById(
+    companyId: number,
+    assessmentId: number,
+  ): Promise<Assessment | null> {
+    return this.prisma.assessment.findFirst({
+      where: {
+        id: assessmentId,
+        companyId,
+      },
+    });
+  }
 
-    async saveAssessment(
-        companyId: number,
-        currentUserId: number,
-        assessmentId: number, // Now a number
-        data: AssessmentPayloadDto,
-    ): Promise<Assessment> {
-        const assessmentData = this.getAssessmentDataPayload(data);
+  async createAssessment(
+    companyId: number,
+    currentUserId: number,
+  ): Promise<Assessment> {
+    return this.prisma.assessment.create({
+      data: {
+        companyId,
+        created_by: currentUserId,
+        updated_by: currentUserId,
+        status: AssessmentStatus.draft,
+        subsidiary: '',
+        startMonth: '',
+        startYear: '',
+        endMonth: '',
+        endYear: '',
+        assessmentData: {},
+      },
+    });
+  }
 
-        return this.prisma.assessment.update({
-            where: { id: assessmentId, companyId },
-            data: {
-                updated_by: currentUserId,
-                subsidiary: data.subsidiary,
-                startMonth: data.startMonth,
-                startYear: data.startYear,
-                endMonth: data.endMonth,
-                endYear: data.endYear,
-                assessmentData: assessmentData,
-            },
-        });
-    }
+  async saveAssessment(
+    companyId: number,
+    currentUserId: number,
+    assessmentId: number, // Now a number
+    data: AssessmentPayloadDto,
+  ): Promise<Assessment> {
+    const assessmentData = this.getAssessmentDataPayload(data);
 
-    async submitAssessment(
-        companyId: number,
-        currentUserId: number,
-        assessmentId: number, // Now a number
-        data: AssessmentPayloadDto,
-    ): Promise<Assessment> {
-        const assessment = await this.saveAssessment(
-            companyId,
-            currentUserId,
-            assessmentId,
-            data,
-        );
+    return this.prisma.assessment.update({
+      where: { id: assessmentId, companyId },
+      data: {
+        updated_by: currentUserId,
+        subsidiary: data.subsidiary,
+        startMonth: data.startMonth,
+        startYear: data.startYear,
+        endMonth: data.endMonth,
+        endYear: data.endYear,
+        assessmentData: assessmentData,
+      },
+    });
+  }
 
-        return this.prisma.assessment.update({
-            where: { id: assessment.id },
-            data: {
-                status: AssessmentStatus.submitted,
-            },
-        });
-    }
+  async submitAssessment(
+    companyId: number,
+    currentUserId: number,
+    assessmentId: number, // Now a number
+    data: AssessmentPayloadDto,
+  ): Promise<Assessment> {
+    const assessment = await this.saveAssessment(
+      companyId,
+      currentUserId,
+      assessmentId,
+      data,
+    );
+
+    return this.prisma.assessment.update({
+      where: { id: assessment.id },
+      data: {
+        status: AssessmentStatus.submitted,
+      },
+    });
+  }
 }
 
 // import { Injectable } from '@nestjs/common';
@@ -117,18 +140,18 @@ export class AssessmentService {
 //    * Saves or updates a DRAFT assessment.
 //    */
 //   async saveAssessment(
-//       companyId: number, 
+//       companyId: number,
 //       currentUserId: number, // User performing the save
 //       data: AssessmentPayloadDto
 //   ): Promise<Assessment> {
 //     const assessmentData = this.getAssessmentDataPayload(data);
-    
+
 //     // Attempt to find the existing DRAFT for this company
 //     const existingDraft = await this.prisma.assessment.findFirst({
 //         // FIX APPLIED: Querying by the company relation field to resolve the TypeScript error
-//         where: { 
+//         where: {
 //             company: { id: companyId }, // Use company relation to filter by company's ID
-//             status: AssessmentStatus.draft 
+//             status: AssessmentStatus.draft
 //         },
 //         orderBy: { updatedAt: 'desc' },
 //     });
@@ -166,8 +189,8 @@ export class AssessmentService {
 //    * Submits the assessment by saving the final data and updating the status.
 //    */
 //   async submitAssessment(
-//       companyId: number, 
-//       currentUserId: number, 
+//       companyId: number,
+//       currentUserId: number,
 //       data: AssessmentPayloadDto
 //   ): Promise<Assessment> {
 //     // 1. The saveAssessment call is used here, so it inherits the fixed logic.

@@ -1,4 +1,3 @@
-// Define the Assessment Status as an Enum in PostgreSQL
 enum AssessmentStatus {
   draft
   submitted
@@ -8,25 +7,21 @@ enum AssessmentStatus {
 model Assessment {
   id Int @id @default(autoincrement())
 
-  // Relation to Company (Remains the same)
   companyId Int
   company   Company @relation(fields: [companyId], references: [id])
 
-  // 1. Audit Fields: created_by and updated_by
   created_by Int?
   updated_by Int?
 
   creator User? @relation("CreatedAssessment", fields: [created_by], references: [id])
   updater User? @relation("UpdatedAssessment", fields: [updated_by], references: [id])
 
-  // Top-level Assessment fields (required for filters/queries)
   subsidiary String
   startMonth String
   startYear  String
   endMonth   String
   endYear    String
 
-  // Stores the entire nested assessment structure as JSON
   assessmentData Json
 
   status AssessmentStatus @default(draft)
@@ -35,17 +30,9 @@ model Assessment {
   updatedAt       DateTime          @updatedAt
   DisclosureTopic DisclosureTopic[]
 
-  // Ensures only one DRAFT assessment exists per company at a time
   @@unique([companyId, status], name: "unique_draft_per_company")
   @@index([companyId])
   @@index([created_by])
   @@index([updated_by])
-  @@map("assessments") // Uses your snake_case table naming convention
+  @@map("assessments")
 }
-
-// NOTE: You must also ensure the User model has the reciprocal relations (if they don't exist):
-// model User {
-//   // ... other fields
-//   createdAssessments Assessment[] @relation("CreatedAssessment")
-//   updatedAssessments Assessment[] @relation("UpdatedAssessment")
-// }
