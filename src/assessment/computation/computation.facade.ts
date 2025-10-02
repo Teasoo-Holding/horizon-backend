@@ -1,10 +1,9 @@
+// computation.facade
 // src/computation/computation.facade.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { Scope1ComputationService } from './computation.service'; // your file name
 import { Scope2Computation } from './computation.service';
 import { Scope3ComputationService } from './computation.service';
-import { FugitiveEmissionCalculationDto } from './dto/fugutive-emission.dto';
-import { ProcessEmissionDto } from './dto/process-emission.dto';
 
 @Injectable()
 export class ComputationFacade {
@@ -147,31 +146,28 @@ export class ComputationFacade {
         results.sum += Number(mobileResult.sum || 0);
       }
 
-      const DEFAULT_CEMENT_EF = 0.4985; // tCO2/t cement
-      const DEFAULT_FLARING_EF = 2.89; // kgCO2/m3
-      // const DEFAULT_VENTING_EF = 0.656; // kgCO2/m3
-      // const DEFAULT_HFC_EF = 1300; // kgCO2e/kg
-
+      // Process emissions
       // Process emissions
       if (
         processEmissions &&
         (processEmissions.cementManufacturing || processEmissions.gasFlaring)
       ) {
-        const dto: ProcessEmissionDto = {
+        const DEFAULT_EF = 2.68; // kgCO2/litre
+
+        const dto = {
           mass_of_cement: Number(
             processEmissions?.cementManufacturing?.cementQuantity || 0,
           ),
-          // if DTO field is optional, we can omit instead of passing default — but passing default is safe
           cement_emission_factor:
             Number(processEmissions?.cementManufacturing?.emissionFactor) ||
-            DEFAULT_CEMENT_EF,
+            DEFAULT_EF, // fallback if frontend didn't supply EF
           volume_of_flared_gas: Number(
             processEmissions?.gasFlaring?.gasVolume || 0,
           ),
           gas_emission_factor:
             Number(processEmissions?.gasFlaring?.emissionFactor) ||
             Number(processEmissions?.gasFlaring?.carbonContent) ||
-            DEFAULT_FLARING_EF,
+            DEFAULT_EF, // fallback if nothing present
         };
 
         const proc = await this.scope1.ProcessEmission(dto);
@@ -179,26 +175,16 @@ export class ComputationFacade {
         results.sum += Number(proc.sum || 0);
       }
 
-      // Fugitive emissions
+      // Fugitive
       if (fugitive && (fugitive.ventingNaturalGas || fugitive.hfcLeaks)) {
-        const dto: FugitiveEmissionCalculationDto = {
+        const dto = {
           volume: Number(fugitive?.ventingNaturalGas?.volumeOfGasVented || 0),
-          // prefer explicit methane/gwp if frontend provided them
-          methaneDensity: fugitive?.ventingNaturalGas?.methaneDensity
-            ? Number(fugitive.ventingNaturalGas.methaneDensity)
-            : undefined,
-          gwp: fugitive?.ventingNaturalGas?.gwp
-            ? Number(fugitive.ventingNaturalGas.gwp)
-            : undefined,
-          // include hfcMass from hfcLeaks if present
-          hfcMass: fugitive?.hfcLeaks?.refrigerantAdded
-            ? Number(fugitive.hfcLeaks.refrigerantAdded)
-            : undefined,
+          methaneDensity: undefined,
+          gwp: undefined,
         };
-
         const fug = await this.scope1.FugitiveEmission(dto);
         results.breakdown.fugitiveEmissions = fug;
-        results.sum += Number(fug.sum || 0);
+        results.sum += Number(fug.sum || fug.venting || 0);
       }
 
       // Scope2 (location or market based) — run whichever DTO is more appropriate
