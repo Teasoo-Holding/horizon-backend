@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { AssessmentController } from './assessments.controller';
 import { AssessmentService } from './assessments.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { ComputationModule } from 'src/assessment/computation/computation.module';
 
 @Module({
-  imports: [PrismaModule], // The AssessmentModule depends on PrismaService
+  imports: [PrismaModule, ComputationModule],
   controllers: [AssessmentController],
   providers: [AssessmentService],
-  exports: [AssessmentService] // If other modules need to use AssessmentService
+  exports: [AssessmentService],
 })
 export class AssessmentModule {}
