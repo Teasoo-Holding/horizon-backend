@@ -43,27 +43,76 @@ export class AssessmentPayloadDto {
   endYear: string;
 
   @ApiProperty({
-    description:
-      'JSON object containing all detailed assessment data for stationary sources.',
-    example: {
-      electricityHeat: {
-        dieselGenerators: [
-          {
-            fuelType: 'Diesel (HFO)',
-            volume: '5000',
-            unit: 'litres',
-            source: 'Generator 1',
-            emissionFactor: 2.7,
-          },
-        ],
-      },
-    },
+    description: 'Assessment data for stationary sources',
     type: 'object',
-    additionalProperties: true, // This line fixes the TypeScript error
+    additionalProperties: true,
   })
   @IsOptional()
   @IsObject()
   stationarySources?: any;
 
-  // Future scopes will be included here with their own API properties
+  @ApiProperty({
+    description: 'Assessment data for mobile sources',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  mobileSources?: any;
+
+  @ApiProperty({
+    description: 'Assessment data for process emissions',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  processEmissions?: any;
+
+  @ApiProperty({
+    description: 'Assessment data for fugitive emissions',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  fugitiveEmissions?: any;
+
+  @ApiProperty({
+    description:
+      'Assessment data for Scope 2 electricity/cooling/steam/heating',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  electricity?: any;
+
+  @IsOptional()
+  @IsObject()
+  cooling?: any;
+
+  @IsOptional()
+  @IsObject()
+  steam?: any;
+
+  @IsOptional()
+  @IsObject()
+  heating?: any;
+
+  @IsOptional()
+  @IsObject()
+  ipps?: any;
+
+  @IsOptional()
+  @IsObject()
+  eac?: any;
+
+  @IsOptional()
+  @IsObject()
+  residual?: any;
+
+  @IsOptional()
+  @IsObject()
+  coolingSteam?: any;
 }

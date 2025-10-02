@@ -1,3 +1,4 @@
+// assessment.controller
 import {
   Controller,
   Post,
@@ -15,6 +16,7 @@ import { AssessmentPayloadDto } from './dto/assessment.dto';
 import { Request } from 'express';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
 
 interface CustomRequest extends Request {
   user: {
@@ -35,26 +37,6 @@ export class AssessmentController {
     const companyId = req.user.companyId;
     const assessments = await this.assessmentService.getAssessments(companyId);
     return { data: assessments };
-  }
-
-  @Get(':id')
-  async getAssessmentById(
-    @Req() req: CustomRequest,
-    @Param('id') assessmentId: string,
-  ) {
-    const companyId = req.user.companyId;
-
-    const id = parseInt(assessmentId, 10);
-    if (isNaN(id)) {
-      throw new BadRequestException('Invalid assessment ID provided.');
-    }
-
-    const assessment = await this.assessmentService.getAssessmentById(
-      companyId,
-      id,
-    );
-
-    return { data: assessment };
   }
 
   @Post('create')
@@ -109,18 +91,20 @@ export class AssessmentController {
       throw new BadRequestException('Invalid assessment ID provided.');
     }
 
-    const { assessment, totals } =
-      await this.assessmentService.submitAssessment(
-        companyId,
-        currentUserId,
-        id,
-        data,
-      );
+    const jsonData = data as unknown as Prisma.JsonValue;
+
+    const assessment = await this.assessmentService.submitAssessment(
+      companyId,
+      currentUserId,
+      id,
+      jsonData,
+    );
 
     return {
       message: 'Assessment submitted successfully.',
       assessment,
-      totals,
+      totals:
+        (assessment.assessmentData as Record<string, any>)?.totals ?? null,
     };
   }
 }
