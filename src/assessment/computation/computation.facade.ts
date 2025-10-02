@@ -148,51 +148,58 @@ export class ComputationFacade {
       }
 
       const DEFAULT_CEMENT_EF = 0.4985; // tCO2/t cement
-const DEFAULT_FLARING_EF = 2.89; // kgCO2/m3
-// const DEFAULT_VENTING_EF = 0.656; // kgCO2/m3
-// const DEFAULT_HFC_EF = 1300; // kgCO2e/kg
+      const DEFAULT_FLARING_EF = 2.89; // kgCO2/m3
+      // const DEFAULT_VENTING_EF = 0.656; // kgCO2/m3
+      // const DEFAULT_HFC_EF = 1300; // kgCO2e/kg
 
+      // Process emissions
+      if (
+        processEmissions &&
+        (processEmissions.cementManufacturing || processEmissions.gasFlaring)
+      ) {
+        const dto: ProcessEmissionDto = {
+          mass_of_cement: Number(
+            processEmissions?.cementManufacturing?.cementQuantity || 0,
+          ),
+          // if DTO field is optional, we can omit instead of passing default — but passing default is safe
+          cement_emission_factor:
+            Number(processEmissions?.cementManufacturing?.emissionFactor) ||
+            DEFAULT_CEMENT_EF,
+          volume_of_flared_gas: Number(
+            processEmissions?.gasFlaring?.gasVolume || 0,
+          ),
+          gas_emission_factor:
+            Number(processEmissions?.gasFlaring?.emissionFactor) ||
+            Number(processEmissions?.gasFlaring?.carbonContent) ||
+            DEFAULT_FLARING_EF,
+        };
 
+        const proc = await this.scope1.ProcessEmission(dto);
+        results.breakdown.processEmissions = proc;
+        results.sum += Number(proc.sum || 0);
+      }
 
-// Process emissions
-if (
-  processEmissions &&
-  (processEmissions.cementManufacturing || processEmissions.gasFlaring)
-) {
-  const dto: ProcessEmissionDto = {
-    mass_of_cement: Number(processEmissions?.cementManufacturing?.cementQuantity || 0),
-    // if DTO field is optional, we can omit instead of passing default — but passing default is safe
-    cement_emission_factor: Number(processEmissions?.cementManufacturing?.emissionFactor) || DEFAULT_CEMENT_EF,
-    volume_of_flared_gas: Number(processEmissions?.gasFlaring?.gasVolume || 0),
-    gas_emission_factor:
-      Number(processEmissions?.gasFlaring?.emissionFactor) ||
-      Number(processEmissions?.gasFlaring?.carbonContent) ||
-      DEFAULT_FLARING_EF,
-  };
+      // Fugitive emissions
+      if (fugitive && (fugitive.ventingNaturalGas || fugitive.hfcLeaks)) {
+        const dto: FugitiveEmissionCalculationDto = {
+          volume: Number(fugitive?.ventingNaturalGas?.volumeOfGasVented || 0),
+          // prefer explicit methane/gwp if frontend provided them
+          methaneDensity: fugitive?.ventingNaturalGas?.methaneDensity
+            ? Number(fugitive.ventingNaturalGas.methaneDensity)
+            : undefined,
+          gwp: fugitive?.ventingNaturalGas?.gwp
+            ? Number(fugitive.ventingNaturalGas.gwp)
+            : undefined,
+          // include hfcMass from hfcLeaks if present
+          hfcMass: fugitive?.hfcLeaks?.refrigerantAdded
+            ? Number(fugitive.hfcLeaks.refrigerantAdded)
+            : undefined,
+        };
 
-  const proc = await this.scope1.ProcessEmission(dto);
-  results.breakdown.processEmissions = proc;
-  results.sum += Number(proc.sum || 0);
-}
-
-// Fugitive emissions
-if (fugitive && (fugitive.ventingNaturalGas || fugitive.hfcLeaks)) {
-  const dto: FugitiveEmissionCalculationDto = {
-    volume: Number(fugitive?.ventingNaturalGas?.volumeOfGasVented || 0),
-    // prefer explicit methane/gwp if frontend provided them
-    methaneDensity: fugitive?.ventingNaturalGas?.methaneDensity
-      ? Number(fugitive.ventingNaturalGas.methaneDensity)
-      : undefined,
-    gwp: fugitive?.ventingNaturalGas?.gwp ? Number(fugitive.ventingNaturalGas.gwp) : undefined,
-    // include hfcMass from hfcLeaks if present
-    hfcMass: fugitive?.hfcLeaks?.refrigerantAdded ? Number(fugitive.hfcLeaks.refrigerantAdded) : undefined,
-  };
-
-  const fug = await this.scope1.FugitiveEmission(dto);
-  results.breakdown.fugitiveEmissions = fug;
-  results.sum += Number(fug.sum || 0);
-}
-
+        const fug = await this.scope1.FugitiveEmission(dto);
+        results.breakdown.fugitiveEmissions = fug;
+        results.sum += Number(fug.sum || 0);
+      }
 
       // Scope2 (location or market based) — run whichever DTO is more appropriate
       if (scope2 && (scope2.electricity || scope2.ipps || scope2.eac)) {
