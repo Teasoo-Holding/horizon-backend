@@ -314,7 +314,7 @@ export class AuthService {
           company_type: CompanyType.esg,
         },
       });
-
+            
       const newUser = await this.prisma.user.create({
         data: {
           email,

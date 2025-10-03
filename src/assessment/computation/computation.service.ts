@@ -32,7 +32,7 @@ import { DownstreamEmisionDto } from './dto/downstream-computation.dto';
 
 @Injectable()
 export class Scope1ComputationService {
-  private readonly EF_VENTING = 0.656; // kgCO2/m³
+  private readonly EF_VENTING = 0.656; // this is kgCO2/m³
   private readonly EF_HFC = 1300; // kgCO2e/kg
   private readonly EF_CEMENT = 0.4985; // tCO2/t cement
   private readonly EF_FLARING = 2.89; // kgCO2/m³ gas
@@ -405,50 +405,21 @@ export class Scope1ComputationService {
     };
   }
 
-  // async ProcessEmission(dto: ProcessEmissionDto) {
-  //   const cement = {
-  //     value: (dto.mass_of_cement * dto.cement_emission_factor) / 1000,
-  //     unit: 'tCO2e',
-  //   };
-  //   const flared_gas = {
-  //     value: (dto.volume_of_flared_gas * dto.gas_emission_factor) / 1000,
-  //     unit: 'tCO2e',
-  //   };
-
-  //   return {
-  //     cement,
-  //     flared_gas,
-  //     sum: (cement.value ?? 0) + (flared_gas.value ?? 0),
-  //   };
-  // }
-
-  // async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
-  //   const methaneDensity = dto.methaneDensity || this.DEFAULT_METHANE_DENSITY;
-  //   const gwp = dto.gwp || this.DEFAULT_GWP;
-
-  //   const gas_venting = (dto.volume * methaneDensity * gwp) / 1000;
-
-  //   return {
-  //     value: gas_venting,
-  //     unit: 'tCO2e',
-  //     sum: gas_venting,
-  //   };
-  // }
-
   async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
-  const venting = (dto.volume || 0) * this.EF_VENTING / 1000;
-  const hfc = (dto as any).hfcMass ? (dto as any).hfcMass * this.EF_HFC / 1000 : 0;
+    const venting = ((dto.volume || 0) * this.EF_VENTING) / 1000;
+    const hfc = (dto as any).hfcMass
+      ? ((dto as any).hfcMass * this.EF_HFC) / 1000
+      : 0;
 
-  return { venting, hfc, sum: venting + hfc, unit: 'tCO2e' };
-}
+    return { venting, hfc, sum: venting + hfc, unit: 'tCO2e' };
+  }
 
-async ProcessEmission(dto: ProcessEmissionDto) {
-  const cement = (dto.mass_of_cement || 0) * this.EF_CEMENT;
-  const flaring = (dto.volume_of_flared_gas || 0) * this.EF_FLARING / 1000;
+  async ProcessEmission(dto: ProcessEmissionDto) {
+    const cement = (dto.mass_of_cement || 0) * this.EF_CEMENT;
+    const flaring = ((dto.volume_of_flared_gas || 0) * this.EF_FLARING) / 1000;
 
-  return { cement, flaring, sum: cement + flaring, unit: 'tCO2e' };
-}
-
+    return { cement, flaring, sum: cement + flaring, unit: 'tCO2e' };
+  }
 }
 
 export class Scope2Computation {
@@ -501,41 +472,36 @@ export class Scope2Computation {
   }
 
   async marketBasedEmission(dto: MarketBasedEmissionDto) {
-    const electric_EF = dto.eac_total_grid_electricity_consumed_EF || 0.526;
-    const cooling_EF =
-      dto.purchased_cooling_or_steam_quantity_consumed_EF ||
-      this.COOLING_EMISSION_FACTOR;
+    const ipp = await this.directEmissionComputations(
+      dto.ipp_electricity_consumed,
+      dto.ipp_emission_factor,
+    );
 
-    const ipp_total_electricity_consumed =
-      await this.directEmissionComputations(
-        dto.ipp_total_electricity_consumed,
-        cooling_EF,
-      );
-    const eac_total_grid_electricity_consumed =
-      await this.directEmissionComputations(
-        dto.eac_total_grid_electricity_consumed,
-        electric_EF,
-      );
-    const total_purchased_electricity_consumed =
-      await this.directEmissionComputations(
-        dto.total_purchased_electricity_consumed,
-        electric_EF,
-      );
-    const purchased_cooling_steam = await this.directEmissionComputations(
-      dto.purchased_cooling_or_steam_quantity_consumed,
-      dto.purchased_cooling_or_steam_quantity_consumed_EF,
+    const eac = await this.directEmissionComputations(
+      dto.eac_electricity_consumed,
+      dto.eac_emission_factor,
+    );
+
+    const residual = await this.directEmissionComputations(
+      dto.residual_electricity_consumed,
+      dto.residual_emission_factor,
+    );
+
+    const coolingSteam = await this.directEmissionComputations(
+      dto.coolingsteam_energy_consumed,
+      dto.coolingsteam_emission_factor,
     );
 
     return {
-      ipp_total_electricity_consumed,
-      eac_total_grid_electricity_consumed,
-      total_purchased_electricity_consumed,
-      purchased_cooling_steam,
+      ipp,
+      eac,
+      residual,
+      coolingSteam,
       sum:
-        (ipp_total_electricity_consumed.value ?? 0) +
-        (eac_total_grid_electricity_consumed.value ?? 0) +
-        (total_purchased_electricity_consumed.value ?? 0) +
-        (purchased_cooling_steam.value ?? 0),
+        (ipp.value ?? 0) +
+        (eac.value ?? 0) +
+        (residual.value ?? 0) +
+        (coolingSteam.value ?? 0),
     };
   }
 }

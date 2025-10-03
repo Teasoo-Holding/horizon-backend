@@ -1,9 +1,5 @@
-
-
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsPositive } from 'class-validator';
-
-
 
 export class FugitiveEmissionCalculationDto {
   @ApiProperty({
@@ -33,9 +29,17 @@ export class FugitiveEmissionCalculationDto {
   @IsPositive()
   @IsOptional()
   gwp?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Mass of refrigerant leaked (kg) — used for HFC leak calculations',
+    example: 5,
+  })
+  @IsNumber()
+  @IsPositive()
+  @IsOptional()
+  hfcMass?: number;
 }
-
-
 
 export class GasEmissionResultDto {
   @ApiProperty({

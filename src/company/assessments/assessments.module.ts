@@ -8,6 +8,6 @@ import { ComputationModule } from 'src/assessment/computation/computation.module
   imports: [PrismaModule, ComputationModule],
   controllers: [AssessmentController],
   providers: [AssessmentService],
-  exports: [AssessmentService]
+  exports: [AssessmentService],
 })
 export class AssessmentModule {}
