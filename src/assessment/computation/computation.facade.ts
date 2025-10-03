@@ -1,9 +1,8 @@
-// computation.facade
-// src/computation/computation.facade.ts
 import { Injectable, Logger } from '@nestjs/common';
-import { Scope1ComputationService } from './computation.service'; // your file name
+import { Scope1ComputationService } from './computation.service';
 import { Scope2Computation } from './computation.service';
 import { Scope3ComputationService } from './computation.service';
+import { MarketBasedEmissionDto } from './dto/scope2-computation.dto';
 
 @Injectable()
 export class ComputationFacade {
@@ -15,10 +14,6 @@ export class ComputationFacade {
     private readonly scope3: Scope3ComputationService,
   ) {}
 
-  /**
-   * Compute totals for the assessment payload.
-   * Returns an object with per-scope totals and an overall total.
-   */
   async computeAssessmentTotals(assessmentData: any) {
     // defensive checks
     const stationary = assessmentData?.stationarySources || {};
@@ -41,7 +36,6 @@ export class ComputationFacade {
     try {
       // Scope1 / Stationary sources
       if (Object.keys(stationary).length) {
-        // convert your form structure into DTO expected by scope1.stationarySources
         const dto = {
           fuel_powered: {
             energy_types:
@@ -85,9 +79,7 @@ export class ComputationFacade {
         results.sum += stationaryTotal;
       }
 
-      // Scope1 / Mobile sources (if present)
       if (Object.keys(mobile).length) {
-        // Construct DTO according to your computation service expected shape
         const mobileDto = {
           diesel_truck: {
             energy_types: (mobile?.roadTransport?.vehicleFleet || []).map(
@@ -146,13 +138,11 @@ export class ComputationFacade {
         results.sum += Number(mobileResult.sum || 0);
       }
 
-      // Process emissions
-      // Process emissions
       if (
         processEmissions &&
         (processEmissions.cementManufacturing || processEmissions.gasFlaring)
       ) {
-        const DEFAULT_EF = 2.68; // kgCO2/litre
+        const DEFAULT_EF = 2.68;
 
         const dto = {
           mass_of_cement: Number(
@@ -160,14 +150,14 @@ export class ComputationFacade {
           ),
           cement_emission_factor:
             Number(processEmissions?.cementManufacturing?.emissionFactor) ||
-            DEFAULT_EF, // fallback if frontend didn't supply EF
+            DEFAULT_EF,
           volume_of_flared_gas: Number(
             processEmissions?.gasFlaring?.gasVolume || 0,
           ),
           gas_emission_factor:
             Number(processEmissions?.gasFlaring?.emissionFactor) ||
             Number(processEmissions?.gasFlaring?.carbonContent) ||
-            DEFAULT_EF, // fallback if nothing present
+            DEFAULT_EF,
         };
 
         const proc = await this.scope1.ProcessEmission(dto);
@@ -187,44 +177,162 @@ export class ComputationFacade {
         results.sum += Number(fug.sum || fug.venting || 0);
       }
 
-      // Scope2 (location or market based) — run whichever DTO is more appropriate
-      if (scope2 && (scope2.electricity || scope2.ipps || scope2.eac)) {
+      // Scope2 (l or m based)
+      if (
+        scope2 &&
+        (scope2.electricity ||
+          scope2.ipps ||
+          scope2.eac ||
+          scope2.cooling ||
+          scope2.steam ||
+          scope2.heating ||
+          scope2.residual ||
+          scope2.coolingSteam)
+      ) {
         const locationDto = {
           electiricity_consumed: Number(
-            scope2.electricity?.electricityConsumed || 0,
+            scope2.electricity?.electricityConsumed ?? 0,
           ),
           electiricity_emission_factor:
-            Number(scope2.electricity?.emissionFactor || 0) || undefined,
+            Number(scope2.electricity?.emissionFactor ?? 0) || undefined,
+
+          // Cooling
           amount_of_cooling_energy_consumed: Number(
-            scope2.cooling?.coolingConsumed || 0,
+            scope2.cooling?.coolingConsumed ?? 0,
           ),
-          total_steam_consumed: Number(scope2.steam?.volume || 0),
+          // map cooling emission factor - amt_of_c_emission_factor expected by Scope2
+          amt_of_c_emission_factor:
+            Number(scope2.cooling?.emissionFactor ?? 0) || undefined,
+
+          // Steam
+          total_steam_consumed: Number(scope2.steam?.volume ?? 0),
+
+          // Heating
           total_heating_energy_consumed: Number(
-            scope2.heating?.heatingConsumed || 0,
+            scope2.heating?.heatingConsumed ?? 0,
           ),
           total_heating_energy_consumed_EF:
-            Number(scope2.heating?.emissionFactor || 0) || undefined,
+            Number(scope2.heating?.emissionFactor ?? 0) || undefined,
+
+          ipps: scope2.ipps
+            ? {
+                electricityConsumed: Number(
+                  scope2.ipps?.electricityConsumed ?? 0,
+                ),
+                emissionFactor: Number(scope2.ipps?.emissionFactor ?? 0),
+              }
+            : undefined,
+          eac: scope2.eac
+            ? {
+                gridElectricity: Number(scope2.eac?.gridElectricity ?? 0),
+                emissionFactor: Number(scope2.eac?.emissionFactor ?? 0),
+              }
+            : undefined,
+          residual: scope2.residual
+            ? {
+                electricityConsumed: Number(
+                  scope2.residual?.electricityConsumed ?? 0,
+                ),
+                residualMixFactor: Number(
+                  scope2.residual?.residualMixFactor ?? 0,
+                ),
+              }
+            : undefined,
+          coolingSteam: scope2.coolingSteam
+            ? {
+                energyConsumed: Number(
+                  scope2.coolingSteam?.energyConsumed ?? 0,
+                ),
+                emissionFactor: Number(
+                  scope2.coolingSteam?.emissionFactor ?? 0,
+                ),
+              }
+            : undefined,
         };
 
-        const scope2Res = await this.scope2.locationBasedEmission(locationDto);
-        results.breakdown.scope2 = scope2Res;
-        results.sum += Number(scope2Res.sum || 0);
+        this.logger.debug(
+          'Scope2 - locationDto',
+          JSON.stringify(locationDto, null, 2),
+        );
+
+        const marketDto: MarketBasedEmissionDto = {
+          ipp_electricity_consumed: Number(
+            scope2.ipps?.electricityConsumed ?? 0,
+          ),
+          ipp_emission_factor:
+            Number(scope2.ipps?.emissionFactor ?? 0) || undefined,
+
+          eac_electricity_consumed: Number(scope2.eac?.gridElectricity ?? 0),
+          eac_emission_factor:
+            Number(scope2.eac?.emissionFactor ?? 0) || undefined,
+
+          residual_electricity_consumed: Number(
+            scope2.residual?.electricityConsumed ?? 0,
+          ),
+          residual_emission_factor:
+            Number(scope2.residual?.residualMixFactor ?? 0) || undefined,
+
+          coolingsteam_energy_consumed: Number(
+            scope2.coolingSteam?.energyConsumed ?? 0,
+          ),
+          coolingsteam_emission_factor:
+            Number(scope2.coolingSteam?.emissionFactor ?? 0) || undefined,
+        };
+
+        this.logger.debug(
+          'Scope2 - marketDto',
+          JSON.stringify(marketDto, null, 2),
+        );
+
+        let scope2LocationRes: any = null;
+        try {
+          if (
+            locationDto.electiricity_consumed > 0 ||
+            locationDto.amount_of_cooling_energy_consumed > 0 ||
+            locationDto.total_steam_consumed > 0 ||
+            locationDto.total_heating_energy_consumed > 0
+          ) {
+            scope2LocationRes = await this.scope2.locationBasedEmission(
+              locationDto as any,
+            );
+            results.breakdown.scope2 = {
+              ...results.breakdown.scope2,
+              locationBased: scope2LocationRes,
+            };
+            results.sum += Number(scope2LocationRes.sum || 0);
+          }
+        } catch (err) {
+          this.logger.error('Scope2 location computation failed', err);
+        }
+
+        let scope2MarketRes: any = null;
+        try {
+          if (
+            marketDto.ipp_electricity_consumed > 0 ||
+            marketDto.eac_electricity_consumed > 0 ||
+            marketDto.residual_electricity_consumed > 0 ||
+            marketDto.coolingsteam_energy_consumed > 0
+          ) {
+            scope2MarketRes = await this.scope2.marketBasedEmission(marketDto);
+            results.breakdown.scope2 = {
+              ...(results.breakdown.scope2 || {}),
+              marketBased: scope2MarketRes,
+            };
+            results.sum += Number(scope2MarketRes.sum || 0);
+          }
+        } catch (err) {
+          this.logger.error('Scope2 market computation failed', err);
+        }
       }
 
-      // scope3 — optional, skip here or compute based on presence
-      // ... you can call scope3.upstreamEmission/dowstreamEmission similarly if scope3 data included
-
-      // round sum for readability
       results.sum = Number((results.sum || 0).toFixed(4));
 
-      // return a totals shaped object
       return {
-        totals: results, // contains per-section breakdown and `sum`
+        totals: results,
         computedAt: new Date().toISOString(),
       };
     } catch (err) {
       this.logger.error('Error computing totals', err);
-      // If computation fails, still return zeros to avoid breaking submit flow
       return {
         totals: {
           breakdown: {},
