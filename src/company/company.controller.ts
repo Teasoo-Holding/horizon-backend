@@ -80,6 +80,28 @@ export class CompanyController {
     return this.companyService.findById(companyId);
   }
 
+  @ApiOperation({ summary: 'Get company dashboard data' })
+  @ApiResponse({ status: 200, description: 'Returns ESG dashboard overview' })
+  @UseGuards(JwtRolesGuard)
+  @Roles(
+    'company_esg_admin',
+    'company_esg_subadmin',
+    'company_esg_data_officer',
+    'company_esg_viewer',
+  )
+  @Get('dashboard')
+  @HttpCode(HttpStatus.OK)
+  async getDashboard(@Req() req: CustomRequest) {
+    const companyId = Number(req.user.companyId);
+
+    const dashboard = await this.companyService.getDashboard(companyId);
+
+    return {
+      message: 'Company dashboard data retrieved successfully.',
+      data: dashboard,
+    };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
@@ -133,27 +155,5 @@ export class CompanyController {
     };
 
     return this.companyService.update(id, updateData);
-  }
-
-  @ApiOperation({ summary: 'Get company dashboard data' })
-  @ApiResponse({ status: 200, description: 'Returns ESG dashboard overview' })
-  @UseGuards(JwtRolesGuard)
-  @Roles(
-    'company_esg_admin',
-    'company_esg_subadmin',
-    'company_esg_data_officer',
-    'company_esg_viewer',
-  )
-  @Get('dashboard')
-  @HttpCode(HttpStatus.OK)
-  async getDashboard(@Req() req: CustomRequest) {
-    const companyId = Number(req.user.companyId);
-
-    const dashboard = await this.companyService.getDashboard(companyId);
-
-    return {
-      message: 'Company dashboard data retrieved successfully.',
-      data: dashboard,
-    };
   }
 }
