@@ -30,7 +30,6 @@ model Assessment {
   updatedAt       DateTime          @updatedAt
   DisclosureTopic DisclosureTopic[]
 
-  @@unique([companyId, status], name: "unique_draft_per_company")
   @@index([companyId])
   @@index([created_by])
   @@index([updated_by])

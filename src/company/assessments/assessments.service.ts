@@ -44,6 +44,15 @@ export class AssessmentService {
     });
   }
 
+  async getAssessment(
+    companyId: number,
+    assessmentId: number,
+  ): Promise<Assessment | null> {
+    return this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId },
+    });
+  }
+
   async createAssessment(
     companyId: number,
     currentUserId: number,
