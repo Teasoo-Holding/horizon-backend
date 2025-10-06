@@ -1,7 +1,13 @@
 model Activities {
-    id          Int      @id @default(autoincrement())  
-    title      String
+    id Int @id @default(autoincrement())
+
+    companyId Int?
+    company   Company? @relation(fields: [companyId], references: [id])
+
+    title       String
     description String?
+    type        String?
+    status      String?
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     createdById Int

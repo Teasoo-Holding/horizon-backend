@@ -53,6 +53,8 @@ model Company {
 
   assessments Assessment[]
 
+  activities Activities[]
+
   @@index([status])
   @@index([created_at])
   @@map("companies")

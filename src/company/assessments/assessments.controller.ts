@@ -38,6 +38,26 @@ export class AssessmentController {
     return { data: assessments };
   }
 
+  @Get(':id')
+  async getAssessment(
+    @Req() req: CustomRequest,
+    @Param('id') assessmentId: string,
+  ) {
+    const companyId = req.user.companyId;
+
+    const id = parseInt(assessmentId, 10);
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid assessment ID provided.');
+    }
+
+    const assessment = await this.assessmentService.getAssessment(
+      companyId,
+      id,
+    );
+
+    return { data: assessment };
+  }
+
   @Post('create')
   @HttpCode(HttpStatus.CREATED)
   async createAssessment(@Req() req: CustomRequest) {
