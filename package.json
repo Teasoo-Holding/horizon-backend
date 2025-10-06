@@ -11,7 +11,7 @@
   "scripts": {
     "build": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "npx prisma migrate deploy && node dist/src/main.js",
+    "start": "node dist/src/main.js && npx prisma migrate deploy",
     "start:seed": "npx prisma migrate deploy && npm run db:seed && node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
