@@ -8,14 +8,30 @@ import {
   ForbiddenException,
   ParseIntPipe,
   Req,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CompanyService } from './company.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { ApiOperation, ApiTags, ApiForbiddenResponse } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiTags,
+  ApiForbiddenResponse,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { CompanyStatus } from '@prisma/client';
 import { Request } from 'express';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+
+interface CustomRequest extends Request {
+  user: {
+    id: number;
+    userId?: number;
+    companyId: number;
+    role?: string;
+  };
+}
 
 @Controller('test')
 export class TestController {
@@ -62,6 +78,28 @@ export class CompanyController {
   getMyCompany(@Req() req: Request & { user: { companyId: number } }) {
     const companyId = req.user.companyId;
     return this.companyService.findById(companyId);
+  }
+
+  @ApiOperation({ summary: 'Get company dashboard data' })
+  @ApiResponse({ status: 200, description: 'Returns ESG dashboard overview' })
+  @UseGuards(JwtRolesGuard)
+  @Roles(
+    'company_esg_admin',
+    'company_esg_subadmin',
+    'company_esg_data_officer',
+    'company_esg_viewer',
+  )
+  @Get('dashboard')
+  @HttpCode(HttpStatus.OK)
+  async getDashboard(@Req() req: CustomRequest) {
+    const companyId = Number(req.user.companyId);
+
+    const dashboard = await this.companyService.getDashboard(companyId);
+
+    return {
+      message: 'Company dashboard data retrieved successfully.',
+      data: dashboard,
+    };
   }
 
   @Get(':id')
