@@ -1,20 +1,49 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class ReportService {
-  
+  constructor(private readonly prisma: PrismaClient) {}
 
-  findAll() {
-    return `This action returns all report`;
+  async findOrganizationAssessmentReport(id: number) {
+    const report = await this.prisma.assessment.findMany({
+      where: {
+        companyId: id,
+      },
+      select: {
+        id: true,
+        startMonth: true,
+        startYear: true,
+        endMonth: true,
+        endYear: true,
+        subsidiary: true,
+        status: true,
+      },
+    });
+    return report;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} report`;
-  }
+  async findReportDetail(id: number){
+    const reportSummary = await this.prisma.assessment.findUnique({
+      where: {id},
+      select: {
+        startMonth: true,
+        startYear: true,
 
-  
+        endMonth: true,
+        endYear: true,
+        subsidiary: true,
+        status: true,
+        
 
-  remove(id: number) {
-    return `This action removes a #${id} report`;
+      }
+      
+      
+    })
+    const sumSummary = await this.prisma.assessment.findUnique({
+        where: {id}
+      })
+
+    return sumSummary 
   }
 }
