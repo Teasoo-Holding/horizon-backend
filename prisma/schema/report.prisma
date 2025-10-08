@@ -1,0 +1,36 @@
+model Report {
+  id                                  Int        @id @default(autoincrement())
+  assessmentId                        Int        @unique
+  ghg_total_emissions                 Float
+  ghg_scope_one                       Float
+  ghg_scope_two                       Float
+  ghg_scope_three                     Float
+  ghg_datacount_scope_one             Float
+  ghg_datacount_scope_two             Float
+  ghg_datacount_scope_three           Float
+  environmental_total_emissions       Float
+  environmental_scope_one             Float
+  environmental_scope_two             Float
+  environmental_scope_three           Float
+  environmental_datacount_scope_one   Float
+  environmental_datacount_scope_two   Float
+  environmental_datacount_scope_three Float
+  social_total_emissions              Float
+  social_scope_one                    Float
+  social_scope_two                    Float
+  social_scope_three                  Float
+  social_datacount_scope_one          Float
+  social_datacount_scope_two          Float
+  social_datacount_scope_three        Float
+  governance_total_emissions          Float
+  governance_scope_one                Float
+  governance_scope_two                Float
+  governance_scope_three              Float
+  governance_datacount_scope_one      Float
+  governance_datacount_scope_two      Float
+  governance_datacount_scope_three    Float
+  assessment                          Assessment @relation(fields: [assessmentId], references: [id])
+
+
+  @@map("report")
+}

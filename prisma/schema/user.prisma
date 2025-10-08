@@ -1,58 +1,49 @@
-enum UserStatus {
-  pending
-  active
-  approved
-  suspended
-  disabled
-}
-
 model User {
-  id           Int     @id @default(autoincrement())
-  email        String  @unique @db.VarChar(255)
-  password     String? @db.VarChar(255)
-  first_name   String? @db.VarChar(100)
-  last_name    String? @db.VarChar(100)
-  phone_number String? @db.VarChar(20)
-
-  providerType String? @map("provider_type") @db.VarChar(50)
-  providerId   String? @map("provider_id") @db.VarChar(255)
-
-  roleId Int
-  role   Role @relation(fields: [roleId], references: [id])
-
-  companyId Int?
-  company   Company? @relation(fields: [companyId], references: [id], name: "CompanyUsers")
-
-  departmentId    Int?
-  department      Department?  @relation(fields: [departmentId], references: [id], name: "DepartmentUsers")
-  leadDepartments Department[] @relation("DepartmentLead")
-  invitationsSent Invitation[]
-
-  createdAssessments Assessment[] @relation("CreatedAssessment")
-  updatedAssessments Assessment[] @relation("UpdatedAssessment")
-
-  teamLeadOfSubsidiary Subsidiary[] @relation("SubsidiaryTeamLead")
-
-  subsidiaryId Int?
-  subsidiary   Subsidiary? @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
-
-  createdCompanies Company[] @relation("CreatedCompanies")
-  updatedCompanies Company[] @relation("UpdatedCompanies")
-
+  id                          Int            @id @default(autoincrement())
+  email                       String         @unique @db.VarChar(255)
+  password                    String?        @db.VarChar(255)
+  first_name                  String?        @db.VarChar(100)
+  last_name                   String?        @db.VarChar(100)
+  phone_number                String?        @db.VarChar(20)
+  roleId                      Int
+  companyId                   Int?
+  departmentId                Int?
+  subsidiaryId                Int?
   status                      UserStatus     @default(pending)
   profile_photo_url           String?        @db.VarChar(255)
-  profile_photo_url_public_id String?
   last_login                  DateTime?
   created_at                  DateTime       @default(now())
   updated_at                  DateTime       @updatedAt
-  refresh_tokens              RefreshToken[]
   otpHash                     String?
   otpExpiresAt                DateTime?
+  profile_photo_url_public_id String?
+  providerId                  String?        @map("provider_id") @db.VarChar(255)
+  providerType                String?        @map("provider_type") @db.VarChar(50)
   activities                  Activities[]
+  leadDepartments             Department[]   @relation("DepartmentLead")
+  invitationsSent             Invitation[]
+  teamLeadOfSubsidiary        Subsidiary[]   @relation("SubsidiaryTeamLead")
+  createdAssessments          Assessment[]   @relation("CreatedAssessment")
+  updatedAssessments          Assessment[]   @relation("UpdatedAssessment")
+  createdCompanies            Company[]      @relation("CreatedCompanies")
+  updatedCompanies            Company[]      @relation("UpdatedCompanies")
+  refresh_tokens              RefreshToken[]
+  company                     Company?       @relation("CompanyUsers", fields: [companyId], references: [id])
+  department                  Department?    @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  role                        Role           @relation(fields: [roleId], references: [id])
+  subsidiary                  Subsidiary?    @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
 
   @@index([email])
   @@index([status])
   @@index([companyId])
   @@index([created_at])
   @@map("users")
+}
+
+enum UserStatus {
+  pending
+  active
+  approved
+  suspended
+  disabled
 }

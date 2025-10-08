@@ -1,11 +1,10 @@
 model Industry {
-    id       Int    @id @default(autoincrement())
-    sector   String
-    industry String
+  id           Int          @id @default(autoincrement())
+  sector       String
+  industry     String
+  subsidiaries Subsidiary[]
+  companies    Company[]
 
-    companies Company[]
-    subsidiaries Subsidiary[]
-
-    @@unique([sector, industry])
-    @@map("industries")
+  @@unique([sector, industry])
+  @@map("industries")
 }

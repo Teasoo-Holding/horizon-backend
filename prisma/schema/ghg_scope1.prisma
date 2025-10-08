@@ -1,110 +1,95 @@
-enum FuelType {
-  diesel
-  gasoline
-  natural_gas
-  other
-}
-
 model Scope1Data {
   id                Int                @id @default(autoincrement())
   ghgDataId         Int                @unique
-  ghgData           GhgData            @relation(fields: [ghgDataId], references: [id], onDelete: Cascade)
   completed         Boolean            @default(false)
-  stationarySources StationarySources?
+  fugitiveEmissions FugitiveEmissions?
   mobileSources     MobileSources?
   processEmissions  ProcessEmissions?
-  fugitiveEmissions FugitiveEmissions?
+  ghgData           GhgData            @relation(fields: [ghgDataId], references: [id], onDelete: Cascade)
+  stationarySources StationarySources?
 
   @@index([ghgDataId])
   @@map("scope1_data")
 }
 
-// Main SS
 model StationarySources {
   id                  Int                  @id @default(autoincrement())
   scope1DataId        Int                  @unique
-  scope1Data          Scope1Data           @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
   completed           Boolean              @default(false)
   electricityHeat     ElectricityHeat?
   industrialProcesses IndustrialProcesses?
   oilGasOperations    OilGasOperations?
+  scope1Data          Scope1Data           @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
 
   @@index([scope1DataId])
   @@map("stationary_sources")
 }
 
-// SS
 model ElectricityHeat {
   id                  Int               @id @default(autoincrement())
   stationarySourcesId Int               @unique
-  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
   dieselFuelType      FuelType?
   dieselVolume        Float?
   gasFuelType         FuelType?
   gasVolume           Float?
   files               Json?
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
 
   @@map("electricity_heat")
 }
 
-// SS
 model IndustrialProcesses {
   id                  Int               @id @default(autoincrement())
   stationarySourcesId Int               @unique
-  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
   selectedFuelType    FuelType
   otherFuelType       String?
   fuelVolume          Float
   files               Json?
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
 
   @@map("industrial_processes")
 }
 
-// SS
 model OilGasOperations {
   id                  Int               @id @default(autoincrement())
   stationarySourcesId Int               @unique
-  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
   selectedFuelType    FuelType
   fuelVolume          Float
   files               Json?
+  stationarySources   StationarySources @relation(fields: [stationarySourcesId], references: [id], onDelete: Cascade)
 
   @@map("oil_gas_operations")
 }
 
-// Main MS
 model MobileSources {
   id               Int               @id @default(autoincrement())
   scope1DataId     Int               @unique
-  scope1Data       Scope1Data        @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
   completed        Boolean           @default(false)
+  marineAviation   MarineAviation?
+  scope1Data       Scope1Data        @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
   roadTransport    RoadTransport?
   vehicleEquipment VehicleEquipment?
-  marineAviation   MarineAviation?
 
   @@index([scope1DataId])
   @@map("mobile_sources")
 }
 
-// MS
 model RoadTransport {
   id                  Int           @id @default(autoincrement())
   mobileSourcesId     Int           @unique
-  mobileSources       MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
   dieselTruckFuelType FuelType?
   dieselTruckVolume   Float?
   carPetrolVolume     Float?
   carDieselVolume     Float?
   files               Json?
+  mobileSources       MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
 
   @@map("road_transport")
 }
 
-// MS
 model VehicleEquipment {
   id                Int           @id @default(autoincrement())
   mobileSourcesId   Int           @unique
-  mobileSources     MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
   forkliftFuelType  FuelType
   forkliftVolume    Float
   heavyDutyFuelType FuelType
@@ -112,122 +97,113 @@ model VehicleEquipment {
   tractorFuelType   FuelType
   tractorVolume     Float
   files             Json?
+  mobileSources     MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
 
   @@map("vehicle_equipment")
 }
 
-// MS
 model MarineAviation {
   id                 Int           @id @default(autoincrement())
   mobileSourcesId    Int           @unique
-  mobileSources      MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
   helicopterFuelType FuelType
   helicopterVolume   Float
   vesselFuelType     FuelType
   vesselVolume       Float
   otherFuelType      FuelType?
   files              Json?
+  mobileSources      MobileSources @relation(fields: [mobileSourcesId], references: [id], onDelete: Cascade)
 
   @@map("marine_aviation")
 }
 
-// Main PE
 model ProcessEmissions {
   id                  Int                  @id @default(autoincrement())
   scope1DataId        Int                  @unique
-  scope1Data          Scope1Data           @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
   completed           Boolean              @default(false)
   co2Release          CO2Release?
+  entericFermentation EntericFermentation?
   fertilizerEmissions FertilizerEmissions?
   gasFlaring          GasFlaring?
-  entericFermentation EntericFermentation?
   methaneNitrousOxide MethaneNitrousOxide?
+  scope1Data          Scope1Data           @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
 
   @@index([scope1DataId])
   @@map("process_emissions")
 }
 
-// PE
 model CO2Release {
   id                 Int              @id @default(autoincrement())
   processEmissionsId Int              @unique
-  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
   clinkerQuantity    Float
   calciumOxide       Float
   magnesiumOxide     Float
   files              Json?
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("co2_release")
 }
 
-// PE
 model FertilizerEmissions {
   id                 Int              @id @default(autoincrement())
   processEmissionsId Int              @unique
-  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
   products           Json
   feedstock          Float
   files              Json?
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("fertilizer_emissions")
 }
 
-// PE
 model GasFlaring {
   id                 Int              @id @default(autoincrement())
   processEmissionsId Int              @unique
-  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
   gasVolume          Float
   carbonContent      Float
   files              Json?
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("gas_flaring")
 }
 
-// PE
 model EntericFermentation {
   id                 Int              @id @default(autoincrement())
   processEmissionsId Int              @unique
-  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
   animals            Json
   files              Json?
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("enteric_fermentation")
 }
 
-// PE
 model MethaneNitrousOxide {
   id                 Int              @id @default(autoincrement())
   processEmissionsId Int              @unique
-  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
   animals            Json
   manureSystem       String
   otherManureSystem  String?
   files              Json?
+  processEmissions   ProcessEmissions @relation(fields: [processEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("methane_nitrous_oxide")
 }
 
-// Main FE
 model FugitiveEmissions {
   id                   Int                   @id @default(autoincrement())
   scope1DataId         Int                   @unique
-  scope1Data           Scope1Data            @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
   completed            Boolean               @default(false)
+  scope1Data           Scope1Data            @relation(fields: [scope1DataId], references: [id], onDelete: Cascade)
+  hfcLeaks             HFCLeaks?
+  incompleteCombustion IncompleteCombustion?
   methaneLeaks         MethaneLeaks?
   ventingNaturalGas    VentingNaturalGas?
-  incompleteCombustion IncompleteCombustion?
-  hfcLeaks             HFCLeaks?
 
   @@index([scope1DataId])
   @@map("fugitive_emissions")
 }
 
-// FE
 model MethaneLeaks {
   id                  Int               @id @default(autoincrement())
   fugitiveEmissionsId Int               @unique
-  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
   compressors         Float
   pumps               Float
   prds                Float
@@ -241,15 +217,14 @@ model MethaneLeaks {
   others              Float
   methanePercent      Float
   files               Json?
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("methane_leaks")
 }
 
-// FE
 model VentingNaturalGas {
   id                  Int               @id @default(autoincrement())
   fugitiveEmissionsId Int               @unique
-  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
   volumeOfGasVented   Float
   methane             Float
   carbonDioxide       Float
@@ -261,28 +236,26 @@ model VentingNaturalGas {
   hydrogenSulfide     Float
   others              Float
   files               Json?
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("venting_natural_gas")
 }
 
-// FE
 model IncompleteCombustion {
   id                  Int               @id @default(autoincrement())
   fugitiveEmissionsId Int               @unique
-  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
   volumeToFlare       Float
   flareEfficiency     Float
   gasComposition      Float
   files               Json?
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("incomplete_combustion")
 }
 
-// FE
 model HFCLeaks {
   id                  Int               @id @default(autoincrement())
   fugitiveEmissionsId Int               @unique
-  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
   R134a               Boolean
   R410A               Boolean
   R404A               Boolean
@@ -292,6 +265,14 @@ model HFCLeaks {
   refrigerantSystem   String?
   refrigerantAdded    Float
   files               Json?
+  fugitiveEmissions   FugitiveEmissions @relation(fields: [fugitiveEmissionsId], references: [id], onDelete: Cascade)
 
   @@map("hfc_leaks")
+}
+
+enum FuelType {
+  diesel
+  gasoline
+  natural_gas
+  other
 }

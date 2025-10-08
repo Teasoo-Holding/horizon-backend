@@ -1,15 +1,13 @@
 model Activities {
-    id Int @id @default(autoincrement())
-
-    companyId Int?
-    company   Company? @relation(fields: [companyId], references: [id])
-
-    title       String
-    description String?
-    type        String?
-    status      String?
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-    createdById Int
-    createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById Int
+  companyId   Int?
+  status      String?
+  type        String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
 }

@@ -1,28 +1,28 @@
-enum DisclosureCategory {
-    industry_specific
-    supplementary
-}
-
 model DisclosureTopic {
-    id           Int                @id @default(autoincrement())
-    assessmentId Int
-    assessment   Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-    category     DisclosureCategory
-    topic        String
-    subtopic     String
-    ghgData      GhgData?
+  id           Int                @id @default(autoincrement())
+  assessmentId Int
+  category     DisclosureCategory
+  topic        String
+  subtopic     String
+  assessment   Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  ghgData      GhgData?
 
-    @@unique([assessmentId, category, topic, subtopic])
-    @@index([assessmentId])
-    @@map("disclosure_topics")
+  @@unique([assessmentId, category, topic, subtopic])
+  @@index([assessmentId])
+  @@map("disclosure_topics")
 }
 
 model GhgData {
-    id                Int             @id @default(autoincrement())
-    disclosureTopicId Int             @unique
-    disclosureTopic   DisclosureTopic @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
-    scope1            Scope1Data?
+  id                Int             @id @default(autoincrement())
+  disclosureTopicId Int             @unique
+  disclosureTopic   DisclosureTopic @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
+  scope1            Scope1Data?
 
-    @@index([disclosureTopicId])
-    @@map("ghg_data")
+  @@index([disclosureTopicId])
+  @@map("ghg_data")
+}
+
+enum DisclosureCategory {
+  industry_specific
+  supplementary
 }

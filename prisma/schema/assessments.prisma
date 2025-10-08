@@ -1,37 +1,31 @@
-enum AssessmentStatus {
-  draft
-  submitted
-  reviewed
-}
-
 model Assessment {
-  id Int @id @default(autoincrement())
-
-  companyId Int
-  company   Company @relation(fields: [companyId], references: [id])
-
-  created_by Int?
-  updated_by Int?
-
-  creator User? @relation("CreatedAssessment", fields: [created_by], references: [id])
-  updater User? @relation("UpdatedAssessment", fields: [updated_by], references: [id])
-
-  subsidiary String
-  startMonth String
-  startYear  String
-  endMonth   String
-  endYear    String
-
-  assessmentData Json
-
-  status AssessmentStatus @default(draft)
-
+  id              Int               @id @default(autoincrement())
+  subsidiary      String
+  status          AssessmentStatus  @default(draft)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  assessmentData  Json
+  companyId       Int
+  created_by      Int?
+  endMonth        String
+  endYear         String
+  startMonth      String
+  startYear       String
+  updated_by      Int?
+  report          Report?
+  company         Company           @relation(fields: [companyId], references: [id])
+  creator         User?             @relation("CreatedAssessment", fields: [created_by], references: [id])
+  updater         User?             @relation("UpdatedAssessment", fields: [updated_by], references: [id])
   DisclosureTopic DisclosureTopic[]
 
   @@index([companyId])
   @@index([created_by])
   @@index([updated_by])
   @@map("assessments")
+}
+
+enum AssessmentStatus {
+  draft
+  submitted
+  reviewed
 }
