@@ -43,6 +43,9 @@ export class AssessmentService {
   async getAssessments(companyId: number): Promise<Assessment[]> {
     return this.prisma.assessment.findMany({
       where: { companyId },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
@@ -165,5 +168,32 @@ export class AssessmentService {
     await this.reportService.saveReportingData(assessmentId)
 
     return updateAssessment
+  }
+
+  async deleteAssessment(
+    companyId: number,
+    assessmentId: number,
+  ): Promise<void> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId: companyId },
+      select: { status: true },
+    });
+
+    if (!assessment) {
+      throw new Error('AssessmentNotFound');
+    }
+
+    if (assessment.status !== AssessmentStatus.draft) {
+      throw new Error('AssessmentNotDraft');
+    }
+
+    try {
+      await this.prisma.assessment.delete({
+        where: { id: assessmentId },
+      });
+    } catch (error) {
+      console.error('Prisma Error during deletion:', error);
+      throw error;
+    }
   }
 }

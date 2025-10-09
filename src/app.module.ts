@@ -28,6 +28,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { CustomThrottlerGuard } from './config/CustomThrottleGuard';
 import { ComputationModule } from './assessment/computation/computation.module';
 import { AssessmentModule } from './company/assessments/assessments.module';
+import { ActivitiesModule } from './activities/activities.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AssessmentModule } from './company/assessments/assessments.module';
     AssessmentModule,
     Scope2Module,
     ComputationModule,
+    ActivitiesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

@@ -13,6 +13,7 @@ import { RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
 import { CompanyStatus, CompanyType, UserStatus } from '@prisma/client';
+import { ActivitiesService } from 'src/activities/activities.service';
 @Injectable()
 export class AuthService {
   constructor(
@@ -20,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
+    private activitiesService: ActivitiesService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -42,7 +44,6 @@ export class AuthService {
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new NotFoundException('Invalid credentials');
 
-    // console.log("User", user)
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account awaiting approval');
     }
@@ -74,6 +75,13 @@ export class AuthService {
         refresh_token: refreshToken,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
+    });
+
+    await this.activitiesService.logActivity({
+      companyId: user.companyId,
+      createdById: user.id,
+      title: 'User logged in',
+      type: 'auth',
     });
 
     return {

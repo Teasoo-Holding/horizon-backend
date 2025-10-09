@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
+import { ActivitiesService } from 'src/activities/activities.service';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OtpService } from 'src/otp/otp.service';
     JwtStrategy,
     EmailService,
     OtpService,
+    ActivitiesService
   ],
   controllers: [AuthController],
   exports: [JwtModule],
