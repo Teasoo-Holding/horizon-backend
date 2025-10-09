@@ -217,7 +217,7 @@ export class AssessmentService {
       companyId,
       createdById: assessment.created_by!,
       title: `Deleted draft assessment (ID: ${assessmentId})`,
-      description: `User deleted draft assessment ${assessmentId}.`,
+      description: `Draft assessment ${assessmentId} deleted.`,
       type: 'assessment',
       status: 'deleted',
     });
