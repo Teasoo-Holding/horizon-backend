@@ -1,14 +1,10 @@
 model Subsidiary {
-  id                  Int     @id @default(autoincrement())
-  name                String
-  registration_number String?
-  sicsCode            String?
-  isinCode            String?
-  isoCountryCode      String?
-
-  industryId Int?
-  industry   Industry? @relation(fields: [industryId], references: [id])
-
+  id                        Int               @id @default(autoincrement())
+  name                      String
+  registration_number       String?
+  sicsCode                  String?
+  isinCode                  String?
+  isoCountryCode            String?
   address                   String?
   country                   String?
   currency                  String?
@@ -16,27 +12,23 @@ model Subsidiary {
   website                   String?
   contact_phone             String?
   company_logo_url          String?
-  status                    CompanyStatus @default(active)
-  created_at                DateTime      @default(now())
+  status                    CompanyStatus     @default(active)
+  created_at                DateTime          @default(now())
   created_by                Int
-  updated_at                DateTime      @updatedAt
+  updated_at                DateTime          @updatedAt
   updated_by                Int
   current_subscription_tier Int?
-
-  users User[] @relation("SubsidiaryUsers")
-
-  departments Department[]
-
-  parentCompany   Company @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
-  parentCompanyId Int
-
-  teamLead   User @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
-  teamLeadId Int
-
-  invitations Invitation[]
-
-  location_based_s2 LocationBasedS2[]
-  market_based_s2   MarketBasedS2[]
+  parentCompanyId           Int
+  teamLeadId                Int
+  industryId                Int?
+  departments               Department[]
+  invitations               Invitation[]
+  location_based_s2         LocationBasedS2[]
+  market_based_s2           MarketBasedS2[]
+  industry                  Industry?         @relation(fields: [industryId], references: [id])
+  parentCompany             Company           @relation("Subsidiaries", fields: [parentCompanyId], references: [id], onDelete: Cascade)
+  teamLead                  User              @relation("SubsidiaryTeamLead", fields: [teamLeadId], references: [id])
+  users                     User[]            @relation("SubsidiaryUsers")
 
   @@unique([name, parentCompanyId])
   @@index([status])

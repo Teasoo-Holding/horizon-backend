@@ -3,12 +3,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { AssessmentPayloadDto } from './dto/assessment.dto';
 import { Assessment, AssessmentStatus, Prisma } from '@prisma/client';
 import { ComputationFacade } from 'src/assessment/computation/computation.facade';
+import { ReportService } from '../report/report.service';
 
 @Injectable()
 export class AssessmentService {
   constructor(
     private prisma: PrismaService,
     private computationFacade: ComputationFacade,
+    private reportService: ReportService
   ) {}
 
   private getAssessmentDataPayload(data: AssessmentPayloadDto) {
@@ -57,6 +59,8 @@ export class AssessmentService {
     companyId: number,
     currentUserId: number,
   ): Promise<Assessment> {
+   
+    
     return this.prisma.assessment.create({
       data: {
         companyId,
@@ -81,7 +85,8 @@ export class AssessmentService {
   ): Promise<Assessment> {
     const assessmentData = this.getAssessmentDataPayload(data);
 
-    return this.prisma.assessment.update({
+    
+    const saveAssessment = await this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
         updated_by: currentUserId,
@@ -93,6 +98,8 @@ export class AssessmentService {
         assessmentData: assessmentData,
       },
     });
+    await this.reportService.saveReportingData(assessmentId)
+    return saveAssessment;
   }
 
   async submitAssessment(
@@ -140,7 +147,7 @@ export class AssessmentService {
       totalsError: error ?? null,
     };
 
-    return this.prisma.assessment.update({
+    const updateAssessment = await this.prisma.assessment.update({
       where: { id: assessmentId },
       data: {
         companyId,
@@ -155,5 +162,8 @@ export class AssessmentService {
         updated_by: currentUserId,
       },
     });
+    await this.reportService.saveReportingData(assessmentId)
+
+    return updateAssessment
   }
 }
