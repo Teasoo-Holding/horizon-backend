@@ -81,6 +81,7 @@ export class AuthService {
       companyId: user.companyId,
       createdById: user.id,
       title: 'User logged in',
+      description: `User ${user.email} logged in.`,
       type: 'auth',
     });
 

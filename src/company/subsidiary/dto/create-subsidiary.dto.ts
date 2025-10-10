@@ -158,4 +158,8 @@ export class CreateSubsidiaryDto {
   @IsOptional()
   @IsString()
   status?: CompanyStatus;
+
+  @IsOptional()
+  @IsString()
+  industry: string;
 }

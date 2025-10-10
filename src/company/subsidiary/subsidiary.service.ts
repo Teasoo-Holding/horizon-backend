@@ -11,6 +11,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { ActivitiesService } from 'src/activities/activities.service';
 
 @Injectable()
 export class SubsidiaryService {
@@ -18,6 +19,7 @@ export class SubsidiaryService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
   async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
@@ -94,11 +96,34 @@ export class SubsidiaryService {
         teamLead = user;
       }
 
+      let industryRecord: {
+        id: number;
+        industry: string;
+        sector?: string;
+      } | null = null;
+
+      if (createSubsidiaryDto.industry) {
+        industryRecord = await this.prisma.industry.findFirst({
+          where: { industry: createSubsidiaryDto.industry },
+        });
+
+        if (!industryRecord) {
+          industryRecord = await this.prisma.industry.create({
+            data: {
+              industry: createSubsidiaryDto.industry,
+              sector: createSubsidiaryDto.sector ?? '',
+            },
+          });
+        }
+      }
+
       try {
+        console.log('ind', createSubsidiaryDto.industryId);
         const subsidiary = await this.prisma.subsidiary.create({
           data: {
             name: createSubsidiaryDto.name,
-            industryId: createSubsidiaryDto.industryId,
+            industryId:
+              industryRecord?.id ?? createSubsidiaryDto.industryId ?? null,
             parentCompanyId: user.companyId as number,
             created_by: user.id,
             updated_by: user.id,
@@ -116,7 +141,7 @@ export class SubsidiaryService {
             company_logo_url: createSubsidiaryDto.company_logo_url,
           },
           include: {
-            industry: { select: { industry: true, sector: true } },
+            industry: { select: { id: true, industry: true, sector: true } },
             teamLead: {
               select: { first_name: true, last_name: true, email: true },
             },
@@ -135,6 +160,14 @@ export class SubsidiaryService {
           },
           10,
         );
+
+        await this.activitiesService.logActivity({
+          companyId: company?.id,
+          createdById: user.id,
+          title: `Created subsidiary "${subsidiary.name}"`,
+          description: `${teamLead?.first_name} added a new subsidiary`,
+          type: 'subsidiary',
+        });
 
         return subsidiary;
       } catch (error) {
@@ -192,12 +225,15 @@ export class SubsidiaryService {
         },
       },
       include: {
-        industry: { select: { industry: true, sector: true } },
+        industry: { select: { id: true, industry: true, sector: true } },
         teamLead: {
           select: { first_name: true, last_name: true, email: true },
         },
         parentCompany: true,
       },
+      orderBy: {
+        created_at: 'desc',
+      }
     });
   }
 
@@ -316,12 +352,20 @@ export class SubsidiaryService {
         };
       }
 
+      await this.activitiesService.logActivity({
+        companyId: user?.companyId ?? existingSubsidiary.parentCompany.id,
+        createdById: user.id,
+        title: `Updated subsidiary - "${existingSubsidiary?.name}"`,
+        description: `${user.first_name} updated the subsidiary}`,
+        type: 'subsidiary',
+      });
+
       return await this.prisma.subsidiary.update({
         where: { id },
         data,
         include: {
           parentCompany: true,
-          industry: { select: { industry: true, sector: true } },
+          industry: { select: { id: true, industry: true, sector: true } },
           teamLead: {
             select: { first_name: true, last_name: true, email: true },
           },

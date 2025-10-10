@@ -68,12 +68,12 @@ export class DepartmentsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDepartmentDto,
-    @Request() req: { user: { companyId: number } },
+    @Request() req: { user: { companyId: number; id: number; email: string } },
   ) {
     const department = await this.departmentsService.findById(id);
     this.checkCompanyOwnership(req.user.companyId, department.companyId);
 
-    return this.departmentsService.update(id, dto);
+    return this.departmentsService.update(id, dto, req.user.id, req.user.email);
   }
 
   @Delete(':id')
@@ -81,12 +81,12 @@ export class DepartmentsController {
   @ApiOperation({ summary: 'Delete a department' })
   async delete(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { companyId: number } },
+    @Request() req: { user: { companyId: number; id: number; email: string } },
   ) {
     const department = await this.departmentsService.findById(id);
     this.checkCompanyOwnership(req.user.companyId, department.companyId);
 
-    return this.departmentsService.delete(id);
+    return this.departmentsService.delete(id, req.user.id, req.user.email);
   }
 
   @Get(':companyId')
