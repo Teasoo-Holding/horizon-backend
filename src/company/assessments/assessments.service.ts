@@ -112,7 +112,7 @@ export class AssessmentService {
       status: 'updated',
     });
 
-    await this.reportService.saveReportingData(assessmentId)
+    // await this.reportService.saveReportingData(assessmentId)
     return updated;
   }
 
@@ -188,7 +188,7 @@ export class AssessmentService {
       status: 'submitted',
     });
 
-    await this.reportService.saveReportingData(assessmentId)
+    // await this.reportService.saveReportingData(assessmentId)
     return submittedAssessment;
   }
 
