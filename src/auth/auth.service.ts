@@ -272,7 +272,6 @@ export class AuthService {
     otp: string,
     newPassword: string,
   ): Promise<void> {
-    // Step 1: Verify the OTP again to ensure the request is valid
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.otpHash || !user.otpExpiresAt) {
       throw new BadRequestException('Invalid or expired OTP.');
@@ -282,15 +281,13 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP.');
     }
 
-    // Step 2: Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Step 3: Update the password and clear the OTP
     await this.prisma.user.update({
       where: { email },
       data: {
         password: hashedPassword,
-        otpHash: null, // Clear the OTP to prevent reuse
+        otpHash: null,
         otpExpiresAt: null,
       },
     });
@@ -323,7 +320,7 @@ export class AuthService {
           company_type: CompanyType.esg,
         },
       });
-            
+
       const newUser = await this.prisma.user.create({
         data: {
           email,
