@@ -31,6 +31,11 @@ export class ReportService {
     return report;
   }
 
+  async getAssessmentReport(id:number){
+    return await this.prisma.report.findUnique({
+      where: {id}
+    })
+  }
   async saveReportingData(id: number) {
     const sumSummary = await this.prisma.assessment.findUnique({
       where: { id },
@@ -106,9 +111,10 @@ export class ReportService {
 
     const breakdown = getTop5ByFuelType({ assessmentData: parsedData });
 
-    const report = await this.prisma.report.findFirst({
+    const report = await this.prisma.report.findUnique({
       where: { id },
     });
+
     const scope1_emission_summary = getPercentage(
       report?.ghg_scope_one ?? 0,
       report?.ghg_total_emissions ?? 0,
