@@ -110,7 +110,6 @@ export class CompanyService {
 
   async getDashboard(companyId: number) {
     try {
-      // ✅ Get the most recent "submitted" or "reviewed" assessment
       const latestAssessment = await this.prisma.assessment.findFirst({
         where: {
           companyId,
@@ -128,7 +127,6 @@ export class CompanyService {
         }
       };
 
-      // ✅ Extract nested totals safely
       const extractTotals = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
         const totals = data?.totals?.totals ?? data?.totals ?? null;
@@ -137,7 +135,6 @@ export class CompanyService {
 
       const latestTotals = extractTotals(latestAssessment);
 
-      // ✅ Overall ESG Score — for now, just from Environment
       const overallScore =
         latestTotals?.sum ??
         latestTotals?.overall ??
@@ -145,18 +142,16 @@ export class CompanyService {
         latestTotals?.esgTotal ??
         null;
 
-      // ✅ Breakdown (we only have Environment for now)
       const breakdown = {
         environment: latestTotals?.sum ?? 0,
         social: 0,
         governance: 0,
       };
 
-      // ✅ Activities
       const activities = await this.prisma.activities.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
-        take: 5,
+        // take: 5,
         select: {
           id: true,
           title: true,
@@ -176,7 +171,6 @@ export class CompanyService {
         date: a.createdAt,
       }));
 
-      // ✅ Subscription
       const companySub = await this.prisma.companySubscription.findFirst({
         where: { company_id: companyId },
         orderBy: { created_at: 'desc' },
@@ -192,7 +186,6 @@ export class CompanyService {
           }
         : null;
 
-      // ✅ ESG Journey – derive from submitted assessments
       const reviewedAssessments = await this.prisma.assessment.findMany({
         where: {
           companyId,
@@ -228,7 +221,6 @@ export class CompanyService {
         }))
         .sort((a, b) => (a.month < b.month ? -1 : 1));
 
-      // ✅ Stats
       const totalAssessmentsCount = await this.prisma.assessment.count({
         where: { companyId },
       });
