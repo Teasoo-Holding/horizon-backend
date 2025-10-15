@@ -106,8 +106,8 @@ export class AssessmentService {
     await this.activitiesService.logActivity({
       companyId,
       createdById: currentUserId,
-      title: `Saved assessment (ID: ${assessmentId})`,
-      description: `User saved updates to assessment ${assessmentId}.`,
+      title: `Saved assessment`,
+      description: `User saved updates to assessment #${assessmentId}.`,
       type: 'assessment',
       status: 'updated',
     });
@@ -188,7 +188,7 @@ export class AssessmentService {
       status: 'submitted',
     });
 
-    // await this.reportService.saveReportingData(assessmentId)
+    await this.reportService.saveReportingData(assessmentId)
     return submittedAssessment;
   }
 
