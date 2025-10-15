@@ -22,7 +22,7 @@ export class AuthService {
     private emailService: EmailService,
     private otpService: OtpService,
     private activitiesService: ActivitiesService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
@@ -75,6 +75,11 @@ export class AuthService {
         refresh_token: refreshToken,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { last_login: new Date() },
     });
 
     await this.activitiesService.logActivity({
@@ -299,11 +304,18 @@ export class AuthService {
       include: { role: true, company: true },
     });
 
+    let user;
+
     if (existingUser) {
       if (existingUser.status !== UserStatus.active) {
         throw new UnauthorizedException('Account awaiting approval');
       }
-      return existingUser;
+
+      user = await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: { last_login: new Date() },
+        include: { role: true, company: true },
+      });
     } else {
       const defaultRole = await this.prisma.role.findUnique({
         where: { name: 'company_esg_admin' },
@@ -321,7 +333,7 @@ export class AuthService {
         },
       });
 
-      const newUser = await this.prisma.user.create({
+      user = await this.prisma.user.create({
         data: {
           email,
           first_name: fullName.split(' ')[0] || '',
@@ -330,11 +342,20 @@ export class AuthService {
           companyId: placeholderCompany.id,
           status: UserStatus.pending,
           providerId: provider,
+          last_login: new Date(),
         },
         include: { role: true, company: true },
       });
-
-      return newUser;
     }
+
+    await this.activitiesService.logActivity({
+      companyId: user.companyId,
+      createdById: user.id,
+      title: 'User logged in (Social)',
+      description: `${user.email} logged in via ${provider}.`,
+      type: 'auth',
+    });
+
+    return user;
   }
 }
