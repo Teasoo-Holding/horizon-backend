@@ -115,4 +115,8 @@ export class AssessmentPayloadDto {
   @IsOptional()
   @IsObject()
   coolingSteam?: any;
+
+  @IsOptional()
+  @IsObject()
+  lastSavedForm?: string;
 }

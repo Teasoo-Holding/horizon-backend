@@ -64,8 +64,6 @@ export class AssessmentService {
     companyId: number,
     currentUserId: number,
   ): Promise<Assessment> {
-   
-    
     return this.prisma.assessment.create({
       data: {
         companyId,
@@ -100,6 +98,7 @@ export class AssessmentService {
         endMonth: data.endMonth,
         endYear: data.endYear,
         assessmentData: assessmentData,
+        lastSavedForm: (data as any).lastSavedForm || null,
       },
     });
 
@@ -112,7 +111,7 @@ export class AssessmentService {
       status: 'updated',
     });
 
-    // await this.reportService.saveReportingData(assessmentId)
+    await this.reportService.saveReportingData(assessmentId);
     return updated;
   }
 
@@ -188,7 +187,7 @@ export class AssessmentService {
       status: 'submitted',
     });
 
-    await this.reportService.saveReportingData(assessmentId)
+    await this.reportService.saveReportingData(assessmentId);
     return submittedAssessment;
   }
 
@@ -222,6 +221,4 @@ export class AssessmentService {
       status: 'deleted',
     });
   }
-
-  
 }
