@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { CompanyStatus } from '@prisma/client';
+import { AssessmentStatus, CompanyStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 
 @Injectable()
@@ -113,7 +113,12 @@ export class CompanyService {
       const latestAssessment = await this.prisma.assessment.findFirst({
         where: {
           companyId,
-          status: { in: ['submitted', 'reviewed'] },
+          status: {
+            in: [
+              AssessmentStatus.approved,
+              AssessmentStatus.submitted_approved,
+            ],
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -189,7 +194,12 @@ export class CompanyService {
       const reviewedAssessments = await this.prisma.assessment.findMany({
         where: {
           companyId,
-          status: { in: ['submitted', 'reviewed'] },
+          status: {
+            in: [
+              AssessmentStatus.approved,
+              AssessmentStatus.submitted_approved,
+            ],
+          },
         },
         orderBy: { createdAt: 'asc' },
         select: { createdAt: true, assessmentData: true },
@@ -226,7 +236,15 @@ export class CompanyService {
       });
 
       const reviewedCount = await this.prisma.assessment.count({
-        where: { companyId, status: 'reviewed' },
+        where: {
+          companyId,
+          status: {
+            in: [
+              AssessmentStatus.approved,
+              AssessmentStatus.submitted_approved,
+            ],
+          },
+        },
       });
 
       return {
