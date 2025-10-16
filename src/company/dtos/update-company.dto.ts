@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsUrl, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsUrl, IsNumber, IsBoolean } from 'class-validator';
 
 export class UpdateCompanyDto {
   @IsOptional()
@@ -48,4 +48,7 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   staff_strength?: string;
+
+  @IsBoolean()
+  requireAssessmentReview?: boolean;
 }

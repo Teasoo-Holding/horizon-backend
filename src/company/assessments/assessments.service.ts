@@ -69,7 +69,7 @@ export class AssessmentService {
         companyId,
         created_by: currentUserId,
         updated_by: currentUserId,
-        status: AssessmentStatus.draft,
+        status: AssessmentStatus.in_progress,
         subsidiary: '',
         startMonth: '',
         startYear: '',
@@ -98,7 +98,6 @@ export class AssessmentService {
         endMonth: data.endMonth,
         endYear: data.endYear,
         assessmentData: assessmentData,
-        lastSavedForm: (data as any).lastSavedForm || null,
       },
     });
 
@@ -123,6 +122,7 @@ export class AssessmentService {
   ) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
+      include: { company: true },
     });
 
     if (!assessment) {
@@ -130,6 +130,11 @@ export class AssessmentService {
         `Assessment with ID ${assessmentId} not found`,
       );
     }
+
+    const requireReview = assessment.company?.requireAssessmentReview ?? false;
+    const statusToSet = requireReview
+      ? AssessmentStatus.awaiting_review
+      : AssessmentStatus.submitted_approved;
 
     const submitted = data;
     const computedAt = new Date();
@@ -167,7 +172,7 @@ export class AssessmentService {
         endMonth: (data as any).endMonth ?? assessment.endMonth,
         endYear: (data as any).endYear ?? assessment.endYear,
         assessmentData: newAssessmentData,
-        status: 'submitted',
+        status: statusToSet,
         updated_by: currentUserId,
       },
     });
@@ -204,7 +209,7 @@ export class AssessmentService {
       throw new Error('AssessmentNotFound');
     }
 
-    if (assessment.status !== AssessmentStatus.draft) {
+    if (assessment.status !== AssessmentStatus.in_progress) {
       throw new Error('AssessmentNotDraft');
     }
 
@@ -219,6 +224,37 @@ export class AssessmentService {
       description: `Draft assessment ${assessmentId} deleted.`,
       type: 'assessment',
       status: 'deleted',
+    });
+  }
+
+  async approveAssessment(
+    companyId: number,
+    currentUserId: number,
+    assessmentId: number,
+  ): Promise<Assessment> {
+    return this.prisma.assessment.update({
+      where: { id: assessmentId, companyId },
+      data: {
+        status: AssessmentStatus.approved,
+        updated_by: currentUserId,
+        rejection_reason: null,
+      },
+    });
+  }
+
+  async rejectAssessment(
+    companyId: number,
+    currentUserId: number,
+    assessmentId: number,
+    rejectionReason: string,
+  ): Promise<Assessment> {
+    return this.prisma.assessment.update({
+      where: { id: assessmentId, companyId },
+      data: {
+        status: AssessmentStatus.unapproved_rejected,
+        updated_by: currentUserId,
+        rejection_reason: rejectionReason,
+      },
     });
   }
 }

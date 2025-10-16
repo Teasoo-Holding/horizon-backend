@@ -31,6 +31,5 @@ model Report {
   governance_datacount_scope_three    Float
   assessment                          Assessment @relation(fields: [assessmentId], references: [id])
 
-
   @@map("report")
 }

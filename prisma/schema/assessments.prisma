@@ -1,32 +1,45 @@
+// in_progress           - draft before
+// awaiting_review       - submitted & awaiting review/approval by admin
+// submitted_approved    - submitted and directly approved (no review needed)
+// approved              - approved after review
+// unapproved_rejected   - rejected or unapproved with reason
+
+enum AssessmentStatus {
+  in_progress
+  awaiting_review
+  submitted_approved
+  approved
+  unapproved_rejected
+}
+
 model Assessment {
-  id              Int               @id @default(autoincrement())
-  subsidiary      String
-  status          AssessmentStatus  @default(draft)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  assessmentData  Json
-  lastSavedForm   String?
-  companyId       Int
-  created_by      Int?
-  endMonth        String
-  endYear         String
-  startMonth      String
-  startYear       String
-  updated_by      Int?
-  report          Report?
-  company         Company           @relation(fields: [companyId], references: [id])
-  creator         User?             @relation("CreatedAssessment", fields: [created_by], references: [id])
-  updater         User?             @relation("UpdatedAssessment", fields: [updated_by], references: [id])
+  id             Int              @id @default(autoincrement())
+  subsidiary     String
+  status         AssessmentStatus @default(in_progress)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  reviewedAt     DateTime?
+  assessmentData Json
+  companyId      Int
+  created_by     Int?
+  endMonth       String
+  endYear        String
+  startMonth     String
+  startYear      String
+  updated_by     Int?
+  report         Report?
+  company        Company          @relation(fields: [companyId], references: [id])
+  creator        User?            @relation("CreatedAssessment", fields: [created_by], references: [id])
+  updater        User?            @relation("UpdatedAssessment", fields: [updated_by], references: [id])
+
+  rejection_reason String?
+  reviewed_by      Int?
+  reviewer         User?   @relation("ReviewedAssessment", fields: [reviewed_by], references: [id])
+
   DisclosureTopic DisclosureTopic[]
 
   @@index([companyId])
   @@index([created_by])
   @@index([updated_by])
   @@map("assessments")
-}
-
-enum AssessmentStatus {
-  draft
-  submitted
-  reviewed
 }

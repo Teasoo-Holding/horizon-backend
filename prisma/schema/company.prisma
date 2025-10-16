@@ -33,6 +33,8 @@ model Company {
   companySubscriptions       CompanySubscription[] @relation("CompanySubs")
   users                      User[]                @relation("CompanyUsers")
 
+  requireAssessmentReview Boolean @default(false)
+
   @@index([status])
   @@index([created_at])
   @@map("companies")

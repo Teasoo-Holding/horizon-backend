@@ -23,8 +23,11 @@ model User {
   leadDepartments             Department[]   @relation("DepartmentLead")
   invitationsSent             Invitation[]
   teamLeadOfSubsidiary        Subsidiary[]   @relation("SubsidiaryTeamLead")
+  
   createdAssessments          Assessment[]   @relation("CreatedAssessment")
   updatedAssessments          Assessment[]   @relation("UpdatedAssessment")
+  reviewedAssessments   Assessment[]  @relation("ReviewedAssessment")
+
   createdCompanies            Company[]      @relation("CreatedCompanies")
   updatedCompanies            Company[]      @relation("UpdatedCompanies")
   refresh_tokens              RefreshToken[]

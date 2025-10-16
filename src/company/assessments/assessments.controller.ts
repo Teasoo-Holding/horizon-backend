@@ -160,5 +160,56 @@ export class AssessmentController {
       throw error;
     }
   }
+
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  async approveAssessment(
+    @Req() req: CustomRequest,
+    @Param('id') assessmentId: string,
+  ) {
+    const companyId = req.user.companyId;
+    const currentUserId = req.user.id;
+
+    const id = parseInt(assessmentId, 10);
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid assessment ID provided.');
+    }
+
+    const assessment = await this.assessmentService.approveAssessment(
+      companyId,
+      currentUserId,
+      id,
+    );
+
+    return { message: 'Assessment approved successfully.', data: assessment };
+  }
+
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  async rejectAssessment(
+    @Req() req: CustomRequest,
+    @Param('id') assessmentId: string,
+    @Body('reason') rejectionReason: string,
+  ) {
+    const companyId = req.user.companyId;
+    const currentUserId = req.user.id;
+
+    const id = parseInt(assessmentId, 10);
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid assessment ID provided.');
+    }
+
+    if (!rejectionReason || rejectionReason.trim().length === 0) {
+      throw new BadRequestException('Rejection reason is required.');
+    }
+
+    const assessment = await this.assessmentService.rejectAssessment(
+      companyId,
+      currentUserId,
+      id,
+      rejectionReason,
+    );
+
+    return { message: 'Assessment rejected successfully.', data: assessment };
+  }
 }
- 
