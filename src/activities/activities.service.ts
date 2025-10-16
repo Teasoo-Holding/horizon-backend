@@ -34,7 +34,6 @@ export class ActivitiesService {
       });
     } catch (error) {
       console.error('Failed to log activity:', error);
-      // Never throw — logging failure should not break business flow
     }
   }
 

@@ -80,4 +80,15 @@ export class ReportController {
       req.user.companyId
     );
   }
+
+  @Get('/one/:id')
+  @UseGuards(JwtAuthGuard)
+  getOneAssessmentReport(
+    @Param('id') id: string,
+   
+  ) {
+    return this.reportService.getAssessmentReport(
+      +id
+    );
+  }
 }
