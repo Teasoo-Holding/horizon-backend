@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { ActivitiesService } from 'src/activities/activities.service';
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activitiesService: ActivitiesService,
+  ) {}
 
   async create(
     companyId: number,
@@ -13,7 +17,7 @@ export class DepartmentsService {
     creatorEmail: string,
     creatorId: number,
   ) {
-    return this.prisma.department.create({
+    const department = await this.prisma.department.create({
       data: {
         companyId,
         name: dto.name,
@@ -32,6 +36,16 @@ export class DepartmentsService {
         },
       },
     });
+
+    await this.activitiesService.logActivity({
+      companyId,
+      createdById: creatorId,
+      title: `Created department "${department.name}"`,
+      description: `(${creatorEmail}) created a new company department "${department.name}".`,
+      type: 'department',
+    });
+
+    return department;
   }
 
   async findById(id: number) {
@@ -47,9 +61,14 @@ export class DepartmentsService {
     return department;
   }
 
-  async update(id: number, dto: UpdateDepartmentDto) {
+  async update(
+    id: number,
+    dto: UpdateDepartmentDto,
+    updaterId: number,
+    updaterEmail?: string,
+  ) {
     try {
-      return await this.prisma.department.update({
+      const updated = await this.prisma.department.update({
         where: { id },
         data: dto,
         include: {
@@ -63,6 +82,17 @@ export class DepartmentsService {
           },
         },
       });
+
+      await this.activitiesService.logActivity({
+        companyId: updated.companyId,
+        createdById: updaterId,
+        title: `Department "${updated.name}" updated`,
+        description: `User (${updaterEmail ?? 'unknown'}) updated department "${updated.name}".`,
+        type: 'department',
+        status: 'updated',
+      });
+
+      return updated;
     } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Department not found');
@@ -71,9 +101,20 @@ export class DepartmentsService {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number, deleterId: number, deleterEmail?: string) {
     try {
-      return await this.prisma.department.delete({ where: { id } });
+      const deleted = await this.prisma.department.delete({ where: { id } });
+
+      await this.activitiesService.logActivity({
+        companyId: deleted.companyId,
+        createdById: deleterId,
+        title: `Department "${deleted.name}" deleted`,
+        description: `User (${deleterEmail ?? 'unknown'}) deleted department "${deleted.name}".`,
+        type: 'department',
+        status: 'deleted',
+      });
+
+      return deleted;
     } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Department not found');

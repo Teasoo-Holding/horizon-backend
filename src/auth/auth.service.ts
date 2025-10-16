@@ -13,6 +13,7 @@ import { RegisterDto } from './dto';
 import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
 import { CompanyStatus, CompanyType, UserStatus } from '@prisma/client';
+import { ActivitiesService } from 'src/activities/activities.service';
 @Injectable()
 export class AuthService {
   constructor(
@@ -20,7 +21,8 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
-  ) {}
+    private activitiesService: ActivitiesService,
+  ) { }
 
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
@@ -42,7 +44,6 @@ export class AuthService {
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new NotFoundException('Invalid credentials');
 
-    // console.log("User", user)
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account awaiting approval');
     }
@@ -74,6 +75,19 @@ export class AuthService {
         refresh_token: refreshToken,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { last_login: new Date() },
+    });
+
+    await this.activitiesService.logActivity({
+      companyId: user.companyId,
+      createdById: user.id,
+      title: 'User logged in',
+      description: `${user.email} logged in.`,
+      type: 'auth',
     });
 
     return {
@@ -263,7 +277,6 @@ export class AuthService {
     otp: string,
     newPassword: string,
   ): Promise<void> {
-    // Step 1: Verify the OTP again to ensure the request is valid
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.otpHash || !user.otpExpiresAt) {
       throw new BadRequestException('Invalid or expired OTP.');
@@ -273,15 +286,13 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP.');
     }
 
-    // Step 2: Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Step 3: Update the password and clear the OTP
     await this.prisma.user.update({
       where: { email },
       data: {
         password: hashedPassword,
-        otpHash: null, // Clear the OTP to prevent reuse
+        otpHash: null,
         otpExpiresAt: null,
       },
     });
@@ -293,11 +304,18 @@ export class AuthService {
       include: { role: true, company: true },
     });
 
+    let user;
+
     if (existingUser) {
       if (existingUser.status !== UserStatus.active) {
         throw new UnauthorizedException('Account awaiting approval');
       }
-      return existingUser;
+
+      user = await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: { last_login: new Date() },
+        include: { role: true, company: true },
+      });
     } else {
       const defaultRole = await this.prisma.role.findUnique({
         where: { name: 'company_esg_admin' },
@@ -314,8 +332,8 @@ export class AuthService {
           company_type: CompanyType.esg,
         },
       });
-            
-      const newUser = await this.prisma.user.create({
+
+      user = await this.prisma.user.create({
         data: {
           email,
           first_name: fullName.split(' ')[0] || '',
@@ -324,11 +342,20 @@ export class AuthService {
           companyId: placeholderCompany.id,
           status: UserStatus.pending,
           providerId: provider,
+          last_login: new Date(),
         },
         include: { role: true, company: true },
       });
-
-      return newUser;
     }
+
+    await this.activitiesService.logActivity({
+      companyId: user.companyId,
+      createdById: user.id,
+      title: 'User logged in (Social)',
+      description: `${user.email} logged in via ${provider}.`,
+      type: 'auth',
+    });
+
+    return user;
   }
 }

@@ -9,6 +9,8 @@ import {
   Get,
   Param,
   BadRequestException,
+  Delete,
+  NotFoundException,
 } from '@nestjs/common';
 import { AssessmentService } from './assessments.service';
 import { AssessmentPayloadDto } from './dto/assessment.dto';
@@ -125,6 +127,38 @@ export class AssessmentController {
       totals:
         (assessment.assessmentData as Record<string, any>)?.totals ?? null,
     };
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteDraftAssessment(
+    @Req() req: CustomRequest,
+    @Param('id') assessmentId: string,
+  ) {
+    const companyId = req.user.companyId;
+
+    const id = parseInt(assessmentId, 10);
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid assessment ID provided.');
+    }
+
+    try {
+      await this.assessmentService.deleteAssessment(companyId, id);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'AssessmentNotFound') {
+          throw new NotFoundException(
+            `Assessment with ID ${id} not found or does not belong to your company.`,
+          );
+        }
+        if (error.message === 'AssessmentNotDraft') {
+          throw new BadRequestException(
+            `Assessment with ID ${id} cannot be deleted because it is not in 'draft' status.`,
+          );
+        }
+      }
+      throw error;
+    }
   }
 }
  

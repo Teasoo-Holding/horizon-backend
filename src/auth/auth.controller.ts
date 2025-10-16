@@ -6,6 +6,7 @@ import {
   Req,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
@@ -236,12 +237,55 @@ export class AuthController {
   @Post('social')
   async socialLogin(
     @Body() userDto: { email: string; name: string; provider: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.authService.socialLogin(
       userDto.email,
       userDto.name,
       userDto.provider,
     );
-    return user;
+
+    if (user.status !== 'active') {
+      throw new UnauthorizedException(
+        'Account awaiting approval. Please wait for an ESG Horizon administrator to approve your account.',
+      );
+    }
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role?.name,
+      companyId: user.companyId,
+    };
+
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    await this.prisma.refreshToken.create({
+      data: {
+        user_id: user.id,
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      maxAge: 15 * 60 * 1000,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+
+    return {
+      message: 'Social login successful',
+      user,
+    };
   }
 }

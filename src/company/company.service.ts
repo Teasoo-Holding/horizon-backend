@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { AssessmentStatus, CompanyStatus } from '@prisma/client';
+import { CompanyStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 
 @Injectable()
@@ -110,52 +110,48 @@ export class CompanyService {
 
   async getDashboard(companyId: number) {
     try {
-      const latestReviewed = await this.prisma.assessment.findFirst({
+      const latestAssessment = await this.prisma.assessment.findFirst({
         where: {
           companyId,
-          status: AssessmentStatus.reviewed,
+          status: { in: ['submitted', 'reviewed'] },
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      // Helper to safely extract numeric scores from assessmentData.totals
+      const parseAssessmentData = (raw: any) => {
+        if (!raw) return null;
+        try {
+          return typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch {
+          return null;
+        }
+      };
+
       const extractTotals = (assessment: any) => {
-        if (!assessment || !assessment.assessmentData) return null;
-        const data = assessment.assessmentData as any;
-        const totals = data.totals ?? null;
+        const data = parseAssessmentData(assessment?.assessmentData);
+        const totals = data?.totals?.totals ?? data?.totals ?? null;
         return totals;
       };
 
-      const latestTotals: any = extractTotals(latestReviewed);
+      const latestTotals = extractTotals(latestAssessment);
 
       const overallScore =
+        latestTotals?.sum ??
         latestTotals?.overall ??
         latestTotals?.total ??
         latestTotals?.esgTotal ??
         null;
 
       const breakdown = {
-        environment:
-          latestTotals?.environment ??
-          latestTotals?.environmentTotal ??
-          latestTotals?.env ??
-          0,
-        social:
-          latestTotals?.social ??
-          latestTotals?.socialTotal ??
-          latestTotals?.soc ??
-          0,
-        governance:
-          latestTotals?.governance ??
-          latestTotals?.governanceTotal ??
-          latestTotals?.gov ??
-          0,
+        environment: latestTotals?.sum ?? 0,
+        social: 0,
+        governance: 0,
       };
 
       const activities = await this.prisma.activities.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
-        take: 5,
+        // take: 5,
         select: {
           id: true,
           title: true,
@@ -178,9 +174,7 @@ export class CompanyService {
       const companySub = await this.prisma.companySubscription.findFirst({
         where: { company_id: companyId },
         orderBy: { created_at: 'desc' },
-        include: {
-          Subscription: true,
-        },
+        include: { Subscription: true },
       });
 
       const subscriptionDto = companySub
@@ -195,38 +189,47 @@ export class CompanyService {
       const reviewedAssessments = await this.prisma.assessment.findMany({
         where: {
           companyId,
-          status: AssessmentStatus.submitted,
+          status: { in: ['submitted', 'reviewed'] },
         },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          createdAt: true,
-          assessmentData: true,
-        },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true, assessmentData: true },
       });
 
       const monthlyMap = new Map<string, number | null>();
       for (const a of reviewedAssessments) {
         const created = a.createdAt as Date;
-        const monthKey = created.toISOString().slice(0, 7); // "YYYY-MM"
+        const monthKey = created.toISOString().slice(0, 7); // YYYY-MM
 
         if (!monthlyMap.has(monthKey)) {
-          const totals = (a.assessmentData as any)?.totals ?? null;
+          const totals = extractTotals(a);
           const score =
-            totals?.overall ?? totals?.total ?? totals?.esgTotal ?? null;
+            totals?.sum ??
+            totals?.overall ??
+            totals?.total ??
+            totals?.esgTotal ??
+            null;
           monthlyMap.set(monthKey, typeof score === 'number' ? score : null);
         }
       }
 
       const esgJourney = Array.from(monthlyMap.entries())
-        .map(([month, score]) => ({ month, score }))
+        .map(([month, score]) => ({
+          month: new Date(`${month}-01`).toLocaleString('default', {
+            month: 'short',
+          }),
+          score,
+        }))
         .sort((a, b) => (a.month < b.month ? -1 : 1));
 
       const totalAssessmentsCount = await this.prisma.assessment.count({
         where: { companyId },
       });
 
-      const dashboard = {
+      const reviewedCount = await this.prisma.assessment.count({
+        where: { companyId, status: 'reviewed' },
+      });
+
+      return {
         overallScore: typeof overallScore === 'number' ? overallScore : null,
         breakdown,
         recentActivities,
@@ -234,11 +237,9 @@ export class CompanyService {
         esgJourney,
         stats: {
           totalAssessments: totalAssessmentsCount,
-          reviewedAssessments: reviewedAssessments.length,
+          reviewedAssessments: reviewedCount,
         },
       };
-
-      return dashboard;
     } catch (err) {
       console.error('Error building company dashboard', err);
       throw new InternalServerErrorException(

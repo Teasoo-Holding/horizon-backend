@@ -4,12 +4,14 @@ import { CreateInvitationDto } from './dto/invitation.dto';
 import { EmailService } from 'src/email/email.service';
 import { randomUUID } from 'crypto';
 import { formatRoleName } from 'src/utils/format-rolename';
+import { ActivitiesService } from 'src/activities/activities.service';
 
 @Injectable()
 export class InvitationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
   async create(dto: CreateInvitationDto, invitedById: number) {
@@ -76,6 +78,14 @@ export class InvitationsService {
       { firstname: dto.email, admin_name, esg_name, formatted_role, link },
       6,
     );
+
+    await this.activitiesService.logActivity({
+      companyId: invitingUser.company?.id,
+      createdById: invitedById,
+      title: `Invited ${dto.email}`,
+      description: `${invitingUser.first_name} invited ${dto.email}`,
+      type: 'invitation',
+    });
 
     return invitation;
   }
