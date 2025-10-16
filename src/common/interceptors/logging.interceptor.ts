@@ -15,7 +15,7 @@ export class ResponseLoggerInterceptor implements NestInterceptor {
     const now = Date.now();
     return next.handle().pipe(
       tap((data) => {
-        const responseSize = JSON.stringify(data).length;
+        const responseSize = data ? JSON.stringify(data).length : 0;
         console.log(
           `[${method}] ${originalUrl} took ${Date.now() - now}ms, size: ${responseSize} bytes`,
         );

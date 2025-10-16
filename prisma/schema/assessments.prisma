@@ -5,6 +5,7 @@ model Assessment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   assessmentData  Json
+  lastSavedForm   String?
   companyId       Int
   created_by      Int?
   endMonth        String
