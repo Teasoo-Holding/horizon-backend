@@ -216,7 +216,7 @@ export class AssessmentService {
     await this.activitiesService.logActivity({
       companyId,
       createdById: assessment.created_by!,
-      title: `Deleted draft assessment (ID: ${assessmentId})`,
+      title: `Deleted draft assessment`,
       description: `Draft assessment ${assessmentId} deleted.`,
       type: 'assessment',
       status: 'deleted',
