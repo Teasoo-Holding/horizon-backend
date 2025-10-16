@@ -109,7 +109,7 @@ async saveReportingData(id: number) {
     const breakdown = getTop5ByFuelType({ assessmentData: parsedData });
 
     const report = await this.prisma.report.findUnique({
-      where: { id },
+      where: { assessmentId: id },
     });
 
     const scope1_emission_summary = getPercentage(
