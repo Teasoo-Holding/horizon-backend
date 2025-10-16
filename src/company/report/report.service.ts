@@ -36,62 +36,59 @@ export class ReportService {
       where: {id}
     })
   }
-  async saveReportingData(id: number) {
-    const sumSummary = await this.prisma.assessment.findUnique({
-      where: { id },
-    });
+async saveReportingData(id: number) {
+  const sumSummary = await this.prisma.assessment.findUnique({
+    where: { id },
+  });
 
-    const report = sumSummary?.assessmentData as any;
-    const res = report?.totals?.totals || {};
-    const result = {
-      ghg_total_emissions: res?.sum,
-      ghg_scope_one: calculateScope1Total(res?.breakdown).total,
-      ghg_scope_two: calculateScope2Total(res?.breakdown?.scope2).total,
-      ghg_scope_three: 0,
+  const report = sumSummary?.assessmentData as any;
+  const totals = report?.totals?.totals || {};
+  const breakdown = totals?.breakdown || {};
 
-      ghg_datacount_scope_one: 0,
-      ghg_datacount_scope_two: 0,
-      ghg_datacount_scope_three: 0,
+  // Safely get values with fallback
+  const ghgScope1 = calculateScope1Total(breakdown)?.total ?? 0;
+  const ghgScope2 = calculateScope2Total(breakdown?.scope2)?.total ?? 0;
 
-      environmental_total_emissions: 0,
-      environmental_scope_one: 0,
-      environmental_scope_two: 0,
-      environmental_scope_three: 0,
+  const result = {
+    ghg_total_emissions: totals?.sum ?? 0,
+    ghg_scope_one: ghgScope1,
+    ghg_scope_two: ghgScope2,
+    ghg_scope_three: 0,
+    ghg_datacount_scope_one: 0,
+    ghg_datacount_scope_two: 0,
+    ghg_datacount_scope_three: 0,
+    environmental_total_emissions: 0,
+    environmental_scope_one: 0,
+    environmental_scope_two: 0,
+    environmental_scope_three: 0,
+    environmental_datacount_scope_one: 0,
+    environmental_datacount_scope_two: 0,
+    environmental_datacount_scope_three: 0,
+    social_total_emissions: 0,
+    social_scope_one: 0,
+    social_scope_two: 0,
+    social_scope_three: 0,
+    social_datacount_scope_one: 0,
+    social_datacount_scope_two: 0,
+    social_datacount_scope_three: 0,
+    governance_total_emissions: 0,
+    governance_scope_one: 0,
+    governance_scope_two: 0,
+    governance_scope_three: 0,
+    governance_datacount_scope_one: 0,
+    governance_datacount_scope_two: 0,
+    governance_datacount_scope_three: 0,
+  };
 
-      environmental_datacount_scope_one: 0,
-      environmental_datacount_scope_two: 0,
-      environmental_datacount_scope_three: 0,
+  await this.prisma.report.upsert({
+    where: { assessmentId: id },
+    update: result,
+    create: { assessmentId: id, ...result },
+  });
 
-      social_total_emissions: 0,
-      social_scope_one: 0,
-      social_scope_two: 0,
-      social_scope_three: 0,
+  return { result, totals };
+}
 
-      social_datacount_scope_one: 0,
-      social_datacount_scope_two: 0,
-      social_datacount_scope_three: 0,
-
-      governance_total_emissions: 0,
-      governance_scope_one: 0,
-      governance_scope_two: 0,
-      governance_scope_three: 0,
-
-      governance_datacount_scope_one: 0,
-      governance_datacount_scope_two: 0,
-      governance_datacount_scope_three: 0,
-    };
-    await this.prisma.report.upsert({
-      where: {
-        assessmentId: id,
-      },
-      update: result,
-      create: {
-        assessmentId: id,
-        ...result,
-      },
-    });
-    return { result, res };
-  }
 
   async getReport(id: number, companyId: number) {
     const record = await this.prisma.assessment.findFirst({
