@@ -118,5 +118,9 @@ export class AssessmentPayloadDto {
 
   @IsOptional()
   @IsString()
+  lastSavedForm?: string;
+
+  @IsOptional()
+  @IsString()
   rejection_reason?: string;
 }
