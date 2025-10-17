@@ -21,6 +21,7 @@ model Company {
   company_logo_url_public_id String?
   company_type               CompanyType?
   staff_strength             String?
+  requireAssessmentReview    Boolean               @default(false)
   activities                 Activities[]
   departments                Department[]
   invitations                Invitation[]
@@ -32,8 +33,6 @@ model Company {
   updater                    User?                 @relation("UpdatedCompanies", fields: [updated_by], references: [id])
   companySubscriptions       CompanySubscription[] @relation("CompanySubs")
   users                      User[]                @relation("CompanyUsers")
-
-  requireAssessmentReview Boolean @default(false)
 
   @@index([status])
   @@index([created_at])

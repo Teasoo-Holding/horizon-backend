@@ -2,6 +2,12 @@ model Report {
   id                                  Int        @id @default(autoincrement())
   assessmentId                        Int        @unique
   ghg_total_emissions                 Float
+  startMonth                          String?
+  startYear                           String?
+  endMonth                            String?
+  endYear                             String?
+  subsidiary                          String?
+  progress                            Int?
   ghg_scope_one                       Float
   ghg_scope_two                       Float
   ghg_scope_three                     Float
