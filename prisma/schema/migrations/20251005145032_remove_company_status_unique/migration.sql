@@ -5,7 +5,7 @@
 
 */
 -- DropIndex
-DROP INDEX "public"."assessments_companyId_status_key";
+DROP INDEX IF EXISTS "assessments_companyId_status_key";
 
 -- CreateIndex
 CREATE UNIQUE INDEX "assessments_companyId_key" ON "public"."assessments"("companyId");
