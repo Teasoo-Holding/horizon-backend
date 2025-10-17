@@ -112,6 +112,10 @@ async saveReportingData(id: number) {
       where: { assessmentId: id },
     });
 
+
+    const summary = {
+      startMonth: record?.assessmentData,
+    }
     const scope1_emission_summary = getPercentage(
       report?.ghg_scope_one ?? 0,
       report?.ghg_total_emissions ?? 0,
@@ -133,7 +137,7 @@ async saveReportingData(id: number) {
         : record.assessmentData;
 
     const chartData = extractFuelMixBreakdown(parsed);
-
+    
     const trendData = await this.prisma.assessment.findMany({
       where: { companyId },
       select: {
@@ -161,6 +165,7 @@ async saveReportingData(id: number) {
         breakdown,
       },
       fuel_mix_breakdown: chartData,
+      summary
     };
   }
 }
