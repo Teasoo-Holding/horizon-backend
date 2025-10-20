@@ -213,6 +213,11 @@ export class AssessmentService {
       throw new Error('AssessmentNotDraft');
     }
 
+    // await this.prisma.report.deleteMany({
+    //   where: { assessmentId: assessmentId },
+    // });
+    // or use onDelete: Cascade in relations in the report service
+
     await this.prisma.assessment.delete({
       where: { id: assessmentId },
     });

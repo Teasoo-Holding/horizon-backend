@@ -49,7 +49,7 @@ export class CompanyUsersController {
   @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get all users of a company',
+    summary: 'Get all active and pending users of a company',
   })
   async getCompanyUsers(
     @Req()
