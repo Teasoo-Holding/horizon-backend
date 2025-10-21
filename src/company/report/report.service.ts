@@ -53,6 +53,11 @@ async saveReportingData(id: number) {
     ghg_total_emissions: totals?.sum ?? 0,
     ghg_scope_one: ghgScope1,
     ghg_scope_two: ghgScope2,
+    startMonth: sumSummary?.startMonth,
+    startYear: sumSummary?.startYear,
+    endMonth: sumSummary?.endMonth,
+    endYear: sumSummary?.endYear,
+    subsidiary: sumSummary?.subsidiary,
     ghg_scope_three: 0,
     ghg_datacount_scope_one: 0,
     ghg_datacount_scope_two: 0,
@@ -78,6 +83,7 @@ async saveReportingData(id: number) {
     governance_datacount_scope_one: 0,
     governance_datacount_scope_two: 0,
     governance_datacount_scope_three: 0,
+    
   };
 
   await this.prisma.report.upsert({
@@ -92,8 +98,7 @@ async saveReportingData(id: number) {
 
   async getReport(id: number, companyId: number) {
     const record = await this.prisma.assessment.findFirst({
-      where: { id },
-      select: { assessmentData: true },
+      where: { id }
     });
 
     if (!record || !record.assessmentData) {
@@ -138,20 +143,20 @@ async saveReportingData(id: number) {
 
     const chartData = extractFuelMixBreakdown(parsed);
     
-    const trendData = await this.prisma.assessment.findMany({
-      where: { companyId },
-      select: {
-        startYear: true,
-        report: {
-          select: {
-            ghg_scope_one: true,
-            ghg_scope_two: true,
-            ghg_scope_three: true,
-            ghg_total_emissions: true,
-          },
-        },
-      },
-    });
+    // const trendData = await this.prisma.assessment.findMany({
+    //   where: { companyId },
+    //   select: {
+    //     startYear: true,
+    //     report: {
+    //       select: {
+    //         ghg_scope_one: true,
+    //         ghg_scope_two: true,
+    //         ghg_scope_three: true,
+    //         ghg_total_emissions: true,
+    //       },
+    //     },
+    //   },
+    // });
 
     return {
       report,
@@ -160,7 +165,8 @@ async saveReportingData(id: number) {
         scope2_emission_summary,
         scope3_emission_summary,
       },
-      trendData,
+      // trendData,
+      status: record.status,
       top_5_sources: {
         breakdown,
       },
