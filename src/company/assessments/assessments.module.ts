@@ -5,9 +5,10 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { ComputationModule } from 'src/assessment/computation/computation.module';
 import { ReportModule } from '../report/report.module';
 import { ActivitiesService } from 'src/activities/activities.service';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
-  imports: [PrismaModule, ComputationModule, ReportModule],
+  imports: [PrismaModule, ComputationModule, ReportModule, EmailModule],
   controllers: [AssessmentController],
   providers: [AssessmentService, ActivitiesService],
   exports: [AssessmentService],

@@ -5,6 +5,7 @@ import { Assessment, AssessmentStatus, Prisma } from '@prisma/client';
 import { ComputationFacade } from 'src/assessment/computation/computation.facade';
 import { ReportService } from '../report/report.service';
 import { ActivitiesService } from 'src/activities/activities.service';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class AssessmentService {
@@ -13,7 +14,8 @@ export class AssessmentService {
     private computationFacade: ComputationFacade,
     private reportService: ReportService,
     private activitiesService: ActivitiesService,
-  ) {}
+    private emailService: EmailService
+  ) { }
 
   private getAssessmentDataPayload(data: AssessmentPayloadDto) {
     const {
@@ -253,6 +255,28 @@ export class AssessmentService {
     assessmentId: number,
     rejectionReason: string,
   ): Promise<Assessment> {
+    const assessmentWithCreator = await this.prisma.assessment.findFirst({
+      where: { id: assessmentId },
+      select: {
+        company: {
+          select: {
+            name: true
+          }
+        },
+        creator: {
+          select: {
+            email: true,
+            first_name: true
+          }
+        }
+      }
+    })
+    const creatorEmail = assessmentWithCreator?.creator?.email;
+    const first_name = assessmentWithCreator?.creator?.first_name || '';
+    const company_name = assessmentWithCreator?.company?.name || '';
+    if (!creatorEmail) throw new Error('Creator email not found for this assessment');
+    
+    await this.emailService.sendEmail(creatorEmail, { first_name, company_name, reason: rejectionReason }, 17);
     return this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
