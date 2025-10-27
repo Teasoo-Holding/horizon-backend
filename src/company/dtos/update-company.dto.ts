@@ -49,6 +49,7 @@ export class UpdateCompanyDto {
   @IsString()
   staff_strength?: string;
 
+  @IsOptional()
   @IsBoolean()
   requireAssessmentReview?: boolean;
 }
