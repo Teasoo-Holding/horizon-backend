@@ -13,6 +13,7 @@ import { CompanySetupController } from './company-setup.controller';
 import { CompanySetupService } from './company-setup.service';
 import { ReportModule } from './report/report.module';
 import { ActivitiesService } from 'src/activities/activities.service';
+import { TargetModule } from './target/target.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ActivitiesService } from 'src/activities/activities.service';
     AssessmentModule,
     Scope1Module,
     ReportModule,
+    TargetModule,
   ],
   controllers: [CompanyController, TestController, CompanySetupController],
   providers: [CompanyService, PrismaService, EmailService, CompanySetupService, ActivitiesService],
