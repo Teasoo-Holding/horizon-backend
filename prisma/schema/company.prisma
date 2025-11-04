@@ -33,6 +33,7 @@ model Company {
   updater                    User?                 @relation("UpdatedCompanies", fields: [updated_by], references: [id])
   companySubscriptions       CompanySubscription[] @relation("CompanySubs")
   users                      User[]                @relation("CompanyUsers")
+  generalTarget Target[]
 
   @@index([status])
   @@index([created_at])
