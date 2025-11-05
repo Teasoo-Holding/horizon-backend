@@ -8,24 +8,30 @@ import { TargetResponseDto } from './dto/target-response.dto';
 export class TargetService {
   constructor(
     private prisma: PrismaService
-  ){}
+  ) { }
 
   /**
    * Create a new target for a company
    */
   async createTarget(companyId: number, createdById: number, data: CreateTargetData): Promise<TargetResponseDto> {
-    // Check if target name already exists for this company
-    const existingTarget = await this.prisma.target.findFirst({
-      where: {
-        companyId,
-        name: data.name,
-      },
-    });
-
-    if (existingTarget) {
-      throw new BadRequestException(`A target with name "${data.name}" already exists for this company`);
-    }
-
+    
+  
+  // Check if assessment exists
+  const baselineData = await this.getBaselineValue(companyId);
+  
+  // Check if assessment exists
+  if (!baselineData) {
+    throw new BadRequestException(
+      'You must complete at least one assessment before setting a target'
+    );
+  }
+  
+  // Check if assessment has required data
+  if (!baselineData.startYear || baselineData.totalSum === null) {
+    throw new BadRequestException(
+      'Your assessment must have a valid start year and emissions data before setting a target'
+    );
+  }
     // Validate timeline
     if (data.targetYear <= data.baselineYear) {
       throw new BadRequestException('Target year must be after baseline year');
@@ -43,7 +49,7 @@ export class TargetService {
    * Create a general target
    */
   async createGeneralTarget(
-    companyId: number, 
+    companyId: number,
     createdById: number,
     data: Extract<CreateTargetData, { type: 'GENERAL' }>
   ): Promise<TargetResponseDto> {  // Changed to TargetResponseDto
@@ -118,8 +124,8 @@ export class TargetService {
    * Update a target
    */
   async updateTarget(
-    id: number, 
-    companyId: number, 
+    id: number,
+    companyId: number,
     data: UpdateTargetData
   ): Promise<TargetResponseDto> {  // Changed to TargetResponseDto
     // Check if target exists and belongs to company
@@ -200,7 +206,7 @@ export class TargetService {
   ): Promise<TargetResponseDto> {  // Changed to TargetResponseDto
     // Build scope updates
     const scopeUpdates: any[] = [];
-    
+
     if (data.scopes?.scope1?.reductionPercentage !== undefined) {
       scopeUpdates.push(
         this.prisma.scopeTarget.updateMany({
@@ -333,4 +339,38 @@ export class TargetService {
       updatedAt: target.updatedAt,
     };
   }
+
+async getBaselineValue(companyId: number) {
+  const baseline = await this.prisma.assessment.findFirst({
+    where: {
+      companyId,
+      NOT: [
+        { startYear: { equals: '' } },
+        { startMonth: { equals: '' } },
+        { endYear: { equals: '' } },
+        { endMonth: { equals: '' } },
+      ],
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  if (!baseline) return null;
+
+  const { startYear, endYear, assessmentData } = baseline as any;
+
+  // Extract the total sum if it exists
+  const totalSum = assessmentData?.totals?.totals?.sum ?? null;
+
+  return {
+    startYear,
+    endYear,
+    totalSum,
+  };
+}
+
+
+
+
 }

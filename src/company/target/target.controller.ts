@@ -254,4 +254,12 @@ export class TargetController {
 
     return await this.targetService.deleteTarget(id, req.user.companyId);
   }
+
+  @Get('baseline/:id')
+  async getBaselineValue(
+    @Param("id", ParseIntPipe) id: number
+  ){
+    const baseline = await this.targetService.getBaselineValue(id);
+    return baseline
+  }
 }
