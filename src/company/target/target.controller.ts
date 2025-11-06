@@ -262,4 +262,11 @@ export class TargetController {
     const baseline = await this.targetService.getBaselineValue(id);
     return baseline
   }
+  @Get('baseline-scope/:id')
+  async getBaselineValueByScope(
+    @Param("id", ParseIntPipe) id: number
+  ){
+    const baseline = await this.targetService.getBaselineValueByScope(id);
+    return baseline
+  }
 }

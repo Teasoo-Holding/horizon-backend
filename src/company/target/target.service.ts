@@ -371,6 +371,32 @@ async getBaselineValue(companyId: number) {
 }
 
 
+async getBaselineValueByScope(companyId: number) {
+  const baseline = await this.prisma.assessment.findFirst({
+    where: {
+      companyId,
+      NOT: [
+        { startYear: { equals: '' } },
+        { startMonth: { equals: '' } },
+        { endYear: { equals: '' } },
+        { endMonth: { equals: '' } },
+      ],
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  if (!baseline) return null;
+
+  // const { startYear, endYear, assessmentData } = baseline as any;
+
+  // Extract the total sum if it exists
+  // const totalSum = assessmentData?.totals?.totals?.sum ?? null;
+
+  return baseline
+}
+
 
 
 }
