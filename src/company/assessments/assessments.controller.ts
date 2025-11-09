@@ -59,45 +59,7 @@ export class AssessmentController {
     return { data: assessment };
   }
 
-  // @Post('create')
-  // @HttpCode(HttpStatus.CREATED)
-  // async createAssessment(@Req() req: CustomRequest) {
-  //   const companyId = req.user.companyId;
-  //   const currentUserId = req.user.id;
-  //   const assessment = await this.assessmentService.createAssessment(
-  //     companyId,
-  //     currentUserId,
-  //   );
-  //   return { assessmentId: assessment.id };
-  // }
-
-  // @Post(':id/save')
-  // @HttpCode(HttpStatus.OK)
-  // async saveAssessment(
-  //   @Req() req: CustomRequest,
-  //   @Param('id') assessmentId: string,
-  //   @Body() data: AssessmentPayloadDto,
-  // ) {
-  //   const companyId = req.user.companyId;
-  //   const currentUserId = req.user.id;
-
-  //   const id = parseInt(assessmentId, 10);
-  //   if (isNaN(id)) {
-  //     throw new BadRequestException('Invalid assessment ID provided.');
-  //   }
-
-  //   const assessment = await this.assessmentService.saveAssessment(
-  //     companyId,
-  //     currentUserId,
-  //     id,
-  //     data,
-  //   );
-
-  //   return { message: 'Assessment data saved successfully.', data: assessment };
-  // }
-
-  @Post('save')
-  @Post('save/:id')
+  @Post(['save', 'save/:id'])
   @HttpCode(HttpStatus.OK)
   async saveAssessment(
     @Req() req: CustomRequest,
@@ -118,17 +80,18 @@ export class AssessmentController {
     const assessment = await this.assessmentService.saveAssessment(
       companyId,
       currentUserId,
-      id, // Pass the potentially null ID
+      id,
       data,
     );
-    
-    const message = id ? 'Assessment data updated successfully.' : 'New assessment created and saved successfully.';
+
+    const message = id
+      ? 'Assessment data updated successfully.'
+      : 'New assessment created and saved successfully.';
 
     return { message, data: assessment, assessmentId: assessment.id };
   }
 
-  @Post('submit')
-  @Post('submit/:id') // 💡 ID is now optional
+  @Post(['submit', 'submit/:id'])
   @HttpCode(HttpStatus.OK)
   async submitAssessment(
     @Req() req: CustomRequest,
@@ -146,53 +109,21 @@ export class AssessmentController {
       }
     }
 
-    // The service now accepts AssessmentPayloadDto and handles the JSON conversion
-    const assessment = await this.assessmentService.submitAssessment(
+    const result = await this.assessmentService.submitAssessment(
       companyId,
       currentUserId,
-      id, // Pass the potentially null ID
+      id,
       data,
     );
 
     return {
       message: 'Assessment submitted successfully.',
-      assessment,
-      totals:
-        (assessment.assessmentData as Record<string, any>)?.totals ?? null,
+      assessment: result.assessment,
+      scopeTotals: result.scopeTotals,
+      progress: result.progress,
+      totals: result.totals,
     };
   }
-
-  // @Post(':id/submit')
-  // @HttpCode(HttpStatus.OK)
-  // async submitAssessment(
-  //   @Req() req: CustomRequest,
-  //   @Param('id') assessmentId: string,
-  //   @Body() data: AssessmentPayloadDto,
-  // ) {
-  //   const companyId = req.user.companyId;
-  //   const currentUserId = req.user.id;
-
-  //   const id = parseInt(assessmentId, 10);
-  //   if (isNaN(id)) {
-  //     throw new BadRequestException('Invalid assessment ID provided.');
-  //   }
-
-  //   const jsonData = data as unknown as Prisma.JsonValue;
-
-  //   const assessment = await this.assessmentService.submitAssessment(
-  //     companyId,
-  //     currentUserId,
-  //     id,
-  //     jsonData,
-  //   );
-
-  //   return {
-  //     message: 'Assessment submitted successfully.',
-  //     assessment,
-  //     totals:
-  //       (assessment.assessmentData as Record<string, any>)?.totals ?? null,
-  //   };
-  // }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

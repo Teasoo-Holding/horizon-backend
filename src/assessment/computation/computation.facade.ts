@@ -318,10 +318,35 @@ export class ComputationFacade {
         }
       }
 
+      const frontendProgress = assessmentData?.__computed?.progress || assessmentData?.progress || {};
+
+
       results.sum = Number((results.sum || 0).toFixed(4));
+
+const scope1Total =
+    (results.breakdown.stationarySources?.sum || 0) +
+    (results.breakdown.mobileSources?.sum || 0) +
+    (results.breakdown.processEmissions?.sum || 0) +
+    (results.breakdown.fugitiveEmissions?.sum || 0);
+
+  const scope2Total =
+    (results.breakdown.scope2?.locationBased?.sum || 0) +
+    (results.breakdown.scope2?.marketBased?.sum || 0);
+
+  const scope3Total = 0;
+
+  const overallTotal = Number((scope1Total + scope2Total + scope3Total).toFixed(4));
+
 
       return {
         totals: results,
+        scopeTotals: {
+      total: overallTotal,
+      scope1: scope1Total,
+      scope2: scope2Total,
+      scope3: scope3Total,
+    },
+    progress: frontendProgress,
         computedAt: new Date().toISOString(),
       };
     } catch (err) {
