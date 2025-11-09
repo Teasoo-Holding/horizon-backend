@@ -14,8 +14,8 @@ export class AssessmentService {
     private computationFacade: ComputationFacade,
     private reportService: ReportService,
     private activitiesService: ActivitiesService,
-    private emailService: EmailService
-  ) { }
+    private emailService: EmailService,
+  ) {}
 
   private getAssessmentDataPayload(data: AssessmentPayloadDto) {
     const {
@@ -62,82 +62,122 @@ export class AssessmentService {
     });
   }
 
-  async createAssessment(
+  /**
+   * Helper function to handle the creation or updating of the core assessment record.
+   */
+  private async upsertAssessment(
     companyId: number,
     currentUserId: number,
+    assessmentId: number | null,
+    data: AssessmentPayloadDto,
+    status: AssessmentStatus, // The target status (in_progress or submitted)
+    computedData?: Prisma.JsonObject, // Optional data for submission
   ): Promise<Assessment> {
-    return this.prisma.assessment.create({
+    const assessmentDataPayload = this.getAssessmentDataPayload(data);
+
+    const baseData = {
+      subsidiary: data.subsidiary,
+      startMonth: data.startMonth,
+      startYear: data.startYear,
+      endMonth: data.endMonth,
+      endYear: data.endYear,
+      // assessmentData will be the full payload, potentially including computed totals
+      assessmentData: computedData || assessmentDataPayload,
+      status: status,
+      updated_by: currentUserId,
+    };
+
+    if (assessmentId) {
+      // 1. Update existing assessment
+      try {
+        const updated = await this.prisma.assessment.update({
+          where: { id: assessmentId, companyId },
+          data: baseData,
+        });
+        return updated;
+      } catch (error) {
+        console.log(error);
+        // If the update fails (e.g., ID not found), we fall through to create
+        // NOTE: In a production environment, you might want to specifically check for 
+        // a 'record not found' error before attempting a create.
+      }
+    }
+
+    // 2. Create a new assessment
+    const created = await this.prisma.assessment.create({
       data: {
         companyId,
         created_by: currentUserId,
-        updated_by: currentUserId,
-        status: AssessmentStatus.in_progress,
-        subsidiary: '',
-        startMonth: '',
-        startYear: '',
-        endMonth: '',
-        endYear: '',
-        assessmentData: {},
+        ...baseData,
       },
     });
+    return created;
   }
 
   async saveAssessment(
     companyId: number,
     currentUserId: number,
-    assessmentId: number,
+    assessmentId: number | null,
     data: AssessmentPayloadDto,
   ): Promise<Assessment> {
-    const assessmentData = this.getAssessmentDataPayload(data);
+    // Determine if it's a create or update for activity logging purposes
+    const isNew = assessmentId === null;
 
-    const updated = await this.prisma.assessment.update({
-      where: { id: assessmentId, companyId },
-      data: {
-        updated_by: currentUserId,
-        subsidiary: data.subsidiary,
-        startMonth: data.startMonth,
-        startYear: data.startYear,
-        endMonth: data.endMonth,
-        endYear: data.endYear,
-        assessmentData: assessmentData,
-      },
-    });
+    // Use the upsert helper with status: in_progress
+    const assessment = await this.upsertAssessment(
+      companyId,
+      currentUserId,
+      assessmentId,
+      data,
+      AssessmentStatus.in_progress,
+    );
+
+    const logId = assessment.id;
 
     await this.activitiesService.logActivity({
       companyId,
       createdById: currentUserId,
-      title: `Saved assessment`,
-      description: `User saved updates to assessment #${assessmentId}.`,
+      title: isNew ? `New assessment draft created` : `Saved assessment`,
+      description: isNew
+        ? `User created a new draft assessment #${logId}.`
+        : `User saved updates to assessment #${logId}.`,
       type: 'assessment',
-      status: 'updated',
+      status: isNew ? 'created' : 'updated',
     });
 
-    await this.reportService.saveReportingData(assessmentId);
-    return updated;
+    await this.reportService.saveReportingData(logId);
+    return assessment;
   }
 
   async submitAssessment(
     companyId: number,
     currentUserId: number,
-    assessmentId: number,
-    data: Prisma.JsonValue,
+    assessmentId: number | null,
+    data: AssessmentPayloadDto,
   ) {
-    const assessment = await this.prisma.assessment.findUnique({
-      where: { id: assessmentId },
-      include: { company: true },
-    });
+    const isNew = assessmentId === null;
 
-    if (!assessment) {
+    // 1. Determine final status
+    const tempAssessment = isNew
+      ? ({ company: { requireAssessmentReview: false } } as any) // Default behavior for new assessment
+      : await this.prisma.assessment.findUnique({
+          where: { id: assessmentId! },
+          include: { company: true },
+        });
+
+    if (!tempAssessment && !isNew) {
       throw new NotFoundException(
-        `Assessment with ID ${assessmentId} not found`,
+        `Assessment with ID ${assessmentId} not found.`,
       );
     }
 
-    const requireReview = assessment.company?.requireAssessmentReview ?? false;
+    const requireReview =
+      tempAssessment.company?.requireAssessmentReview ?? false;
     const statusToSet = requireReview
       ? AssessmentStatus.awaiting_review
       : AssessmentStatus.submitted_approved;
 
+    // 2. Compute totals
     const submitted = data;
     const computedAt = new Date();
 
@@ -157,27 +197,21 @@ export class AssessmentService {
 
     const newAssessmentData: Prisma.JsonObject = {
       ...(typeof submitted === 'object' && submitted !== null
-        ? (submitted as Prisma.JsonObject)
+        ? (submitted as unknown as Prisma.JsonObject)
         : { original: submitted as Prisma.JsonValue }),
       totals: flattenedTotals ?? Prisma.JsonNull,
       totalsComputedAt: computedAt.toISOString(),
       totalsError: error ?? null,
     };
 
-    const submittedAssessment = await this.prisma.assessment.update({
-      where: { id: assessmentId },
-      data: {
-        companyId,
-        subsidiary: (data as any).subsidiary ?? assessment.subsidiary,
-        startMonth: (data as any).startMonth ?? assessment.startMonth,
-        startYear: (data as any).startYear ?? assessment.startYear,
-        endMonth: (data as any).endMonth ?? assessment.endMonth,
-        endYear: (data as any).endYear ?? assessment.endYear,
-        assessmentData: newAssessmentData,
-        status: statusToSet,
-        updated_by: currentUserId,
-      },
-    });
+    const submittedAssessment = await this.upsertAssessment(
+      companyId,
+      currentUserId,
+      assessmentId,
+      data,
+      statusToSet,
+      newAssessmentData,
+    );
 
     const user = await this.prisma.user.findUnique({
       where: { id: currentUserId },
@@ -185,16 +219,18 @@ export class AssessmentService {
     });
     const userName = user?.first_name ?? 'Company User';
 
+    const logId = submittedAssessment.id;
+
     await this.activitiesService.logActivity({
       companyId,
       createdById: currentUserId,
-      title: `Submitted assessment (ID: ${assessmentId})`,
-      description: `${userName} submitted assessment ${assessmentId} for computation.`,
+      title: `Submitted assessment (ID: ${logId})`,
+      description: `${userName} submitted assessment ${logId} for computation.`,
       type: 'assessment',
       status: 'submitted',
     });
 
-    await this.reportService.saveReportingData(assessmentId);
+    await this.reportService.saveReportingData(logId);
     return submittedAssessment;
   }
 
@@ -214,11 +250,6 @@ export class AssessmentService {
     if (assessment.status !== AssessmentStatus.in_progress) {
       throw new Error('AssessmentNotDraft');
     }
-
-    // await this.prisma.report.deleteMany({
-    //   where: { assessmentId: assessmentId },
-    // });
-    // or use onDelete: Cascade in relations in the report service
 
     await this.prisma.assessment.delete({
       where: { id: assessmentId },
@@ -260,23 +291,28 @@ export class AssessmentService {
       select: {
         company: {
           select: {
-            name: true
-          }
+            name: true,
+          },
         },
         creator: {
           select: {
             email: true,
-            first_name: true
-          }
-        }
-      }
-    })
+            first_name: true,
+          },
+        },
+      },
+    });
     const creatorEmail = assessmentWithCreator?.creator?.email;
     const first_name = assessmentWithCreator?.creator?.first_name || '';
     const company_name = assessmentWithCreator?.company?.name || '';
-    if (!creatorEmail) throw new Error('Creator email not found for this assessment');
-    
-    await this.emailService.sendEmail(creatorEmail, { first_name, company_name, reason: rejectionReason }, 17);
+    if (!creatorEmail)
+      throw new Error('Creator email not found for this assessment');
+
+    await this.emailService.sendEmail(
+      creatorEmail,
+      { first_name, company_name, reason: rejectionReason },
+      17,
+    );
     return this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
@@ -287,3 +323,469 @@ export class AssessmentService {
     });
   }
 }
+
+// import { Injectable, NotFoundException } from '@nestjs/common';
+// import { PrismaService } from 'src/prisma/prisma.service';
+// import { AssessmentPayloadDto } from './dto/assessment.dto';
+// import { Assessment, AssessmentStatus, Prisma } from '@prisma/client';
+// import { ComputationFacade } from 'src/assessment/computation/computation.facade';
+// import { ReportService } from '../report/report.service';
+// import { ActivitiesService } from 'src/activities/activities.service';
+// import { EmailService } from 'src/email/email.service';
+
+// @Injectable()
+// export class AssessmentService {
+//   constructor(
+//     private prisma: PrismaService,
+//     private computationFacade: ComputationFacade,
+//     private reportService: ReportService,
+//     private activitiesService: ActivitiesService,
+//     private emailService: EmailService,
+//   ) {}
+
+//   private getAssessmentDataPayload(data: AssessmentPayloadDto) {
+//     const {
+//       subsidiary,
+//       startMonth,
+//       startYear,
+//       endMonth,
+//       endYear,
+//       stationarySources,
+//       mobileSources,
+//       processEmissions,
+//       fugitiveEmissions,
+//       ...rest
+//     } = data;
+//     return {
+//       subsidiary,
+//       startMonth,
+//       startYear,
+//       endMonth,
+//       endYear,
+//       stationarySources,
+//       mobileSources,
+//       processEmissions,
+//       fugitiveEmissions,
+//       ...rest,
+//     };
+//   }
+
+//   async getAssessments(companyId: number): Promise<Assessment[]> {
+//     return this.prisma.assessment.findMany({
+//       where: { companyId },
+//       orderBy: {
+//         createdAt: 'desc',
+//       },
+//     });
+//   }
+
+//   async getAssessment(
+//     companyId: number,
+//     assessmentId: number,
+//   ): Promise<Assessment | null> {
+//     return this.prisma.assessment.findUnique({
+//       where: { id: assessmentId, companyId },
+//     });
+//   }
+
+//   // async createAssessment(
+//   //   companyId: number,
+//   //   currentUserId: number,
+//   // ): Promise<Assessment> {
+//   //   return this.prisma.assessment.create({
+//   //     data: {
+//   //       companyId,
+//   //       created_by: currentUserId,
+//   //       updated_by: currentUserId,
+//   //       status: AssessmentStatus.in_progress,
+//   //       subsidiary: '',
+//   //       startMonth: '',
+//   //       startYear: '',
+//   //       endMonth: '',
+//   //       endYear: '',
+//   //       assessmentData: {},
+//   //     },
+//   //   });
+//   // }
+
+//   // async saveAssessment(
+//   //   companyId: number,
+//   //   currentUserId: number,
+//   //   assessmentId: number,
+//   //   data: AssessmentPayloadDto,
+//   // ): Promise<Assessment> {
+//   //   const assessmentData = this.getAssessmentDataPayload(data);
+
+//   //   const updated = await this.prisma.assessment.update({
+//   //     where: { id: assessmentId, companyId },
+//   //     data: {
+//   //       updated_by: currentUserId,
+//   //       subsidiary: data.subsidiary,
+//   //       startMonth: data.startMonth,
+//   //       startYear: data.startYear,
+//   //       endMonth: data.endMonth,
+//   //       endYear: data.endYear,
+//   //       assessmentData: assessmentData,
+//   //     },
+//   //   });
+
+//   //   await this.activitiesService.logActivity({
+//   //     companyId,
+//   //     createdById: currentUserId,
+//   //     title: `Saved assessment`,
+//   //     description: `User saved updates to assessment #${assessmentId}.`,
+//   //     type: 'assessment',
+//   //     status: 'updated',
+//   //   });
+
+//   //   await this.reportService.saveReportingData(assessmentId);
+//   //   return updated;
+//   // }
+
+//   // async submitAssessment(
+//   //   companyId: number,
+//   //   currentUserId: number,
+//   //   assessmentId: number,
+//   //   data: Prisma.JsonValue,
+//   // ) {
+//   //   const assessment = await this.prisma.assessment.findUnique({
+//   //     where: { id: assessmentId },
+//   //     include: { company: true },
+//   //   });
+
+//   //   if (!assessment) {
+//   //     throw new NotFoundException(
+//   //       `Assessment with ID ${assessmentId} not found`,
+//   //     );
+//   //   }
+
+//   //   const requireReview = assessment.company?.requireAssessmentReview ?? false;
+//   //   const statusToSet = requireReview
+//   //     ? AssessmentStatus.awaiting_review
+//   //     : AssessmentStatus.submitted_approved;
+
+//   //   const submitted = data;
+//   //   const computedAt = new Date();
+
+//   //   let totals: any = null;
+//   //   let error: string | null = null;
+
+//   //   try {
+//   //     totals = await this.computationFacade.computeAssessmentTotals(
+//   //       submitted as any,
+//   //     );
+//   //   } catch (err) {
+//   //     console.error('Computation error:', err);
+//   //     error = (err as Error).message;
+//   //   }
+
+//   //   const flattenedTotals = totals ? { ...totals, computedAt } : null;
+
+//   //   const newAssessmentData: Prisma.JsonObject = {
+//   //     ...(typeof submitted === 'object' && submitted !== null
+//   //       ? (submitted as Prisma.JsonObject)
+//   //       : { original: submitted as Prisma.JsonValue }),
+//   //     totals: flattenedTotals ?? Prisma.JsonNull,
+//   //     totalsComputedAt: computedAt.toISOString(),
+//   //     totalsError: error ?? null,
+//   //   };
+
+//   //   const submittedAssessment = await this.prisma.assessment.update({
+//   //     where: { id: assessmentId },
+//   //     data: {
+//   //       companyId,
+//   //       subsidiary: (data as any).subsidiary ?? assessment.subsidiary,
+//   //       startMonth: (data as any).startMonth ?? assessment.startMonth,
+//   //       startYear: (data as any).startYear ?? assessment.startYear,
+//   //       endMonth: (data as any).endMonth ?? assessment.endMonth,
+//   //       endYear: (data as any).endYear ?? assessment.endYear,
+//   //       assessmentData: newAssessmentData,
+//   //       status: statusToSet,
+//   //       updated_by: currentUserId,
+//   //     },
+//   //   });
+
+//   //   const user = await this.prisma.user.findUnique({
+//   //     where: { id: currentUserId },
+//   //     select: { first_name: true },
+//   //   });
+//   //   const userName = user?.first_name ?? 'Company User';
+
+//   //   await this.activitiesService.logActivity({
+//   //     companyId,
+//   //     createdById: currentUserId,
+//   //     title: `Submitted assessment (ID: ${assessmentId})`,
+//   //     description: `${userName} submitted assessment ${assessmentId} for computation.`,
+//   //     type: 'assessment',
+//   //     status: 'submitted',
+//   //   });
+
+//   //   await this.reportService.saveReportingData(assessmentId);
+//   //   return submittedAssessment;
+//   // }
+
+//   private async upsertAssessment(
+//     companyId: number,
+//     currentUserId: number,
+//     assessmentId: number | null,
+//     data: AssessmentPayloadDto,
+//     status: AssessmentStatus, // The target status (in_progress or submitted)
+//     computedData?: Prisma.JsonObject, // Optional data for submission
+//   ): Promise<Assessment> {
+//     const assessmentDataPayload = this.getAssessmentDataPayload(data);
+
+//     const baseData = {
+//       subsidiary: data.subsidiary,
+//       startMonth: data.startMonth,
+//       startYear: data.startYear,
+//       endMonth: data.endMonth,
+//       endYear: data.endYear,
+//       // assessmentData will be the full payload, potentially including computed totals
+//       assessmentData: computedData || assessmentDataPayload,
+//       status: status,
+//       updated_by: currentUserId,
+//     };
+
+//     if (assessmentId) {
+//       // 1. Update existing assessment
+//       try {
+//         const updated = await this.prisma.assessment.update({
+//           where: { id: assessmentId, companyId },
+//           data: baseData,
+//         });
+//         return updated;
+//       } catch (error) {
+//         // If the update fails (e.g., ID not found), we fall through to create
+//         // This is a common pattern for "save and create new if not found" logic.
+//       }
+//     }
+
+//     // 2. Create a new assessment
+//     const created = await this.prisma.assessment.create({
+//       data: {
+//         companyId,
+//         created_by: currentUserId,
+//         ...baseData,
+//       },
+//     });
+//     return created;
+//   }
+
+//   async saveAssessment(
+//     companyId: number,
+//     currentUserId: number,
+//     assessmentId: number | null, // 💡 Accept null ID
+//     data: AssessmentPayloadDto,
+//   ): Promise<Assessment> {
+//     // Determine if it's a create or update for activity logging purposes
+//     const isNew = assessmentId === null;
+
+//     // Use the upsert helper with status: in_progress
+//     const assessment = await this.upsertAssessment(
+//       companyId,
+//       currentUserId,
+//       assessmentId,
+//       data,
+//       AssessmentStatus.in_progress,
+//     );
+
+//     // Use the actual ID for logging (it will be populated by upsert)
+//     const logId = assessment.id;
+
+//     await this.activitiesService.logActivity({
+//       companyId,
+//       createdById: currentUserId,
+//       title: isNew ? `New assessment draft created` : `Saved assessment`,
+//       description: isNew
+//         ? `User created a new draft assessment #${logId}.`
+//         : `User saved updates to assessment #${logId}.`,
+//       type: 'assessment',
+//       status: isNew ? 'created' : 'updated',
+//     });
+
+//     await this.reportService.saveReportingData(logId);
+//     return assessment;
+//   }
+
+//   async submitAssessment(
+//     companyId: number,
+//     currentUserId: number,
+//     assessmentId: number | null, // 💡 Accept null ID
+//     data: AssessmentPayloadDto,
+//   ) {
+//     const isNew = assessmentId === null;
+
+//     // 1. Determine final status
+//     const tempAssessment = isNew
+//       ? ({ company: { requireAssessmentReview: false } } as any)
+//       : await this.prisma.assessment.findUnique({
+//           // Fetch existing company requirement if updating
+//           where: { id: assessmentId! },
+//           include: { company: true },
+//         });
+
+//     if (!tempAssessment && !isNew) {
+//       throw new NotFoundException(
+//         `Assessment with ID ${assessmentId} not found.`,
+//       );
+//     }
+
+//     const requireReview =
+//       tempAssessment.company?.requireAssessmentReview ?? false;
+//     const statusToSet = requireReview
+//       ? AssessmentStatus.awaiting_review
+//       : AssessmentStatus.submitted_approved;
+
+//     // 2. Compute totals
+//     const submitted = data;
+//     const computedAt = new Date();
+
+//     let totals: any = null;
+//     let error: string | null = null;
+
+//     try {
+//       totals = await this.computationFacade.computeAssessmentTotals(
+//         submitted as any,
+//       );
+//     } catch (err) {
+//       console.error('Computation error:', err);
+//       error = (err as Error).message;
+//     }
+
+//     const flattenedTotals = totals ? { ...totals, computedAt } : null;
+
+//     const newAssessmentData: Prisma.JsonObject = {
+//       ...(typeof submitted === 'object' && submitted !== null
+//         ? (submitted as Prisma.JsonObject)
+//         : { original: submitted as Prisma.JsonValue }),
+//       totals: flattenedTotals ?? Prisma.JsonNull,
+//       totalsComputedAt: computedAt.toISOString(),
+//       totalsError: error ?? null,
+//     };
+
+//     // 3. Upsert the assessment with final status and computed data
+//     const submittedAssessment = await this.upsertAssessment(
+//       companyId,
+//       currentUserId,
+//       assessmentId,
+//       data,
+//       statusToSet,
+//       newAssessmentData, // Pass the final, computed assessment data
+//     );
+
+//     // 4. Log activity
+//     const user = await this.prisma.user.findUnique({
+//       where: { id: currentUserId },
+//       select: { first_name: true },
+//     });
+//     const userName = user?.first_name ?? 'Company User';
+
+//     const logId = submittedAssessment.id;
+
+//     await this.activitiesService.logActivity({
+//       companyId,
+//       createdById: currentUserId,
+//       title: `Submitted assessment (ID: ${logId})`,
+//       description: `${userName} submitted assessment ${logId} for computation.`,
+//       type: 'assessment',
+//       status: 'submitted',
+//     });
+
+//     await this.reportService.saveReportingData(logId);
+//     return submittedAssessment;
+//   }
+
+//   async deleteAssessment(
+//     companyId: number,
+//     assessmentId: number,
+//   ): Promise<void> {
+//     const assessment = await this.prisma.assessment.findUnique({
+//       where: { id: assessmentId, companyId },
+//       select: { status: true, created_by: true },
+//     });
+
+//     if (!assessment) {
+//       throw new Error('AssessmentNotFound');
+//     }
+
+//     if (assessment.status !== AssessmentStatus.in_progress) {
+//       throw new Error('AssessmentNotDraft');
+//     }
+
+//     // await this.prisma.report.deleteMany({
+//     //   where: { assessmentId: assessmentId },
+//     // });
+//     // or use onDelete: Cascade in relations in the report service
+
+//     await this.prisma.assessment.delete({
+//       where: { id: assessmentId },
+//     });
+
+//     await this.activitiesService.logActivity({
+//       companyId,
+//       createdById: assessment.created_by!,
+//       title: `Deleted draft assessment`,
+//       description: `Draft assessment ${assessmentId} deleted.`,
+//       type: 'assessment',
+//       status: 'deleted',
+//     });
+//   }
+
+//   async approveAssessment(
+//     companyId: number,
+//     currentUserId: number,
+//     assessmentId: number,
+//   ): Promise<Assessment> {
+//     return this.prisma.assessment.update({
+//       where: { id: assessmentId, companyId },
+//       data: {
+//         status: AssessmentStatus.approved,
+//         updated_by: currentUserId,
+//         rejection_reason: null,
+//       },
+//     });
+//   }
+
+//   async rejectAssessment(
+//     companyId: number,
+//     currentUserId: number,
+//     assessmentId: number,
+//     rejectionReason: string,
+//   ): Promise<Assessment> {
+//     const assessmentWithCreator = await this.prisma.assessment.findFirst({
+//       where: { id: assessmentId },
+//       select: {
+//         company: {
+//           select: {
+//             name: true,
+//           },
+//         },
+//         creator: {
+//           select: {
+//             email: true,
+//             first_name: true,
+//           },
+//         },
+//       },
+//     });
+//     const creatorEmail = assessmentWithCreator?.creator?.email;
+//     const first_name = assessmentWithCreator?.creator?.first_name || '';
+//     const company_name = assessmentWithCreator?.company?.name || '';
+//     if (!creatorEmail)
+//       throw new Error('Creator email not found for this assessment');
+
+//     await this.emailService.sendEmail(
+//       creatorEmail,
+//       { first_name, company_name, reason: rejectionReason },
+//       17,
+//     );
+//     return this.prisma.assessment.update({
+//       where: { id: assessmentId, companyId },
+//       data: {
+//         status: AssessmentStatus.unapproved_rejected,
+//         updated_by: currentUserId,
+//         rejection_reason: rejectionReason,
+//       },
+//     });
+//   }
+// }

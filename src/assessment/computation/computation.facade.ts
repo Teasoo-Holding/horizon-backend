@@ -15,7 +15,6 @@ export class ComputationFacade {
   ) {}
 
   async computeAssessmentTotals(assessmentData: any) {
-    // defensive checks
     const stationary = assessmentData?.stationarySources || {};
     const mobile = assessmentData?.mobileSources || {};
     const processEmissions = assessmentData?.processEmissions || {};
@@ -34,7 +33,6 @@ export class ComputationFacade {
     const results: any = { breakdown: {}, sum: 0 };
 
     try {
-      // Scope1 / Stationary sources
       if (Object.keys(stationary).length) {
         const dto = {
           fuel_powered: {
@@ -177,7 +175,6 @@ export class ComputationFacade {
         results.sum += Number(fug.sum || fug.venting || 0);
       }
 
-      // Scope2 (l or m based)
       if (
         scope2 &&
         (scope2.electricity ||
@@ -196,18 +193,14 @@ export class ComputationFacade {
           electiricity_emission_factor:
             Number(scope2.electricity?.emissionFactor ?? 0) || undefined,
 
-          // Cooling
           amount_of_cooling_energy_consumed: Number(
             scope2.cooling?.coolingConsumed ?? 0,
           ),
-          // map cooling emission factor - amt_of_c_emission_factor expected by Scope2
           amt_of_c_emission_factor:
             Number(scope2.cooling?.emissionFactor ?? 0) || undefined,
 
-          // Steam
           total_steam_consumed: Number(scope2.steam?.volume ?? 0),
 
-          // Heating
           total_heating_energy_consumed: Number(
             scope2.heating?.heatingConsumed ?? 0,
           ),
