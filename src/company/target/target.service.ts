@@ -389,12 +389,21 @@ async getBaselineValueByScope(companyId: number) {
 
   if (!baseline) return null;
 
-  // const { startYear, endYear, assessmentData } = baseline as any;
-
-  // Extract the total sum if it exists
-  // const totalSum = assessmentData?.totals?.totals?.sum ?? null;
-
-  return baseline
+  const { id } = baseline as any;
+  const report = await this.prisma.report.findFirst({
+    where: {
+      assessmentId: id,
+    },
+    select: {
+      ghg_scope_one: true,
+      ghg_scope_two: true,
+      ghg_scope_three: true,
+      ghg_total_emissions: true
+    }
+  })
+  return report
+  
+  
 }
 
 
