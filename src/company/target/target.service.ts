@@ -398,7 +398,9 @@ async getBaselineValueByScope(companyId: number) {
       ghg_scope_one: true,
       ghg_scope_two: true,
       ghg_scope_three: true,
-      ghg_total_emissions: true
+      ghg_total_emissions: true,
+      endYear: true,
+      startYear: true
     }
   })
   return report
