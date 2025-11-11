@@ -65,6 +65,9 @@ export class TargetService {
         generalTarget: {
           create: {
             reductionPercentage: data.reductionPercentage,
+            baselineYearEmission: data.baselineYearEmission,
+            targetEmission: data.targetEmission,
+            currentEmission: data.currentEmission
           },
         },
       },
@@ -99,14 +102,23 @@ export class TargetService {
             {
               scope: 'SCOPE1',
               reductionPercentage: data.scopes.scope1.reductionPercentage,
+              targetEmission: data.scopes.scope1.targetEmission,
+              baselineYearEmission: data.scopes.scope1.baselineYearEmission,
+              currentEmission: data.scopes.scope1.currentEmission
             },
             {
               scope: 'SCOPE2',
               reductionPercentage: data.scopes.scope2.reductionPercentage,
+              targetEmission: data.scopes.scope2.targetEmission,
+              baselineYearEmission: data.scopes.scope2.baselineYearEmission,
+              currentEmission: data.scopes.scope2.currentEmission
             },
             {
               scope: 'SCOPE3',
               reductionPercentage: data.scopes.scope3.reductionPercentage,
+              targetEmission: data.scopes.scope3.targetEmission,
+              baselineYearEmission: data.scopes.scope3.baselineYearEmission,
+              currentEmission: data.scopes.scope3.currentEmission
             },
           ],
         },
@@ -294,6 +306,21 @@ export class TargetService {
     return targets.map(target => this.formatTargetResponse(target));
   }
 
+
+  async getCompanyLatestTarget(companyId: number): Promise<any> {  // Changed to TargetResponseDto[]
+    const target = await this.prisma.target.findFirst({
+      where: { companyId },
+      include: {
+        generalTarget: true,
+        scopeTargets: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    
+
+    return this.formatTargetResponse(target)
+  }
   /**
    * Get a single target
    */
@@ -329,11 +356,17 @@ export class TargetService {
       generalTarget: target.generalTarget ? {
         id: target.generalTarget.id,
         reductionPercentage: target.generalTarget.reductionPercentage,
+        targetEmission: target.generalTarget.targetEmission,
+        baselineYearEmission: target.baselineYearEmission,
+        currentEmission: target.currentEmission
       } : undefined,
       scopeTargets: target.scopeTargets?.map((scope: any) => ({
         id: scope.id,
         scope: scope.scope,
         reductionPercentage: scope.reductionPercentage,
+        targetEmission: scope.targetEmission,
+        baselineYearEmission: scope.baselineYearEmission,
+        currentEmission: scope.currentEmission
       })),
       createdAt: target.createdAt,
       updatedAt: target.updatedAt,
