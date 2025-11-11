@@ -1,0 +1,32 @@
+enum TaskStatus {
+    pending
+    in_progress
+    completed
+    approved
+    rejected
+    on_hold
+}
+
+model Task {
+    id          Int              @id @default(autoincrement())
+    taskName    String
+    dueDate     DateTime
+    status      TaskStatus       @default(pending)
+    createdBy   User             @relation("CreatedTasks", fields: [createdById], references: [id])
+    createdById Int
+    assignments TaskAssignment[]
+    createdAt   DateTime         @default(now())
+    updatedAt   DateTime         @updatedAt
+}
+
+model TaskAssignment {
+    id        Int      @id @default(autoincrement())
+    task      Task     @relation(fields: [taskId], references: [id])
+    taskId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    userId    Int
+    topics    String[]
+    createdAt DateTime @default(now())
+
+    @@map("task_assignments")
+}
