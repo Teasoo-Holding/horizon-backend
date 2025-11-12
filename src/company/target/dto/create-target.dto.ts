@@ -1,6 +1,17 @@
-// dto/create-target.dto.ts
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsEnum, IsObject, ValidateNested, IsOptional, Min, Max } from 'class-validator';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsObject,
+  ValidateNested,
+  IsOptional,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ScopeReductionDto {
@@ -8,12 +19,36 @@ export class ScopeReductionDto {
     description: 'Reduction percentage for the scope',
     example: 40.0,
     minimum: 0,
-    maximum: 100
+    maximum: 100,
   })
   @IsNumber()
   @Min(0)
   @Max(100)
   reductionPercentage: number;
+
+  @ApiPropertyOptional({
+    description: 'Baseline year emission value for this scope',
+    example: 2500.5,
+  })
+  @IsNumber()
+  @IsOptional()
+  baselineYearEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Target emission value for this scope',
+    example: 1500.2,
+  })
+  @IsNumber()
+  @IsOptional()
+  targetEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Current emission value for this scope',
+    example: 1800.7,
+  })
+  @IsNumber()
+  @IsOptional()
+  currentEmission?: number;
 }
 
 export class ScopesDto {
@@ -36,14 +71,14 @@ export class ScopesDto {
 export class BaseTargetDto {
   @ApiProperty({
     description: 'Name of the target',
-    example: '2030 Net Zero Target'
+    example: '2030 Net Zero Target',
   })
   @IsString()
   name: string;
 
   @ApiPropertyOptional({
     description: 'Description of the target',
-    example: 'Overall company emissions reduction target for 2030'
+    example: 'Overall company emissions reduction target for 2030',
   })
   @IsString()
   @IsOptional()
@@ -53,7 +88,7 @@ export class BaseTargetDto {
     description: 'Baseline year for emissions calculation',
     example: 2024,
     minimum: 2000,
-    maximum: 2100
+    maximum: 2100,
   })
   @IsNumber()
   @Min(2000)
@@ -64,7 +99,7 @@ export class BaseTargetDto {
     description: 'Target year for emissions reduction',
     example: 2030,
     minimum: 2000,
-    maximum: 2100
+    maximum: 2100,
   })
   @IsNumber()
   @Min(2000)
@@ -76,7 +111,7 @@ export class CreateGeneralTargetDto extends BaseTargetDto {
   @ApiProperty({
     description: 'Type of target',
     enum: ['GENERAL'],
-    example: 'GENERAL'
+    example: 'GENERAL',
   })
   @IsEnum(['GENERAL'])
   type: 'GENERAL';
@@ -85,26 +120,50 @@ export class CreateGeneralTargetDto extends BaseTargetDto {
     description: 'Overall reduction percentage',
     example: 45.5,
     minimum: 0,
-    maximum: 100
+    maximum: 100,
   })
   @IsNumber()
   @Min(0)
   @Max(100)
   reductionPercentage: number;
+
+  @ApiPropertyOptional({
+    description: 'Baseline year emission value',
+    example: 5000.0,
+  })
+  @IsNumber()
+  @IsOptional()
+  baselineYearEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Target emission value',
+    example: 3000.0,
+  })
+  @IsNumber()
+  @IsOptional()
+  targetEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Current emission value',
+    example: 3500.0,
+  })
+  @IsNumber()
+  @IsOptional()
+  currentEmission?: number;
 }
 
 export class CreateScopeTargetDto extends BaseTargetDto {
   @ApiProperty({
     description: 'Type of target',
     enum: ['SCOPE'],
-    example: 'SCOPE'
+    example: 'SCOPE',
   })
   @IsEnum(['SCOPE'])
   type: 'SCOPE';
 
   @ApiProperty({
-    description: 'Scope-specific reduction percentages',
-    type: ScopesDto
+    description: 'Scope-specific reduction data',
+    type: ScopesDto,
   })
   @ValidateNested()
   @Type(() => ScopesDto)

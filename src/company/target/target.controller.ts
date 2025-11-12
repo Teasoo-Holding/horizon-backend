@@ -141,6 +141,30 @@ export class TargetController {
     return await this.targetService.getCompanyTargets(req.user.companyId);
   }
 
+
+
+   @Get("/latest")
+  @ApiOperation({ 
+    summary: 'Get the latest targets for company',
+    description: 'Retrieve the latest targets belonging to the authenticated user\'s company'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'The latest target of the company',
+    type: [TargetResponseDto]
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated'
+  })
+  async getCompanyLatstTargets(@Req() req: RequestWithUser) {
+    if (!req.user?.companyId) {
+      throw new BadRequestException('User company ID is missing');
+    }
+
+    return await this.targetService.getCompanyLatestTarget(req.user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ 
     summary: 'Get a single target by ID',
