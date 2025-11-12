@@ -34,6 +34,9 @@ model User {
   role                        Role           @relation(fields: [roleId], references: [id])
   subsidiary                  Subsidiary?    @relation("SubsidiaryUsers", fields: [subsidiaryId], references: [id])
 
+  TaskAssignment TaskAssignment[]
+  Task           Task[]           @relation("CreatedTasks")
+
   @@index([email])
   @@index([status])
   @@index([companyId])
