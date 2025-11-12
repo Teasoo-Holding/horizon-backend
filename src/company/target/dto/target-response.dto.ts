@@ -1,4 +1,3 @@
-// dto/target-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class GeneralTargetResponseDto {
@@ -7,17 +6,38 @@ class GeneralTargetResponseDto {
 
   @ApiProperty({ example: 45.5 })
   reductionPercentage: number;
+
+  @ApiProperty({ example: 5000.0 })
+  baselineYearEmission: number;
+
+  @ApiProperty({ example: 3000.0 })
+  targetEmission: number;
+
+  @ApiPropertyOptional({ example: 3500.0 })
+  currentEmission?: number;
 }
 
 class ScopeTargetResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ enum: ['SCOPE1', 'SCOPE2', 'SCOPE3'], example: 'SCOPE1' })
+  @ApiProperty({
+    enum: ['SCOPE1', 'SCOPE2', 'SCOPE3'],
+    example: 'SCOPE1',
+  })
   scope: 'SCOPE1' | 'SCOPE2' | 'SCOPE3';
 
   @ApiProperty({ example: 40.0 })
   reductionPercentage: number;
+
+  @ApiProperty({ example: 2500.5 })
+  baselineYearEmission: number;
+
+  @ApiProperty({ example: 1500.2 })
+  targetEmission: number;
+
+  @ApiPropertyOptional({ example: 1800.7 })
+  currentEmission?: number;
 }
 
 export class TargetResponseDto {
@@ -30,13 +50,18 @@ export class TargetResponseDto {
   @ApiProperty({ example: '2030 Net Zero Target' })
   name: string;
 
-  @ApiProperty({ enum: ['GENERAL', 'SCOPE'], example: 'GENERAL' })
+  @ApiProperty({
+    enum: ['GENERAL', 'SCOPE'],
+    example: 'GENERAL',
+  })
   type: 'GENERAL' | 'SCOPE';
 
   @ApiProperty({ example: 1 })
   createdById: number;
 
-  @ApiPropertyOptional({ example: 'Overall company emissions reduction target' })
+  @ApiPropertyOptional({
+    example: 'Overall company emissions reduction target',
+  })
   description?: string;
 
   @ApiProperty({ example: 2024 })
