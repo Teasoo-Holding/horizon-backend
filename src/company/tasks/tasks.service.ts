@@ -6,7 +6,12 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { ActivitiesService } from 'src/activities/activities.service';
-import { AssignTaskDto, ReassignTaskDto } from './dto/task.dto';
+import {
+  AddTaskCommentDto,
+  AssignTaskDto,
+  EditTaskDto,
+  ReassignTaskDto,
+} from './dto/task.dto';
 
 @Injectable()
 export class TaskService {
@@ -39,7 +44,7 @@ export class TaskService {
         dueDate: new Date(dueDate),
         createdById: assignedById,
         assignments: {
-          create: userIds.map((userId) => ({ userId, topics })),
+          create: userIds.map((userId) => ({ userId, topics: topics ?? [] })),
         },
       },
       include: {
@@ -67,18 +72,16 @@ export class TaskService {
         if (!user?.email) continue;
 
         const emailParams = {
-          CompanyName: user.company?.name || 'Your Company',
-          FirstName: user.first_name,
-          LastName: user.last_name || '',
+          firstName: user.first_name,
           CompanyAdminName: assignedByName,
-          CompanyAdminEmailAddress: assignedByEmail,
-          TaskName: taskName,
           AssessmentName: assessmentName,
+          TaskName: taskName,
           DueDate: new Date(dueDate).toDateString(),
           TaskLink: `${process.env.FRONTEND_URL}/assessments/tasks`,
+          CompanyAdminEmailAddress: assignedByEmail,
         };
 
-        await this.emailService.sendEmail(user.email, emailParams, 10);
+        await this.emailService.sendEmail(user.email, emailParams, 18);
       }
     }
 
@@ -232,8 +235,21 @@ export class TaskService {
             company: { select: { id: true, name: true } },
           },
         },
-        assignments: true,
+        assignments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+                company: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
       },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -258,12 +274,14 @@ export class TaskService {
                 id: true,
                 first_name: true,
                 last_name: true,
+                email: true,
                 company: { select: { id: true, name: true } },
               },
             },
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -299,5 +317,65 @@ export class TaskService {
 
     if (!task) throw new NotFoundException('Task not found');
     return task;
+  }
+
+  async editTask(taskId: number, dto: EditTaskDto, editedById: number) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { assignments: { include: { user: true } } },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const updatedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        taskName: dto.taskName ?? task.taskName,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
+      },
+      include: { assignments: true },
+    });
+
+    if (dto.userIds && dto.userIds.length > 0) {
+      await this.prisma.taskAssignment.deleteMany({ where: { taskId } });
+      await this.prisma.taskAssignment.createMany({
+        data: dto.userIds.map((userId) => ({
+          taskId,
+          userId,
+          topics: dto.topics || [],
+        })),
+      });
+    }
+
+    await this.activitiesService.logActivity({
+      companyId: task.assignments[0]?.user?.companyId ?? undefined,
+      createdById: editedById,
+      title: `Edited task: ${updatedTask.taskName}`,
+      description: `Task details updated`,
+      type: 'task',
+    });
+
+    return updatedTask;
+  }
+
+  async addComment(taskId: number, dto: AddTaskCommentDto) {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const newComment = await this.prisma.taskComment.create({
+      data: {
+        taskId,
+        commenter: dto.commenter,
+        comment: dto.comment,
+      },
+    });
+
+    return newComment;
+  }
+
+  async getComments(taskId: number) {
+    return this.prisma.taskComment.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

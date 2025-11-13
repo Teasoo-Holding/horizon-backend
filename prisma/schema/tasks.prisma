@@ -15,6 +15,7 @@ model Task {
     createdBy   User             @relation("CreatedTasks", fields: [createdById], references: [id])
     createdById Int
     assignments TaskAssignment[]
+    comments    TaskComment[]
     createdAt   DateTime         @default(now())
     updatedAt   DateTime         @updatedAt
 }
@@ -29,4 +30,15 @@ model TaskAssignment {
     createdAt DateTime @default(now())
 
     @@map("task_assignments")
+}
+
+model TaskComment {
+    id        Int      @id @default(autoincrement())
+    task      Task     @relation(fields: [taskId], references: [id])
+    taskId    Int
+    commenter String
+    comment   String
+    createdAt DateTime @default(now())
+
+    @@map("task_comments")
 }
