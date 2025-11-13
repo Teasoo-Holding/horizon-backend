@@ -3,6 +3,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { CreateTargetData } from "./dto/create-target.dto";
 import { UpdateGeneralTargetData, UpdateScopeTargetData, UpdateTargetData } from "./dto/update-target.dto";
 import { TargetResponseDto } from './dto/target-response.dto';
+import { scope1EmissionSum, sumAllValues } from './lib/compute';
 
 @Injectable()
 export class TargetService {
@@ -27,7 +28,7 @@ export class TargetService {
   }
   
   // Check if assessment has required data
-  if (!baselineData.startYear || baselineData.totalSum === null) {
+  if (!baselineData.startYear || baselineData.totals?.total === null) {
     throw new BadRequestException(
       'Your assessment must have a valid start year and emissions data before setting a target'
     );
@@ -307,7 +308,7 @@ export class TargetService {
   }
 
 
-  async getCompanyLatestTarget(companyId: number): Promise<any> {  // Changed to TargetResponseDto[]
+  async getCompanyLatestTarget(companyId: number): Promise<any> {
     const target = await this.prisma.target.findFirst({
       where: { companyId },
       include: {
@@ -394,12 +395,14 @@ async getBaselineValue(companyId: number) {
   const { startYear, endYear, assessmentData } = baseline as any;
 
   // Extract the total sum if it exists
-  const totalSum = assessmentData?.totals?.totals?.sum ?? null;
+ 
+ 
+  const totals = assessmentData?.__computed?.scopeTotals
 
   return {
     startYear,
     endYear,
-    totalSum,
+    totals,
   };
 }
 
