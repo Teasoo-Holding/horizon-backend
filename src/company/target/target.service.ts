@@ -66,9 +66,9 @@ export class TargetService {
         generalTarget: {
           create: {
             reductionPercentage: data.reductionPercentage,
-            // baselineYearEmission: data.baselineYearEmission,
-            // targetEmission: data.targetEmission,
-            // currentEmission: data.currentEmission
+            baselineYearEmission: data.baselineYearEmission,
+            targetEmission: data.targetEmission,
+            currentEmission: data.currentEmission
           },
         },
       },
