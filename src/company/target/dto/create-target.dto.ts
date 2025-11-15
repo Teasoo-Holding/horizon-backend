@@ -107,7 +107,45 @@ export class BaseTargetDto {
   targetYear: number;
 }
 
-export class CreateGeneralTargetDto extends BaseTargetDto {
+// Use ApiProperty on all properties for CreateGeneralTargetDto
+export class CreateGeneralTargetDto {
+  @ApiProperty({
+    description: 'Name of the target',
+    example: '2030 Net Zero Target',
+  })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({
+    description: 'Description of the target',
+    example: 'Overall company emissions reduction target for 2030',
+  })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({
+    description: 'Baseline year for emissions calculation',
+    example: 2024,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  baselineYear: number;
+
+  @ApiProperty({
+    description: 'Target year for emissions reduction',
+    example: 2030,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  targetYear: number;
+
   @ApiProperty({
     description: 'Type of target',
     enum: ['GENERAL'],
@@ -152,7 +190,44 @@ export class CreateGeneralTargetDto extends BaseTargetDto {
   currentEmission?: number;
 }
 
-export class CreateScopeTargetDto extends BaseTargetDto {
+export class CreateScopeTargetDto {
+  @ApiProperty({
+    description: 'Name of the target',
+    example: 'Scope-based Reduction Target',
+  })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({
+    description: 'Description of the target',
+    example: 'Scope-specific emissions reduction targets',
+  })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({
+    description: 'Baseline year for emissions calculation',
+    example: 2024,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  baselineYear: number;
+
+  @ApiProperty({
+    description: 'Target year for emissions reduction',
+    example: 2030,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  targetYear: number;
+
   @ApiProperty({
     description: 'Type of target',
     enum: ['SCOPE'],
