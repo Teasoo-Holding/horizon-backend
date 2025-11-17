@@ -390,6 +390,16 @@ export class TargetService {
           });
         })
       );
+    } else {
+      return this.prisma.generalTarget.update({
+        where: {
+          targetId: target?.id
+        },
+        data: {
+          currentEmission: assessmentRoute?.sum,
+          
+        },
+      })
     }
 
 
@@ -432,34 +442,34 @@ export class TargetService {
    * Format the target response to match our DTO
    */
   private formatTargetResponse(target: any): TargetResponseDto {
-    return {
-      id: target.id,
-      companyId: target.companyId,
-      name: target.name,
-      type: target.type,
-      createdById: target.createdById,
-      description: target.description,
-      baselineYear: target.baselineYear,
-      targetYear: target.targetYear,
-      generalTarget: target.generalTarget ? {
-        id: target.generalTarget.id,
-        reductionPercentage: target.generalTarget.reductionPercentage,
-        targetEmission: target.generalTarget.targetEmission,
-        baselineYearEmission: target.baselineYearEmission,
-        currentEmission: target.currentEmission
-      } : undefined,
-      scopeTargets: target.scopeTargets?.map((scope: any) => ({
-        id: scope.id,
-        scope: scope.scope,
-        reductionPercentage: scope.reductionPercentage,
-        targetEmission: scope.targetEmission,
-        baselineYearEmission: scope.baselineYearEmission,
-        currentEmission: scope.currentEmission
-      })),
-      createdAt: target.createdAt,
-      updatedAt: target.updatedAt,
-    };
-  }
+  return {
+    id: target.id,
+    companyId: target.companyId,
+    name: target.name,
+    type: target.type,
+    createdById: target.createdById,
+    description: target.description,
+    baselineYear: target.baselineYear,
+    targetYear: target.targetYear,
+    generalTarget: target.generalTarget ? {
+      id: target.generalTarget.id,
+      reductionPercentage: target.generalTarget.reductionPercentage || 0,
+      targetEmission: target.generalTarget.targetEmission || 0,
+      baselineYearEmission: target.generalTarget.baselineYearEmission || 0,
+      currentEmission: target.generalTarget.currentEmission || null
+    } : undefined,
+    scopeTargets: target.scopeTargets?.map((scope: any) => ({
+      id: scope.id,
+      scope: scope.scope,
+      reductionPercentage: scope.reductionPercentage || 0,
+      targetEmission: scope.targetEmission || 0,
+      baselineYearEmission: scope.baselineYearEmission || 0,
+      currentEmission: scope.currentEmission || null
+    })),
+    createdAt: target.createdAt,
+    updatedAt: target.updatedAt,
+  };
+}
 
   async getBaselineValue(companyId: number) {
     const baseline = await this.prisma.assessment.findFirst({
