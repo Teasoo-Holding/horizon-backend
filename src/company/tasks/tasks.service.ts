@@ -210,6 +210,7 @@ export class TaskService {
     const task = await this.prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
+    await this.prisma.taskComment.deleteMany({ where: { taskId }});
     await this.prisma.taskAssignment.deleteMany({ where: { taskId } });
     await this.prisma.task.delete({ where: { id: taskId } });
 

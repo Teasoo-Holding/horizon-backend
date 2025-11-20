@@ -7,11 +7,12 @@ import { ReportModule } from '../report/report.module';
 import { ActivitiesService } from 'src/activities/activities.service';
 import { EmailModule } from 'src/email/email.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { AssessmentCalculatorService } from './assessment-calculator.service';
 
 @Module({
   imports: [PrismaModule, ComputationModule, ReportModule, EmailModule, TasksModule],
   controllers: [AssessmentController],
-  providers: [AssessmentService, ActivitiesService],
+  providers: [AssessmentService, ActivitiesService, AssessmentCalculatorService],
   exports: [AssessmentService],
 })
 export class AssessmentModule {}
