@@ -27,33 +27,6 @@ export class AssessmentCalculatorService {
     private scope3: Scope3ComputationService,
   ) {}
 
-  private EXPECTED = {
-    environment: {
-      ghg: {
-        scope1: {
-          stationarySources: {
-            electricityHeat: 2,
-            industrialProcess: 3,
-            oilGasOperations: 4,
-          },
-          mobileSources: {
-            roadTransport: 4,
-            vehicleEquipment: 6,
-            marineAviation: 4,
-          },
-          processEmissions: {
-            cementManufacturing: 2,
-            gasFlaring: 2,
-          },
-          fugitiveEmissions: {
-            ventingNaturalGas: 1,
-            hfcLeaks: 3,
-          },
-        },
-      },
-    },
-  };
-
   async recalculate(raw: any): Promise<{
     data: AssessmentData;
     scopeTotals: {
@@ -90,17 +63,27 @@ export class AssessmentCalculatorService {
         breakdown.stationarySources = result;
         this.calculateFormProgress(group.electricityHeat, 2);
       }
-      if (group.industrialProcess) {
-        this.calculateFormProgress(group.industrialProcess, 3);
+      if (group.industrialProcess?.boilerFurnaces?.length > 0) {
+        const dto = this.mapStationarySources(group);
+        const result = await this.scope1.stationarySources(dto);
+        group.industrialProcess.totalEmission = result.sum;
+        group.totalEmission += result.sum;
+        scope1Total += result.sum;
+        this.calculateFormProgress(group.industrialProcess, 1);
       }
-      if (group.oilGasOperations) {
-        this.calculateFormProgress(group.oilGasOperations, 4);
+      if (group.oilGasOperations?.onShoreProduction?.length > 0) {
+        const dto = this.mapStationarySources(group);
+        const result = await this.scope1.stationarySources(dto);
+        group.oilGasOperations.totalEmission = result.sum;
+        group.totalEmission += result.sum;
+        scope1Total += result.sum;
+        this.calculateFormProgress(group.oilGasOperations, 1);
       }
 
       this.calculateGroupProgress(
         group,
         ['electricityHeat', 'industrialProcess', 'oilGasOperations'],
-        [2, 3, 4],
+        [2, 1, 1],
       );
     }
 

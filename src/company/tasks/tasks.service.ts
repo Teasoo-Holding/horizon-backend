@@ -12,6 +12,7 @@ import {
   EditTaskDto,
   ReassignTaskDto,
 } from './dto/task.dto';
+import { TaskStatus } from '@prisma/client';
 
 @Injectable()
 export class TaskService {
@@ -149,7 +150,7 @@ export class TaskService {
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },
-      data: { status: 'rejected' },
+      data: { status: TaskStatus.declined },
     });
 
     await this.activitiesService.logActivity({

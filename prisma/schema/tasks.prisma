@@ -3,7 +3,7 @@ enum TaskStatus {
     in_progress
     completed
     approved
-    rejected
+    declined
     on_hold
 }
 
