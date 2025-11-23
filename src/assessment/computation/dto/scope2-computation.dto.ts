@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsOptional } from 'class-validator';
 
 export class LocationBasedEmissionDto {
+  // 1. Purchased electriciy
   @ApiProperty({
     description: 'Total electricity consumed in kilowatt-hours (kWh)',
     example: 100000,
@@ -17,6 +18,7 @@ export class LocationBasedEmissionDto {
   @IsOptional()
   electiricity_emission_factor?: number;
 
+  // 2. Purchased Cooling
   @ApiProperty({
     description: 'Amount of purchased cooling energy consumed',
   })
@@ -32,6 +34,7 @@ export class LocationBasedEmissionDto {
   @IsOptional()
   amt_of_c_emission_factor?: number;
 
+  // 3/ Purchased Steam
   @ApiProperty({
     description: 'Total steam consumed (tonnes)',
   })
@@ -46,6 +49,7 @@ export class LocationBasedEmissionDto {
   @IsOptional()
   total_steam_consumed_factor?: number;
 
+  // 4. Purchased Heating
   @ApiProperty({
     description: 'Total Purchased heating energy consumed (Gigajoules)',
   })
@@ -102,4 +106,3 @@ export class MarketBasedEmissionDto {
   @IsOptional()
   coolingsteam_emission_factor?: number;
 }
-
