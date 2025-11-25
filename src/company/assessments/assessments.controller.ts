@@ -175,7 +175,7 @@ export class AssessmentController {
     return { message: 'Assessment approved successfully.', data: assessment };
   }
 
-  @Post(':id/reject')
+  @Post(':id/decline')
   @HttpCode(HttpStatus.OK)
   async rejectAssessment(
     @Req() req: CustomRequest,
@@ -191,10 +191,10 @@ export class AssessmentController {
     }
 
     if (!rejectionReason || rejectionReason.trim().length === 0) {
-      throw new BadRequestException('Rejection reason is required.');
+      throw new BadRequestException('Reason for declining is required.');
     }
 
-    const assessment = await this.assessmentService.rejectAssessment(
+    const assessment = await this.assessmentService.declineAssessment(
       companyId,
       currentUserId,
       id,

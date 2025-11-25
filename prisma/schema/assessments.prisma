@@ -34,4 +34,5 @@ enum AssessmentStatus {
   submitted_approved
   approved
   unapproved_rejected
+  declined
 }

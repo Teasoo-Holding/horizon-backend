@@ -139,7 +139,7 @@ export class AssessmentService {
     if (lastSavedForm) {
       currentData.lastSavedForm = lastSavedForm;
     }
-    
+
     const result = await this.calculator.recalculate(currentData);
     const recalculated = result.data as any; // ← THIS LINE FIXES THE ERROR
     const scopeTotals = result.scopeTotals;
@@ -243,7 +243,7 @@ export class AssessmentService {
     });
   }
 
-  async rejectAssessment(
+  async declineAssessment(
     companyId: number,
     currentUserId: number,
     assessmentId: number,
@@ -279,7 +279,7 @@ export class AssessmentService {
     return this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
-        status: AssessmentStatus.unapproved_rejected,
+        status: AssessmentStatus.declined,
         updated_by: currentUserId,
         rejection_reason: rejectionReason,
       },
