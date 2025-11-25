@@ -1,0 +1,144 @@
+// i want us to do a major refactoring to how we are handling our assessment in my ESG app.
+// first i will start by sharing the assessment model
+id               Int               @id @default(autoincrement())
+subsidiary       String
+status           AssessmentStatus  @default(in_progress)
+createdAt        DateTime          @default(now())
+updatedAt        DateTime          @updatedAt
+assessmentData   Json
+companyId        Int
+created_by       Int?
+endMonth         String
+endYear          String
+startMonth       String
+startYear        String
+updated_by       Int?
+rejection_reason String?
+reviewedAt       DateTime?
+reviewed_by      Int?
+company          Company           @relation(fields: [companyId], references: [id])
+creator          User?             @relation("CreatedAssessment", fields: [created_by], references: [id])
+reviewer         User?             @relation("ReviewedAssessment", fields: [reviewed_by], references: [id])
+updater          User?             @relation("UpdatedAssessment", fields: [updated_by], references: [id])
+DisclosureTopic  DisclosureTopic[]
+report           Report?
+  
+  
+// this is my expectation for how we should structure our assessment records:
+id,
+company: {name},
+subsidiary: {name},
+status,
+createdAt (normal default),
+updatedAt (normal default),
+created_by: {name},
+startMonth,
+startYear,
+endMonth,
+endYear,
+updated_by: {name},
+rejection_reason,
+reviewed_by: {name},
+reviewedAt (normal default),
+assessmentData: {
+    topEmissionSources: {
+        // top 5 emission sources, this will be sent from the frontend
+    },
+    dataCount: {
+        expected: number, // total number of metrics (fields) across the entire possible assessment (i.e. across all pillars)
+        count: number,  // count of all metrics (i.e. fields) that a user save/submitted. we need to decide if we'll count on the frontend or in the backend service
+    },
+    overallProgress (percentage), // to be calculated from percentages of each pillars/scopes (i.e. subtopics)
+    totalEmission: number, // number (total calculation for each subtopic)
+    environment: { // this is the pillar we are handling for this v1
+        // environment pillar has 3 topics, greenhouse gas emission, water management, air quality and biodiversity,
+        // each topic has subtopics, which can be called anything, but for ghg it is scope1, scope2 and scope3
+        dataCount: {
+            expected, // total expected fields to fill for all forms for this pillar
+            count, // for this pillar
+        },
+        progress (percentage), // for this pillar, comes from the frontend
+        totalEmission: // number (total calculation for each subtopic)
+        ghg: {
+            dataCount: {
+                expectedCount, // for ghg
+                count, // what was filled under ghg
+            },
+            progress (percentage), // total percent combination for ghg subtopics/scopes
+            totalEmission: // for ghg
+            scope1: {
+                dataCount: {
+                    expectedCount: // for scope 1 groups of forms
+                    count: // what was actually filled and saved/submitted
+                },
+                progress: // percent for this scope 1, which will be percentages for all the form groups under scope 1 - i call the form groups because they are made up of form steps in different files, and each form step can be saved, but the submit is at the last form of the group, but note that submission is done in each form group's last form, but that doesn't mean the asessment taking is over as the user can navigate after submitting to submit more groups and it all adds into the assessmentData,
+                percent contribution to overall progress, // i.e. how many percent is the scope1 part of the overallProgress of the assessmentData,
+                percent contribution to its pillar (i.e. environment),
+                percent contribution to its topic (i.e. ghg),
+                totalEmission: number, // for scope1 i.e. total of each groups
+                stationarySources: { // now this is one forms group
+                    dataCount: {
+                        expectedCount: // for stationary sources 3 forms
+                        count: // what was actually filled and saved/submitted
+                    },
+                    progress: // percent for stationary sources forms, also comes from the frontned
+                    electricityHeat: { // now this is the actual form, that has 2 compulsory fields to fill
+                        // field1 - when I share the frontend you will get better idea on the metric fields are
+                        // field2
+                    },
+                    industrialProcess: {
+
+                    },
+                    oilGasOperations: {
+
+                    }
+                },
+                mobileSources: { // another group
+
+                },
+                processEmissions: { // third group
+
+                },
+                fugitiveEmissions: { // and last group of scope one
+
+                },
+            },
+            scope2: {
+
+            },
+            scope3: {
+            },
+        },
+        airQuality: {
+            // can be empty, we only handle ghg under this environment pillar in this v1
+        },
+        waterManagement: {
+            // can be empty too
+        },
+        biodiversityImpact: {
+            // can be empty too
+        },
+    },
+    social: {
+        // can be empty for now, we'll just return to indicate data is coming in next version
+    }, 
+    governance: {
+        // can be empty for now too
+    },
+}
+
+// now we could send in most of these from the frontend, or calculate some (or all we can) in the frontend, i will share the backend and frontend codes then we decide the way to go.
+// also some additional requirements are - we shouldn't have more than one assessment for the same duration, i.e. the start and end month and years cannot be same with another assessment record, so let us handle that in the endpoint as well, if a user tries this, we tell them something along the lines of: "Assessment for this period already exists, continue it or delete and start a new one for same period"..
+// note that in our frontend, even though this is how the backend expects that data.. but we submit in groups within the subtopics.. but more on this when we get to the frontend, 
+// the first task now is to see what we need to touch/align so our backend handles this smoothly
+// the good thing is our assessmentData is json, so it should be able to handle this, but we need to make sure we are passing our data in the specific structure we want
+// another good thing is many of the dataCount and progress is calculation from the child upwards to each parent, if you get what I mean
+
+// now i will share the backend dto, controller and services for this, we are using NestJs.
+
+
+
+=====================
+11. Progress towards target(in percentage) // kc
+12. Baseline emission, current emission and target emission
+13. Top 5 emission sources with their scope, total emission, name of the source.

@@ -13,10 +13,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AssessmentService } from './assessments.service';
-import { AssessmentPayloadDto } from './dto/assessment.dto';
 import { Request } from 'express';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { PartialAssessmentPayloadDto } from './dto/partial-assessment-payload.dto';
 
 interface CustomRequest extends Request {
   user: {
@@ -31,6 +32,66 @@ interface CustomRequest extends Request {
 @UseGuards(JwtRolesGuard)
 export class AssessmentController {
   constructor(private readonly assessmentService: AssessmentService) {}
+
+  @Post()
+  async createAssessment(
+    @Req() req: CustomRequest,
+    @Body() dto: CreateAssessmentDto,
+  ) {
+    const { companyId, id: userId } = req.user;
+    const assessment = await this.assessmentService.createAssessment(
+      companyId,
+      userId,
+      dto,
+    );
+    return { data: assessment };
+  }
+
+  @Post(':id/save')
+  async saveProgress(
+    @Req() req: CustomRequest,
+    @Param('id') idStr: string,
+    @Body() payload: PartialAssessmentPayloadDto,
+  ) {
+    const companyId = req.user.companyId;
+    const userId = req.user.id;
+    const assessmentId = this.parseId(idStr);
+
+    const assessment = await this.assessmentService.saveProgress(
+      companyId,
+      userId,
+      assessmentId,
+      payload,
+    );
+
+    return { message: 'Progress saved', data: assessment };
+  }
+
+  @Post(':id/submit')
+  async submitGroup(
+    @Req() req: CustomRequest,
+    @Param('id') idStr: string,
+    @Body() body: { lastSavedForm?: string },
+  ) {
+    const companyId = req.user.companyId;
+    const userId = req.user.id;
+    const assessmentId = this.parseId(idStr);
+
+    const result = await this.assessmentService.submitGroup(
+      companyId,
+      userId,
+      assessmentId,
+      body.lastSavedForm,
+    );
+
+    return {
+      message: 'Group submitted',
+      assessment: result.assessment,
+      scopeTotals: result.scopeTotals,
+      progress: result.progress,
+      totals: result.totals,
+    };
+  }
 
   @Get()
   async getAssessments(@Req() req: CustomRequest) {
@@ -57,72 +118,6 @@ export class AssessmentController {
     );
 
     return { data: assessment };
-  }
-
-  @Post(['save', 'save/:id'])
-  @HttpCode(HttpStatus.OK)
-  async saveAssessment(
-    @Req() req: CustomRequest,
-    @Param('id') assessmentId: string | undefined,
-    @Body() data: AssessmentPayloadDto,
-  ) {
-    const companyId = req.user.companyId;
-    const currentUserId = req.user.id;
-
-    let id: number | null = null;
-    if (assessmentId) {
-      id = parseInt(assessmentId, 10);
-      if (isNaN(id)) {
-        throw new BadRequestException('Invalid assessment ID provided.');
-      }
-    }
-
-    const assessment = await this.assessmentService.saveAssessment(
-      companyId,
-      currentUserId,
-      id,
-      data,
-    );
-
-    const message = id
-      ? 'Assessment data updated successfully.'
-      : 'New assessment created and saved successfully.';
-
-    return { message, data: assessment, assessmentId: assessment.id };
-  }
-
-  @Post(['submit', 'submit/:id'])
-  @HttpCode(HttpStatus.OK)
-  async submitAssessment(
-    @Req() req: CustomRequest,
-    @Param('id') assessmentId: string | undefined,
-    @Body() data: AssessmentPayloadDto,
-  ) {
-    const companyId = req.user.companyId;
-    const currentUserId = req.user.id;
-
-    let id: number | null = null;
-    if (assessmentId) {
-      id = parseInt(assessmentId, 10);
-      if (isNaN(id)) {
-        throw new BadRequestException('Invalid assessment ID provided.');
-      }
-    }
-
-    const result = await this.assessmentService.submitAssessment(
-      companyId,
-      currentUserId,
-      id,
-      data,
-    );
-
-    return {
-      message: 'Assessment submitted successfully.',
-      assessment: result.assessment,
-      scopeTotals: result.scopeTotals,
-      progress: result.progress,
-      totals: result.totals,
-    };
   }
 
   @Delete(':id')
@@ -180,7 +175,7 @@ export class AssessmentController {
     return { message: 'Assessment approved successfully.', data: assessment };
   }
 
-  @Post(':id/reject')
+  @Post(':id/decline')
   @HttpCode(HttpStatus.OK)
   async rejectAssessment(
     @Req() req: CustomRequest,
@@ -196,10 +191,10 @@ export class AssessmentController {
     }
 
     if (!rejectionReason || rejectionReason.trim().length === 0) {
-      throw new BadRequestException('Rejection reason is required.');
+      throw new BadRequestException('Reason for declining is required.');
     }
 
-    const assessment = await this.assessmentService.rejectAssessment(
+    const assessment = await this.assessmentService.declineAssessment(
       companyId,
       currentUserId,
       id,
@@ -207,5 +202,11 @@ export class AssessmentController {
     );
 
     return { message: 'Assessment rejected successfully.', data: assessment };
+  }
+
+  private parseId(idStr: string): number {
+    const id = parseInt(idStr, 10);
+    if (isNaN(id)) throw new BadRequestException('Invalid assessment ID');
+    return id;
   }
 }

@@ -12,6 +12,7 @@ import {
   EditTaskDto,
   ReassignTaskDto,
 } from './dto/task.dto';
+import { TaskStatus } from '@prisma/client';
 
 @Injectable()
 export class TaskService {
@@ -149,7 +150,7 @@ export class TaskService {
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },
-      data: { status: 'rejected' },
+      data: { status: TaskStatus.declined },
     });
 
     await this.activitiesService.logActivity({
@@ -210,6 +211,7 @@ export class TaskService {
     const task = await this.prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
+    await this.prisma.taskComment.deleteMany({ where: { taskId }});
     await this.prisma.taskAssignment.deleteMany({ where: { taskId } });
     await this.prisma.task.delete({ where: { id: taskId } });
 
