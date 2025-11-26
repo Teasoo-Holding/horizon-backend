@@ -156,7 +156,6 @@ export class CompanyService {
       const activities = await this.prisma.activities.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
-        // take: 5,
         select: {
           id: true,
           title: true,
@@ -201,35 +200,117 @@ export class CompanyService {
             ],
           },
         },
-        orderBy: { createdAt: 'asc' },
-        select: { createdAt: true, assessmentData: true },
+        orderBy: [{ startYear: 'asc' }, { startMonth: 'asc' }],
+        select: {
+          createdAt: true,
+          assessmentData: true,
+          startMonth: true,
+          startYear: true,
+          endMonth: true,
+          endYear: true,
+        },
       });
 
-      const monthlyMap = new Map<string, number | null>();
-      for (const a of reviewedAssessments) {
-        const created = a.createdAt as Date;
-        const monthKey = created.toISOString().slice(0, 7); // YYYY-MM
+      const parseMonthNumber = (m?: string | null): number | null => {
+        if (!m) return null;
+        const trimmed = m.trim();
+        const num = parseInt(trimmed, 10);
+        if (!isNaN(num) && num >= 1 && num <= 12) return num;
 
-        if (!monthlyMap.has(monthKey)) {
-          const totals = extractTotals(a);
-          const score =
-            totals?.sum ??
-            totals?.overall ??
-            totals?.total ??
-            totals?.esgTotal ??
-            null;
-          monthlyMap.set(monthKey, typeof score === 'number' ? score : null);
+        const short = trimmed.toLowerCase().slice(0, 3);
+        const map: Record<string, number> = {
+          jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+          jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+        };
+        return map[short] ?? null;
+      };
+
+      const pad = (n: number | null): string => {
+        if (n === null) return '--';
+        return n < 10 ? `0${n}` : `${n}`;
+      };
+
+      const formatYearTwoDigits = (y?: string | null, createdAt?: Date) => {
+        if (!y && createdAt) return createdAt.getFullYear().toString().slice(-2);
+        if (!y) return '--';
+        const yearNum = parseInt(y, 10);
+        if (!isNaN(yearNum)) return yearNum.toString().slice(-2);
+        return y.slice(-2);
+      };
+
+      const makePeriodKey = (
+        sMonth?: string | null,
+        sYear?: string | null,
+        eMonth?: string | null,
+        eYear?: string | null,
+        createdAt?: Date,
+      ) => {
+        const sm = parseMonthNumber(sMonth);
+        const em = parseMonthNumber(eMonth);
+        const sy = sYear ?? null;
+        const ey = eYear ?? null;
+
+        const startMM = sm ?? (createdAt ? createdAt.getMonth() + 1 : null);
+        const endMM = em ?? (createdAt ? createdAt.getMonth() + 1 : null);
+        const startYY = formatYearTwoDigits(sy, createdAt);
+        const endYY = formatYearTwoDigits(ey, createdAt);
+
+        return `${pad(startMM)}/${startYY} - ${pad(endMM)}/${endYY}`;
+      };
+
+      const periodMap = new Map<
+        string,
+        { score: number | null; sortDate: Date | null }
+      >();
+
+      for (const a of reviewedAssessments) {
+        const data = parseAssessmentData(a.assessmentData);
+        const totals = data?.totals?.totals ?? data?.totals ?? null;
+        const emissionFromAssessmentData =
+          data?.totalEmission ??
+          totals?.sum ??
+          totals?.overall ??
+          totals?.total ??
+          totals?.esgTotal ??
+          null;
+
+        const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
+        const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
+        const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
+
+        const periodKey = makePeriodKey(
+          a.startMonth,
+          a.startYear,
+          a.endMonth,
+          a.endYear,
+          a.createdAt as Date,
+        );
+
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, {
+            score:
+              typeof emissionFromAssessmentData === 'number'
+                ? emissionFromAssessmentData
+                : null,
+            sortDate,
+          });
+        } else {
+          const existing = periodMap.get(periodKey)!;
+          if (existing.score === null && typeof emissionFromAssessmentData === 'number') {
+            periodMap.set(periodKey, { score: emissionFromAssessmentData, sortDate });
+          }
         }
       }
 
-      const esgJourney = Array.from(monthlyMap.entries())
-        .map(([month, score]) => ({
-          month: new Date(`${month}-01`).toLocaleString('default', {
-            month: 'short',
-          }),
-          score,
-        }))
-        .sort((a, b) => (a.month < b.month ? -1 : 1));
+      const esgJourney = Array.from(periodMap.entries())
+        .map(([period, { score, sortDate }]) => ({ period, score, sortDate }))
+        .sort((a, b) => {
+          if (!a.sortDate && !b.sortDate) return 0;
+          if (!a.sortDate) return -1;
+          if (!b.sortDate) return 1;
+          return a.sortDate.getTime() - b.sortDate.getTime();
+        })
+        .map((p) => ({ period: p.period, score: p.score }));
 
       const totalAssessmentsCount = await this.prisma.assessment.count({
         where: { companyId },
