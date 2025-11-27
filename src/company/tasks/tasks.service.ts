@@ -22,6 +22,41 @@ export class TaskService {
     private activitiesService: ActivitiesService,
   ) {}
 
+  async getUserAssignedTasks(userId: number) {
+    return this.prisma.taskAssignment.findMany({
+      where: { userId },
+      select: {
+        task: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                company: { select: { id: true, name: true } },
+              },
+            },
+            assignments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    first_name: true,
+                    last_name: true,
+                    email: true,
+                    company: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        topics: true,
+      },
+      orderBy: { task: { createdAt: 'desc' } },
+    });
+  }
+
   async assignTask(dto: AssignTaskDto, assignedById: number) {
     const { taskName, dueDate, userIds, topics, sendEmail } = dto;
 
@@ -211,7 +246,7 @@ export class TaskService {
     const task = await this.prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
-    await this.prisma.taskComment.deleteMany({ where: { taskId }});
+    await this.prisma.taskComment.deleteMany({ where: { taskId } });
     await this.prisma.taskAssignment.deleteMany({ where: { taskId } });
     await this.prisma.task.delete({ where: { id: taskId } });
 

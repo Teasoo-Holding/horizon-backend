@@ -142,3 +142,36 @@ assessmentData: {
 11. Progress towards target(in percentage) // kc
 12. Baseline emission, current emission and target emission
 13. Top 5 emission sources with their scope, total emission, name of the source.
+
+========================
+
+
+I am currently working on handling assessment and computation for it.
+
+attached files are what we've done thus far for handling assessment submission and saving.
+
+our assessment is huge and growing, hence why we are even storing the assessment data as json, to accomodate much more data that will come later.
+
+we have mostly handled for ghg scope 1 and a bit of scope 2.
+
+your task is to expand our calculator/computation logic and dtos to handle other pillars.
+
+explanation of assessment data:
+
+1. the ESG assessment is made up of pillars, which are environment, social, and governance.
+
+2. each pillar has topics under it,
+2a. environment has ghg (greenhouse gas emissions), air quality, water management, biodiversity impact.
+2b. social pillar has
+2c. governance pillar has
+
+
+3. each topic has subtopics under them.
+3a i. for environment ghg, the subtopics are scope1, scope2, and scope3.
+3a ii. for environment air quality
+3a iii. for environment water management
+3a iv. for environment biodiversity impact
+3b. for social
+3c. for governance
+
+4. each suptopic has metrics (which are the form groups)
