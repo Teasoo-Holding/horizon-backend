@@ -35,6 +35,12 @@ interface CustomRequest extends Request {
 export class TaskController {
   constructor(private taskService: TaskService) {}
 
+  @Get('my-tasks')
+  @ApiOperation({ summary: 'Get all tasks assigned to the current user' })
+  getMyTasks(@Req() req: CustomRequest) {
+    return this.taskService.getUserAssignedTasks(req.user.id);
+  }
+
   @Post('assign')
   @Roles('company_esg_admin', 'super_admin')
   @ApiOperation({ summary: 'Assign a new task to users' })
