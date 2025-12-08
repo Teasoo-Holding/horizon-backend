@@ -21,13 +21,16 @@ model Task {
 }
 
 model TaskAssignment {
-    id        Int      @id @default(autoincrement())
-    task      Task     @relation(fields: [taskId], references: [id])
-    taskId    Int
-    user      User     @relation(fields: [userId], references: [id])
-    userId    Int
-    topics    String[]
-    createdAt DateTime @default(now())
+    id           Int         @id @default(autoincrement())
+    task         Task        @relation(fields: [taskId], references: [id])
+    taskId       Int
+    user         User        @relation(fields: [userId], references: [id])
+    userId       Int
+    topics       String[]
+    assessment   Assessment? @relation(fields: [assessmentId], references: [id])
+    assessmentId Int?
+    startedAt    DateTime?
+    createdAt    DateTime    @default(now())
 
     @@map("task_assignments")
 }

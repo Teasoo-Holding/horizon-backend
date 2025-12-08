@@ -21,6 +21,7 @@ model Assessment {
   updater          User?             @relation("UpdatedAssessment", fields: [updated_by], references: [id])
   DisclosureTopic  DisclosureTopic[]
   report           Report?
+  taskAssignments  TaskAssignment[]
 
   @@index([companyId])
   @@index([created_by])
