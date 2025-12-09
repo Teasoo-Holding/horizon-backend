@@ -26,9 +26,18 @@ export class ReportService {
         endYear: true,
         subsidiary: true,
         status: true,
+        report: {
+          select: {
+            progress: true,
+          }
+        }
       },
     });
-    return report;
+    return report.map(r => ({
+      ...r,
+      progress: r.report?.progress || 0,
+      report: undefined // Clean up
+    }));
   }
 
   async getAssessmentReport(id: number) {
@@ -159,6 +168,23 @@ export class ReportService {
     //   },
     // });
 
+    const targets = await this.prisma.target.findMany({
+      where: { companyId },
+      include: { scopeTargets: true, generalTarget: true }
+    });
+
+    const environmentDetails = {
+      ghg: {
+        total: report?.ghg_total_emissions ?? 0,
+        scope1: report?.ghg_scope_one ?? 0,
+        scope2: report?.ghg_scope_two ?? 0,
+        scope3: report?.ghg_scope_three ?? 0,
+      },
+      airQuality: parsedData?.environment?.airQuality,
+      waterManagement: parsedData?.environment?.waterManagement,
+      biodiversityImpact: parsedData?.environment?.biodiversityImpact,
+    };
+
     return {
       report,
       percentage_emission_summary: {
@@ -172,7 +198,18 @@ export class ReportService {
         breakdown,
       },
       fuel_mix_breakdown: chartData,
-      summary
+      summary,
+      environment_details: environmentDetails,
+      targets: targets.map(t => ({
+        name: t.name,
+        type: t.type,
+        baselineYear: t.baselineYear,
+        targetYear: t.targetYear,
+        reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
+        baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
+        current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
+        target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
+      }))
     };
   }
 }

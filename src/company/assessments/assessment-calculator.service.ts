@@ -4,6 +4,9 @@ import {
   Scope2Computation,
   Scope3ComputationService,
 } from 'src/assessment/computation/computation.service';
+import { AirQualityComputationService } from 'src/assessment/computation/air-quality.service';
+import { WaterComputationService } from 'src/assessment/computation/water.service';
+import { BiodiversityComputationService } from 'src/assessment/computation/biodiversity.service';
 
 interface AssessmentData {
   environment?: any;
@@ -25,7 +28,10 @@ export class AssessmentCalculatorService {
     private scope1: Scope1ComputationService,
     private scope2: Scope2Computation,
     private scope3: Scope3ComputationService,
-  ) {}
+    private airQuality: AirQualityComputationService,
+    private water: WaterComputationService,
+    private biodiversity: BiodiversityComputationService,
+  ) { }
 
   async recalculate(raw: any): Promise<{
     data: AssessmentData;
@@ -38,7 +44,17 @@ export class AssessmentCalculatorService {
     topEmissionSources: any[];
   }> {
     const data = structuredClone(raw);
-    data.environment ??= { ghg: { scope1: {} } };
+    data.environment ??= {};
+    data.environment.ghg ??= { scope1: {} };
+
+    // Initialize new sections if missing
+    data.environment.airQuality ??= { airPollutantEmissions: {} };
+    data.environment.waterManagement ??= {
+      waterAndProducedWaterManagement: {},
+      hydraulicFracturingImpacts: {}
+    };
+    data.environment.biodiversityImpact ??= { environmentalManagement: {} };
+
     const ghg = data.environment.ghg!;
     ghg.scope1 ??= {
       stationarySources: {},
@@ -50,6 +66,7 @@ export class AssessmentCalculatorService {
     let scope1Total = 0;
     const breakdown: any = {};
 
+    // --- GHG Scope 1 Calculations ---
     if (this.hasData(ghg.scope1.stationarySources)) {
       const group = ghg.scope1.stationarySources;
       group.totalEmission = 0;
@@ -147,12 +164,66 @@ export class AssessmentCalculatorService {
     ghg.scope1.totalEmission = Number(scope1Total.toFixed(4));
     ghg.scope1.progress = this.calculateScope1Progress(ghg.scope1);
 
+    // --- Air Quality Calculations ---
+    if (data.environment.airQuality) {
+      const aq = data.environment.airQuality;
+      if (aq.airPollutantEmissions) {
+        const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
+        aq.airPollutantEmissions.calculated = result;
+        // Progress for Air Quality
+        this.calculateFormProgress(aq.airPollutantEmissions, 1); // Assuming 1 step
+      }
+    }
+
+    // --- Water Management Calculations ---
+    if (data.environment.waterManagement) {
+      const wm = data.environment.waterManagement;
+      // Subtopic 1: Water and Produced Water Management
+      if (wm.waterAndProducedWaterManagement) {
+        const sub = wm.waterAndProducedWaterManagement;
+        if (sub.freshwaterWithdrawals) {
+          sub.freshwaterWithdrawals.calculated = await this.water.computeFreshwaterWithdrawals(sub.freshwaterWithdrawals);
+          this.calculateFormProgress(sub.freshwaterWithdrawals, 4); // 4 steps
+        }
+        if (sub.producedWaterManagement) {
+          sub.producedWaterManagement.calculated = await this.water.computeProducedWaterManagement(sub.producedWaterManagement);
+          this.calculateFormProgress(sub.producedWaterManagement, 1); // 1 step
+        }
+      }
+      // Subtopic 2: Hydraulic Fracturing Impacts
+      if (wm.hydraulicFracturingImpacts) {
+        // Empty objects for now as per requirements, but we can init them
+        // wm.hydraulicFracturingImpacts.chemicalDisclosure = ...
+        // wm.hydraulicFracturingImpacts.waterQualityImpacts = ...
+      }
+    }
+
+    // --- Biodiversity Impact Calculations ---
+    if (data.environment.biodiversityImpact) {
+      const bio = data.environment.biodiversityImpact;
+      if (bio.environmentalManagement) {
+        const sub = bio.environmentalManagement;
+        if (sub.environmentalManagementPolicies) {
+          sub.environmentalManagementPolicies.calculated = await this.biodiversity.computeEnvironmentalManagementPolicies(sub.environmentalManagementPolicies);
+          this.calculateFormProgress(sub.environmentalManagementPolicies, 1);
+        }
+        if (sub.hydrocarbonSpills) {
+          sub.hydrocarbonSpills.calculated = await this.biodiversity.computeHydrocarbonSpills(sub.hydrocarbonSpills);
+          this.calculateFormProgress(sub.hydrocarbonSpills, 1);
+        }
+        if (sub.reservesInSensitiveAreas) {
+          sub.reservesInSensitiveAreas.calculated = await this.biodiversity.computeReservesInSensitiveAreas(sub.reservesInSensitiveAreas);
+          this.calculateFormProgress(sub.reservesInSensitiveAreas, 1);
+        }
+      }
+    }
+
     data.environment.totalEmission = Number(scope1Total.toFixed(4));
     data.totalEmission = Number(scope1Total.toFixed(4));
 
     data.topEmissionSources = this.deriveTop5(breakdown, scope1Total);
 
-    data.overallProgress = ghg.scope1.progress;
+    data.overallProgress = ghg.scope1.progress; // This might need to be updated to include other topics progress
 
     return {
       data,
