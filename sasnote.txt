@@ -218,3 +218,28 @@ NOW FOR THE REPORTS::::
 we also want to see our target information (for targets we set, returning the baseline, current, and target). then also (and this is the tricky part), we now need to return emissions from each metric form group (note that when we submit any group, there is an emission calculated for the forms within that metric group i.e., the total emission from each field filled within each step of a particular metric group, to use our ghg scope1 as example, stationarySources is one group, and within it we have forms/steps of electricityHeat, industrialProcess, and oilGasOperations.. and we submit at the last step and it shows us the total emissions for stationarySources - which is emission from the 3 steps. Get it? now with many other metric groups, the form steps may not have names like stationarySources does, instead we use step1, step2,etc.. like we have defined above.)
 
 Now do some magic.
+
+
+========================
+
+Generate a Token: Go to GitHub Settings → Developer Settings → Personal Access Tokens → Tokens (classic).
+
+Permissions: Select write:packages, read:packages, and delete:packages.
+
+Save as Secret: Go to your GitHub Repository → Settings → Secrets and Variables → Actions.
+
+Add a New Repository Secret:
+
+    Name: GH_PAT
+
+    Value: (Paste the token you just generated)
+
+
+*********
+Token Secret Placement
+
+    Recommendation: Since you are in an Organization, go to Organization Settings → Secrets and variables → Actions.
+
+    Add GH_PAT and COOLIFY_WEBHOOK there once.
+
+    Under "Repository access," select "All repositories". This way, you don't have to copy-paste them into every repo!
