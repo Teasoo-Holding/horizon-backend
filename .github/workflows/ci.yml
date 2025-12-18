@@ -1,25 +1,21 @@
-name: NestJS CI
+name: NestJS CI/CD
 
 on:
   push:
     branches:
       - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+      # Note: We only deploy to the server on 'main' push to keep things simple for the demo
 
 jobs:
-  build-and-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 20
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -35,8 +31,36 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:cov
 
-      - name: Generate coverage badge
-        run: npm run make-badge
+      # - name: Generate coverage badge  # Optional: Keep if you use it for the README
+      #   run: npm run make-badge
 
       - name: Build project
         run: npm run build
+
+      # --- DEPLOYMENT STEPS START HERE ---
+      
+      - name: Transfer Files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # We send: dist (code), package files, and prisma (for migrations)
+          source: "dist,package.json,package-lock.json,prisma"
+          target: "/var/www/esghorizon/backend"
+
+      - name: Start via PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/esghorizon/backend
+            npm install --production
+            # Apply database migrations
+            npx prisma migrate deploy
+            # Restart or Start the app
+            pm2 delete esg-backend || true
+            pm2 start dist/main.js --name "esg-backend"
+            pm2 save
