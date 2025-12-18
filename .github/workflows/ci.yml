@@ -45,6 +45,8 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 15m
           # We send: dist (code), package files, and prisma (for migrations)
           source: "dist,package.json,package-lock.json,prisma"
           target: "/var/www/esghorizon/backend"
