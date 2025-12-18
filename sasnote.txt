@@ -158,20 +158,179 @@ your task is to expand our calculator/computation logic and dtos to handle other
 
 explanation of assessment data:
 
+====================================
+
+We have contracted you, a senior technical leader to expand and improve our assessment and report service. including targets.
+What we want now is to expand the assessment service (and computation/calculations) and also the report endpoints.
+
 1. the ESG assessment is made up of pillars, which are environment, social, and governance.
+For this MVP, we are only working on environment pillar.
 
 2. each pillar has topics under it,
 2a. environment has ghg (greenhouse gas emissions), air quality, water management, biodiversity impact.
-2b. social pillar has
-2c. governance pillar has
+
+3. each topic might or might not have subtopics under them.
+3a. for environment ghg, the subtopics: are scope1, scope2, and scope3.
+3b. for environment air quality has no subtopic, so it jumps to metric.
+3c. for environment water management the subtopics are: water and produced water management, hydraulic fracturing impacts.
+3d. for environment biodiversity impact the subtopic is: environmental management.
+
+4. each suptopic has metrics (which are basically the form groups i.e. groups of form steps from 1 to n)
+4a ghg scope 1 and 2 metric forms has already been handled in this codebase already, as you can see (e.g. stationary sources, mobile sources, tc.. location and market based too). So we will skip and do the rest.
+4b. for airQuality the metrics is: air pollutant emissions.
+4c. for water and waste management the metrics forms groups are: (for the 2 subtopics (3c above), subtopic 1 has freshwater withdrawals & consumption, produced water managemet. WHile subtopic 2 has Chemical disclosure, water quality impacts)
+4d. for biodiversityImpact the metrics forms groups are: (under the only subtopic, i.e. environmental management) - environmental management policies, hydrocarbon spills, reserves in sensitive areas.
 
 
-3. each topic has subtopics under them.
-3a i. for environment ghg, the subtopics are scope1, scope2, and scope3.
-3a ii. for environment air quality
-3a iii. for environment water management
-3a iv. for environment biodiversity impact
-3b. for social
-3c. for governance
+5. each metric has forms steps (obviosuly, we mentioned this alread) consisting of some compulsory fields:
+5a. (remember we have solved for ghg scope 1 and 2, so we will start wiht airQuality)
+5b. for air quality's air pollutant emissions, the  fields for each steps are:
+5b i. step1: { oxides of nitrogen: {volume: number, unit: string}, oxides of sulphur: {volume, unit}, volatic organic compounts: {v, u}, particulate matter: {v, u}} - thats all. then we submit here (and we can save too to come back and submit later).
+5c. for water and waste manegemnt:
+5c i. remember the first subtopic (i.e. water and produced water management) has freshwater withdrawals & consumption, produced water managemet.
+5c ii. freshwater withdrawals & consumption step1 fields: {withdrawal from surface water: {v, u}, Withdrawal from Groundwater: {v, u}, Withdrawal from Municipal & Other Sources: {v, u}, Total Water Consumed: {v, u}, Volume Withdrawn from Water-Stressed Regions: {v, u}}. then save or next. 
+step2 fields: {total produced water generated: {v, u}, volume discharged to surface: {v, u}, volune injected for Disposal: {v, u}, volume recycled/reused: {v, u}}. then save or next.
+step3 field (radio): {does your company operate hydraulically fractured wells during the reporting period?: yes, no}. if a user clicks no, then submit (no next step), but if a user clicks yes, then next step is more fields
+step4 (users reach this step if they choose yes): {number of wells with public disclosure of all chemicals: {v, u}, volume recycled/reused: {v, u}}. then submit.
 
-4. each suptopic has metrics (which are the form groups)
+5c iii. produced water managemet:
+For this, step1: total produced water, volume discharged to surface, volume injected for disposal, volume recycled/reused (each expecting a volume and unit to be filled) then submit for now (there are other steps, but we will add them after this is done).
+
+
+5c iv. remember the second subtopic (i.e. hydraulic fracturing impacts.) has Chemical disclosure, water quality impacts. this can submit empty objects for now.
+
+
+5d.lets move to biodiversity impact's metrics under the only subtopic:
+5d i. environment management policies step1: { is the environmental management system (ems) iso 14001 certified?: yes, no }, description of environmental management policies and practices: desc }. then next.
+ii. step2: {number of spills, total volumne spilled, volumne recovered from environment, volumne in arctic, volume impacting sensitive shorelines} each expecting volume and unit. then next.
+iii. step3: {total proved reserves, proved reserves in sensitive areas, total probable reserves, probable reserves in sesnsitive areas} each also volumen and unit. then submit.
+
+
+Extra note:
+- Each of the fields for users to fill (and image upload) are what we use to calculate percentage and count and expected count.
+- We have already handled computation for environment ghg scope 1 and 2 (we will add scope 3 later) for now we want to now expand our assessment data to include and make sure we capture the other topics for environment.
+
+======== END ASSESSMENT AND ENTER REPORT (WHICH WORKS WITH ASSESSMENT ANYWAY).
+
+NOW FOR THE REPORTS::::
+- endpoint to return all the list of reports for the user's company. this returns the report title, start and end durations, and status, and completed percentage of the assessments which each report has/is for.
+- endpoint to return the report details (which are from the assessments submitted), here we need totals for each pillar (i.e. total emissions for environment, total emissions for social, etc.. - but since we are only handling environment, then all the other pillars will simply return zero). then nested within the environment, we want to see total emissions for scope1, 2 and 3.
+we also want to see our target information (for targets we set, returning the baseline, current, and target). then also (and this is the tricky part), we now need to return emissions from each metric form group (note that when we submit any group, there is an emission calculated for the forms within that metric group i.e., the total emission from each field filled within each step of a particular metric group, to use our ghg scope1 as example, stationarySources is one group, and within it we have forms/steps of electricityHeat, industrialProcess, and oilGasOperations.. and we submit at the last step and it shows us the total emissions for stationarySources - which is emission from the 3 steps. Get it? now with many other metric groups, the form steps may not have names like stationarySources does, instead we use step1, step2,etc.. like we have defined above.)
+
+Now do some magic.
+
+
+========================
+
+Generate a Token: Go to GitHub Settings → Developer Settings → Personal Access Tokens → Tokens (classic).
+
+Permissions: Select write:packages, read:packages, and delete:packages.
+
+Save as Secret: Go to your GitHub Repository → Settings → Secrets and Variables → Actions.
+
+Add a New Repository Secret:
+
+    Name: GH_PAT
+
+    Value: (Paste the token you just generated)
+
+
+*********
+Token Secret Placement
+
+    Recommendation: Since you are in an Organization, go to Organization Settings → Secrets and variables → Actions.
+
+    Add GH_PAT and COOLIFY_WEBHOOK there once.
+
+    Under "Repository access," select "All repositories". This way, you don't have to copy-paste them into every repo!
+
+
+
+
+**********************
+
+# BE
+
+name: NestJS CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate --schema=./prisma/schema
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests with coverage
+        run: npm run test:cov
+
+      - name: Generate coverage badge
+        run: npm run make-badge
+
+      - name: Build project
+        run: npm run build
+
+
+
+# FE
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}

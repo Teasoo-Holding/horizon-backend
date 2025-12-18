@@ -4,6 +4,9 @@ import {
   Scope2Computation,
   Scope3ComputationService,
 } from 'src/assessment/computation/computation.service';
+import { AirQualityComputationService } from 'src/assessment/computation/air-quality.service';
+import { WaterComputationService } from 'src/assessment/computation/water.service';
+import { BiodiversityComputationService } from 'src/assessment/computation/biodiversity.service';
 
 interface AssessmentData {
   environment?: any;
@@ -25,7 +28,10 @@ export class AssessmentCalculatorService {
     private scope1: Scope1ComputationService,
     private scope2: Scope2Computation,
     private scope3: Scope3ComputationService,
-  ) {}
+    private airQuality: AirQualityComputationService,
+    private water: WaterComputationService,
+    private biodiversity: BiodiversityComputationService,
+  ) { }
 
   async recalculate(raw: any): Promise<{
     data: AssessmentData;
@@ -38,7 +44,17 @@ export class AssessmentCalculatorService {
     topEmissionSources: any[];
   }> {
     const data = structuredClone(raw);
-    data.environment ??= { ghg: { scope1: {} } };
+    data.environment ??= {};
+    data.environment.ghg ??= { scope1: {} };
+
+    // Initialize new sections if missing
+    data.environment.airQuality ??= { airPollutantEmissions: {} };
+    data.environment.waterManagement ??= {
+      waterAndProducedWaterManagement: {},
+      hydraulicFracturingImpacts: {}
+    };
+    data.environment.biodiversityImpact ??= { environmentalManagement: {} };
+
     const ghg = data.environment.ghg!;
     ghg.scope1 ??= {
       stationarySources: {},
@@ -50,6 +66,7 @@ export class AssessmentCalculatorService {
     let scope1Total = 0;
     const breakdown: any = {};
 
+    // --- GHG Scope 1 Calculations ---
     if (this.hasData(ghg.scope1.stationarySources)) {
       const group = ghg.scope1.stationarySources;
       group.totalEmission = 0;
@@ -147,20 +164,132 @@ export class AssessmentCalculatorService {
     ghg.scope1.totalEmission = Number(scope1Total.toFixed(4));
     ghg.scope1.progress = this.calculateScope1Progress(ghg.scope1);
 
-    data.environment.totalEmission = Number(scope1Total.toFixed(4));
-    data.totalEmission = Number(scope1Total.toFixed(4));
+    // --- GHG Scope 3 Calculations ---
+    let scope3Total = 0;
+    ghg.scope3 ??= { upstream: {}, downstream: {} };
 
-    data.topEmissionSources = this.deriveTop5(breakdown, scope1Total);
+    // Scope 3 Upstream
+    if (this.hasData(ghg.scope3.upstream)) {
+      const upstream = ghg.scope3.upstream;
+      const dto = this.mapUpstreamEmissions(upstream);
+      const result = await this.scope3.upstreamEmission(dto);
+      upstream.totalEmission = result.sum;
+      scope3Total += result.sum;
+      breakdown.upstreamEmissions = result;
 
-    data.overallProgress = ghg.scope1.progress;
+      // Progress tracking for upstream (8 categories)
+      this.calculateGroupProgress(
+        upstream,
+        [
+          'purchasedGoodsAndServices',
+          'capitalGoods',
+          'fuelEnergyRelatedActivities',
+          'upstreamTransportationDistribution',
+          'wasteGeneratedInOperations',
+          'businessTravel',
+          'employeeCommuting',
+          'upstreamLeasedAssets',
+        ],
+        [1, 1, 1, 1, 1, 1, 1, 1], // 1 field per category
+      );
+    }
+
+    // Scope 3 Downstream
+    if (this.hasData(ghg.scope3.downstream)) {
+      const downstream = ghg.scope3.downstream;
+      const dto = this.mapDownstreamEmissions(downstream);
+      const result = await this.scope3.downstreamEmission(dto);
+      downstream.totalEmission = result.sum;
+      scope3Total += result.sum;
+      breakdown.downstreamEmissions = result;
+
+      // Progress tracking for downstream (7 categories)
+      this.calculateGroupProgress(
+        downstream,
+        [
+          'downstreamTransportationDistribution',
+          'processingSoldProducts',
+          'useOfSoldProducts',
+          'endOfLifeTreatment',
+          'downstreamLeasedAssets',
+          'franchises',
+          'investments',
+        ],
+        [1, 1, 1, 1, 1, 1, 1], // 1 field per category
+      );
+    }
+
+    ghg.scope3.totalEmission = Number(scope3Total.toFixed(4));
+    ghg.scope3.progress = this.calculateScope3Progress(ghg.scope3);
+
+    // --- Air Quality Calculations ---
+    if (data.environment.airQuality) {
+      const aq = data.environment.airQuality;
+      if (aq.airPollutantEmissions) {
+        const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
+        aq.airPollutantEmissions.calculated = result;
+        // Progress for Air Quality
+        this.calculateFormProgress(aq.airPollutantEmissions, 1); // Assuming 1 step
+      }
+    }
+
+    // --- Water Management Calculations ---
+    if (data.environment.waterManagement) {
+      const wm = data.environment.waterManagement;
+      // Subtopic 1: Water and Produced Water Management
+      if (wm.waterAndProducedWaterManagement) {
+        const sub = wm.waterAndProducedWaterManagement;
+        if (sub.freshwaterWithdrawals) {
+          sub.freshwaterWithdrawals.calculated = await this.water.computeFreshwaterWithdrawals(sub.freshwaterWithdrawals);
+          this.calculateFormProgress(sub.freshwaterWithdrawals, 4); // 4 steps
+        }
+        if (sub.producedWaterManagement) {
+          sub.producedWaterManagement.calculated = await this.water.computeProducedWaterManagement(sub.producedWaterManagement);
+          this.calculateFormProgress(sub.producedWaterManagement, 1); // 1 step
+        }
+      }
+      // Subtopic 2: Hydraulic Fracturing Impacts
+      if (wm.hydraulicFracturingImpacts) {
+        // Empty objects for now as per requirements, but we can init them
+        // wm.hydraulicFracturingImpacts.chemicalDisclosure = ...
+        // wm.hydraulicFracturingImpacts.waterQualityImpacts = ...
+      }
+    }
+
+    // --- Biodiversity Impact Calculations ---
+    if (data.environment.biodiversityImpact) {
+      const bio = data.environment.biodiversityImpact;
+      if (bio.environmentalManagement) {
+        const sub = bio.environmentalManagement;
+        if (sub.environmentalManagementPolicies) {
+          sub.environmentalManagementPolicies.calculated = await this.biodiversity.computeEnvironmentalManagementPolicies(sub.environmentalManagementPolicies);
+          this.calculateFormProgress(sub.environmentalManagementPolicies, 1);
+        }
+        if (sub.hydrocarbonSpills) {
+          sub.hydrocarbonSpills.calculated = await this.biodiversity.computeHydrocarbonSpills(sub.hydrocarbonSpills);
+          this.calculateFormProgress(sub.hydrocarbonSpills, 1);
+        }
+        if (sub.reservesInSensitiveAreas) {
+          sub.reservesInSensitiveAreas.calculated = await this.biodiversity.computeReservesInSensitiveAreas(sub.reservesInSensitiveAreas);
+          this.calculateFormProgress(sub.reservesInSensitiveAreas, 1);
+        }
+      }
+    }
+
+    data.environment.totalEmission = Number((scope1Total + scope3Total).toFixed(4));
+    data.totalEmission = Number((scope1Total + scope3Total).toFixed(4));
+
+    data.topEmissionSources = this.deriveTop5(breakdown, scope1Total + scope3Total);
+
+    data.overallProgress = ghg.scope1.progress; // This might need to be updated to include other topics progress
 
     return {
       data,
       scopeTotals: {
         scope1: Number(scope1Total.toFixed(4)),
         scope2: 0,
-        scope3: 0,
-        total: Number(scope1Total.toFixed(4)),
+        scope3: Number(scope3Total.toFixed(4)),
+        total: Number((scope1Total + scope3Total).toFixed(4)),
       },
       topEmissionSources: data.topEmissionSources,
     };
@@ -304,6 +433,8 @@ export class AssessmentCalculatorService {
     add('scope1', 'mobileSources', breakdown.mobileSources || {});
     add('scope1', 'processEmissions', breakdown.processEmissions || {});
     add('scope1', 'fugitiveEmissions', breakdown.fugitiveEmissions || {});
+    add('scope3', 'upstreamEmissions', breakdown.upstreamEmissions || {});
+    add('scope3', 'downstreamEmissions', breakdown.downstreamEmissions || {});
 
     return sources
       .sort((a, b) => b.emission - a.emission)
@@ -403,5 +534,121 @@ export class AssessmentCalculatorService {
       value: Number(i.volume || i.energy_consumed || 0),
       emission_factor: Number(i.emissionFactor || i.emission_factor || 0),
     }));
+  }
+
+  private mapUpstreamEmissions(upstream: any) {
+    return {
+      total_amount_spent_on_goods_and_services: Number(
+        upstream.purchasedGoodsAndServices?.totalAmountSpent || 0,
+      ),
+      total_amount_spent_on_goods_and_services_ef: 0.45,
+      total_cost_of_capital_goods_purchased: Number(
+        upstream.capitalGoods?.totalCost || 0,
+      ),
+      total_cost_of_capital_goods_purchased_ef: 0.55,
+      volume_of_fuel_consumed: Number(
+        upstream.fuelEnergyRelatedActivities?.fuelVolume || 0,
+      ),
+      volume_of_fuel_consumed_ef: 0.55,
+      mass_of_goods_transported: Number(
+        upstream.upstreamTransportationDistribution?.massOfGoods || 0,
+      ),
+      distance_travelled: Number(
+        upstream.upstreamTransportationDistribution?.distance || 0,
+      ),
+      mass_of_goods_transported_ef: 0.1,
+      total_weight_of_waste_generated: Number(
+        upstream.wasteGeneratedInOperations?.wasteWeight || 0,
+      ),
+      total_weight_of_waste_generated_ef: 0.5,
+      total_distance_travelled: Number(upstream.businessTravel?.distance || 0),
+      total_distance_travelled_ef: 0.11,
+      total_number_of_flights_taken: Number(
+        upstream.businessTravel?.numberOfFlights || 0,
+      ),
+      total_number_of_employee_for_all_trips: Number(
+        upstream.businessTravel?.numberOfEmployees || 0,
+      ),
+      total_passenger_kilometers_travelled: Number(
+        upstream.businessTravel?.passengerKilometers || 0,
+      ),
+      total_passenger_kilometers_travelled_ef: 0.35,
+      number_of_employees_commuting: Number(
+        upstream.employeeCommuting?.numberOfEmployees || 0,
+      ),
+      average_distance_commuting: Number(
+        upstream.employeeCommuting?.averageDistance || 0,
+      ),
+      number_of_employees_commuting_ef: 0.2,
+      average_number_of_workdays_per_year: 250,
+      total_electricity_consumedby_leased_assets: Number(
+        upstream.upstreamLeasedAssets?.electricityConsumed || 0,
+      ),
+      total_electricity_consumedby_leased_assets_ef: 0.526,
+      total_fuel_consumedby_leased_assets: Number(
+        upstream.upstreamLeasedAssets?.fuelConsumed || 0,
+      ),
+      total_fuel_consumedby_leased_assets_ef: 2.68,
+    };
+  }
+
+  private mapDownstreamEmissions(downstream: any) {
+    return {
+      mass_of_products_sold: Number(
+        downstream.downstreamTransportationDistribution?.massOfProducts || 0,
+      ),
+      mass_of_products_sold_ef: 0.1,
+      number_of_unit_products_sold: Number(
+        downstream.useOfSoldProducts?.unitsSold || 0,
+      ),
+      expected_lifetime_of_the_product: Number(
+        downstream.useOfSoldProducts?.productLifetime || 0,
+      ),
+      average_annual_fuel_or_energy_consumption_of_product: Number(
+        downstream.useOfSoldProducts?.averageAnnualConsumption || 0,
+      ),
+      emission_factor_of_energy: 0.526,
+      end_of_life_treatments: downstream.endOfLifeTreatment?.treatments || [],
+      total_fuel_consumed_by_tennant: Number(
+        downstream.downstreamLeasedAssets?.fuelConsumed || 0,
+      ),
+      total_fuel_consumed_by_tennant_ef: 2.68,
+      total_electiricity_consumed_by_tennant: Number(
+        downstream.downstreamLeasedAssets?.electricityConsumed || 0,
+      ),
+      total_electiricity_consumed_by_tennant_ef: 0.526,
+      total_fuel_consumed_by_franchise: Number(
+        downstream.franchises?.fuelConsumed || 0,
+      ),
+      total_fuel_consumed_by_franchise_ef: 2.68,
+      total_electiricity_consumed_by_franchise: Number(
+        downstream.franchises?.electricityConsumed || 0,
+      ),
+      total_electiricity_consumed_by_franchise_ef: 0.526,
+      investment_equity_share: Number(downstream.investments?.equityShare || 0),
+      investment_reported_scope_1and2_of_portfolio_company: Number(
+        downstream.investments?.portfolioEmissions || 0,
+      ),
+    };
+  }
+
+  private calculateScope3Progress(scope3: any): number {
+    let totalProgress = 0;
+    let totalWeight = 0;
+
+    // Weight upstream and downstream equally
+    if (scope3.upstream?.progress != null) {
+      totalProgress += scope3.upstream.progress * 0.5;
+      totalWeight += 0.5;
+    }
+
+    if (scope3.downstream?.progress != null) {
+      totalProgress += scope3.downstream.progress * 0.5;
+      totalWeight += 0.5;
+    }
+
+    return totalWeight > 0
+      ? Number((totalProgress / totalWeight).toFixed(1))
+      : 0;
   }
 }
