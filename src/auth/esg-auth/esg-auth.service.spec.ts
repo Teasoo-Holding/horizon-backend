@@ -22,6 +22,18 @@ describe('EsgAuthService', () => {
             industry: { findUnique: jest.fn().mockResolvedValue({ id: 1, name: 'Energy' }) },
           },
         },
+        {
+          provide: 'EmailService',
+          useValue: {
+            sendEmail: jest.fn(),
+          },
+        },
+        {
+          provide: 'PhoneValidationService',
+          useValue: {
+            validatePhone: jest.fn().mockReturnValue(true),
+          },
+        },
       ],
     }).compile();
 

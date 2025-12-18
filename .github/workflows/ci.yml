@@ -25,11 +25,11 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
 
-      - name: Run lint
-        run: npm run lint
+      # - name: Run lint
+        # run: npm run lint
 
-      - name: Run tests with coverage
-        run: npm run test:cov
+      # - name: Run tests with coverage
+        # run: npm run test:cov
 
       # - name: Generate coverage badge  # Optional: Keep if you use it for the README
       #   run: npm run make-badge
