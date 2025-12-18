@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      # Note: We only deploy to the server on 'main' push to keep things simple for the demo
 
 jobs:
   build-test-deploy:
@@ -62,10 +61,10 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd /var/www/esghorizon/backend
-            npm install
+            # Now safe to use --omit=dev because Swagger is a main dependency
+            npm install --omit=dev
             npx prisma migrate deploy
             
-            # Use the 'src' subfolder path we just verified
             pm2 delete esg-backend || true
             PORT=3000 pm2 start dist/src/main.js --name "esg-backend"
             pm2 save
