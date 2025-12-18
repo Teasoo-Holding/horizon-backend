@@ -62,7 +62,7 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd /var/www/esghorizon/backend
-            npm install --production
+            npm install
             npx prisma migrate deploy
             
             # Use the 'src' subfolder path we just verified
