@@ -61,10 +61,10 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd /var/www/esghorizon/backend
-            # Now safe to use --omit=dev because Swagger is a main dependency
             npm install --omit=dev
             npx prisma migrate deploy
             
+            # Use the pre-loader to ensure the .env file is ALWAYS found
             pm2 delete esg-backend || true
-            PORT=3000 pm2 start dist/src/main.js --name "esg-backend"
+            PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
             pm2 save
