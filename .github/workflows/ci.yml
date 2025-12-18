@@ -58,12 +58,17 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # This line is the magic fix for "command not found"
-            source $HOME/.bashrc || source /etc/profile
+            # 1. Force the shell to find Node, NPM, and PM2
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd /var/www/esghorizon/backend
+            
+            # 2. Production setup
             npm install --production
             npx prisma migrate deploy
+            
+            # 3. Restart the engine
             pm2 delete esg-backend || true
             pm2 start dist/main.js --name "esg-backend"
             pm2 save
