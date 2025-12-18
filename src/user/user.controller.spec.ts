@@ -35,7 +35,8 @@ describe('UserController', () => {
 
   describe('getMe', () => {
     it('should return the currently authenticated user', async () => {
-      const result = await controller.getMe({ user: { userId: 1 } } as any);
+      const mockReq = { user: { id: 1, sub: 1 } } as any;
+      const result = await controller.getMe(mockReq);
       expect(result).toEqual({
         id: 1,
         email: 'test@example.com',
@@ -48,10 +49,8 @@ describe('UserController', () => {
   describe('updateMe', () => {
     it('should update and return the current user', async () => {
       const updateDto: UpdateUserDto = { first_name: 'Updated Name' };
-      const result = await controller.updateMe(
-        { user: { userId: 1 } } as any,
-        updateDto,
-      );
+      const mockReq = { user: { id: 1, sub: 1 } } as any;
+      const result = await controller.updateMe(mockReq, updateDto);
       expect(result).toEqual({
         id: 1,
         first_name: 'Updated Name',

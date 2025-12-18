@@ -33,13 +33,16 @@ describe('AuthController', () => {
   });
 
   it('should register a user', async () => {
-    const dto: RegisterDto = {
+    const dto = {
       email: 'test@example.com',
       password: 'password123',
       first_name: 'Jaga',
       last_name: 'Ban',
-      role: 'super_admin'
-    };
+      full_name: 'Jaga Ban',
+      phoneNumber: '08012345678',
+      company: 'TestCo',
+      role: 'super_admin',
+    } as any;
 
     const result = await controller.register(dto);
     expect(mockAuthService.register).toHaveBeenCalledWith(dto);
@@ -52,7 +55,11 @@ describe('AuthController', () => {
       password: 'password123',
     };
 
-    const result = await controller.login(dto);
+    const mockRes = {
+      cookie: jest.fn(),
+    } as any;
+
+    const result = await controller.login(dto, mockRes);
     expect(mockAuthService.login).toHaveBeenCalledWith(dto);
     expect(result).toEqual({ access_token: 'mock-token' });
   });

@@ -41,6 +41,12 @@ describe('SubsidiaryService', () => {
             get: jest.fn().mockReturnValue('http://frontend.test'),
           },
         },
+        {
+          provide: 'ActivitiesService',
+          useValue: {
+            logActivity: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
