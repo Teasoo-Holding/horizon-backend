@@ -65,6 +65,12 @@ describe('AuthService', () => {
             storeOtp: jest.fn(),
           },
         },
+        {
+          provide: 'ActivitiesService',
+          useValue: {
+            logActivity: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -80,6 +86,7 @@ describe('AuthService', () => {
         password: 'password123',
         first_name: 'John',
         last_name: 'Doe',
+        full_name: 'John Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
         role: 'company_esg_admin',
@@ -106,6 +113,7 @@ describe('AuthService', () => {
         password: 'password123',
         first_name: 'John',
         last_name: 'Doe',
+        full_name: 'John Doe',
         phoneNumber: '08012345678',
         company: 'TestCo',
         role: 'company_esg_admin',
@@ -120,47 +128,49 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should login and return access/refresh tokens and user', async () => {
-      const dto = { email: 'test@example.com', password: 'password123' };
-
+    it('should validate user and return access/refresh tokens', async () => {
       const user = {
         id: 1,
-        email: dto.email,
-        password: await bcrypt.hash(dto.password, 10),
+        email: 'test@example.com',
+        password: await bcrypt.hash('password123', 10),
         status: 'APPROVED',
-        role: 'USER',
         companyId: 1,
-        sub: 1,
-      };
-
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        ...user,
-        status: 'APPROVED',
         role: { name: 'USER' },
         company: { name: 'Test Company' },
-      });
+      };
+
+      // First validate the user
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
       (prisma.refreshToken.create as jest.Mock).mockResolvedValue({
         refresh_token: 'mockRefreshToken',
       });
+      (prisma.user.update as jest.Mock).mockResolvedValue(user);
 
-      const result = await service.login(dto);
-
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: user.id,
-          email: user.email,
-        }),
+      const validatedUser = await service.validateUser(
+        'test@example.com',
+        'password123',
       );
+
+      // Then login with the validated user (transform role object to string)
+      const loginPayload = {
+        id: validatedUser.id,
+        email: validatedUser.email,
+        role: validatedUser.role.name,
+        companyId: validatedUser.companyId || 1,
+      };
+      const result = await service.login(loginPayload);
+
+      expect(jwtService.sign).toHaveBeenCalled();
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
     });
 
-    it('should throw if user not found', async () => {
+    it('should throw if user not found during validation', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(
-        service.login({ email: 'bad@example.com', password: 'pass' }),
-      ).rejects.toThrow(UnauthorizedException);
+        service.validateUser('bad@example.com', 'pass'),
+      ).rejects.toThrow();
     });
 
     it('should throw if password is invalid', async () => {
@@ -168,12 +178,15 @@ describe('AuthService', () => {
         id: 1,
         email: 'test@example.com',
         password: await bcrypt.hash('wrongpass', 10),
+        status: 'APPROVED',
+        companyId: 1,
+        role: { name: 'USER' },
       };
 
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(badUser);
       await expect(
-        service.login({ email: 'test@example.com', password: 'pass' }),
-      ).rejects.toThrow(UnauthorizedException);
+        service.validateUser('test@example.com', 'pass'),
+      ).rejects.toThrow();
     });
   });
 

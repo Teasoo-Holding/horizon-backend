@@ -44,6 +44,7 @@ describe('AdminAuthService', () => {
     password: 'password123',
     first_name: 'John',
     last_name: 'Doe',
+    full_name: 'John Doe',
     phone_number: '1234567890',
     roleId: 2,
     departmentId: 1,
@@ -54,6 +55,7 @@ describe('AdminAuthService', () => {
     email: 'admin@example.com',
     first_name: 'Admin',
     last_name: 'User',
+    full_name: 'Admin User',
     phone_number: '0987654321',
     password: 'adminpass',
     roleId: 2,
@@ -111,18 +113,18 @@ describe('AdminAuthService', () => {
     });
 
     it('should register a new admin successfully', async () => {
-  // Mock findUnique to return null (user doesn't exist)
-  (prismaService.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
-  
-  // Mock create to return the new user
-  (prismaService.user.create as jest.Mock).mockResolvedValueOnce(mockUser);
-  
-  // Mock OTP and email services
-  (otpService.generateOtp as jest.Mock).mockReturnValueOnce('123456');
-  (otpService.storeOtp as jest.Mock).mockResolvedValueOnce(undefined);
-  (emailService.sendEmail as jest.Mock).mockResolvedValueOnce(undefined);
+      // Mock findUnique to return null (user doesn't exist)
+      (prismaService.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
 
-  const result = await service.registerAdmin(mockRegisterDto);
+      // Mock create to return the new user
+      (prismaService.user.create as jest.Mock).mockResolvedValueOnce(mockUser);
+
+      // Mock OTP and email services
+      (otpService.generateOtp as jest.Mock).mockReturnValueOnce('123456');
+      (otpService.storeOtp as jest.Mock).mockResolvedValueOnce(undefined);
+      (emailService.sendEmail as jest.Mock).mockResolvedValueOnce(undefined);
+
+      const result = await service.registerAdmin(mockRegisterDto);
 
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: mockRegisterDto.email },

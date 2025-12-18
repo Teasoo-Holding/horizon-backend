@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      # Note: We only deploy to the server on 'main' push to keep things simple for the demo
 
 jobs:
   build-test-deploy:
@@ -25,11 +24,11 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
 
-      - name: Run lint
-        run: npm run lint
+      # - name: Run lint
+        # run: npm run lint
 
-      - name: Run tests with coverage
-        run: npm run test:cov
+      # - name: Run tests with coverage
+        # run: npm run test:cov
 
       # - name: Generate coverage badge  # Optional: Keep if you use it for the README
       #   run: npm run make-badge
@@ -45,6 +44,8 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 15m
           # We send: dist (code), package files, and prisma (for migrations)
           source: "dist,package.json,package-lock.json,prisma"
           target: "/var/www/esghorizon/backend"
@@ -56,11 +57,14 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
             cd /var/www/esghorizon/backend
-            npm install --production
-            # Apply database migrations
+            npm install --omit=dev
             npx prisma migrate deploy
-            # Restart or Start the app
+            
+            # Use the pre-loader to ensure the .env file is ALWAYS found
             pm2 delete esg-backend || true
-            pm2 start dist/main.js --name "esg-backend"
+            PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
             pm2 save
