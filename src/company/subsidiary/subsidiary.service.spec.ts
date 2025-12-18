@@ -3,6 +3,7 @@ import { SubsidiaryService } from './subsidiary.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { ActivitiesService } from 'src/activities/activities.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('SubsidiaryService', () => {
@@ -42,7 +43,7 @@ describe('SubsidiaryService', () => {
           },
         },
         {
-          provide: 'ActivitiesService',
+          provide: ActivitiesService,
           useValue: {
             logActivity: jest.fn(),
           },
