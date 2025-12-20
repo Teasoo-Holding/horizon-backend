@@ -9,7 +9,7 @@ import { UpdateSubUserDto } from './dto/update-sub-user.dto';
 
 @Injectable()
 export class CompanyUsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async updateCompanyUser(
     editorUserId: number,
@@ -129,9 +129,28 @@ export class CompanyUsersService {
       orderBy: { createdAt: 'desc' },
     });
 
+    const userEmails = new Set(users.map((u) => u.email.toLowerCase()));
+    const filteredInvitations = invitations.filter(
+      (inv) => !userEmails.has(inv.email.toLowerCase()),
+    );
+
+    // Deduplicate invitations by email, keeping only the most recent one
+    const invitationsByEmail = new Map<string, typeof filteredInvitations[0]>();
+    for (const inv of filteredInvitations) {
+      const emailKey = inv.email.toLowerCase();
+      const existing = invitationsByEmail.get(emailKey);
+
+      // Keep the most recent invitation (highest createdAt)
+      if (!existing || new Date(inv.createdAt) > new Date(existing.createdAt)) {
+        invitationsByEmail.set(emailKey, inv);
+      }
+    }
+
+    const uniqueInvitations = Array.from(invitationsByEmail.values());
+
     const combinedList = [
       ...users,
-      ...invitations.map((inv) => ({
+      ...uniqueInvitations.map((inv) => ({
         id: inv.id,
         email: inv.email,
         first_name: null,

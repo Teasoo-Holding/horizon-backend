@@ -172,16 +172,6 @@ export class TaskService {
       throw new BadRequestException('At least one user must be assigned');
     }
 
-    const assignedBy = await this.prisma.user.findUnique({
-      where: { id: assignedById },
-      select: { first_name: true, last_name: true, email: true },
-    });
-    const assignedByName =
-      `${assignedBy?.first_name || ''} ${assignedBy?.last_name || ''}`.trim();
-    const assignedByEmail = assignedBy?.email || '';
-
-    const assessmentName = 'ESG Assessment';
-
     const task = await this.prisma.task.create({
       data: {
         taskName,
@@ -211,22 +201,7 @@ export class TaskService {
     });
 
     if (sendEmail) {
-      for (const assignment of task.assignments) {
-        const user = assignment.user;
-        if (!user?.email) continue;
-
-        const emailParams = {
-          firstName: user.first_name,
-          CompanyAdminName: assignedByName,
-          AssessmentName: assessmentName,
-          TaskName: taskName,
-          DueDate: new Date(dueDate).toDateString(),
-          TaskLink: `${process.env.FRONTEND_URL}/assessments/tasks`,
-          CompanyAdminEmailAddress: assignedByEmail,
-        };
-
-        await this.emailService.sendEmail(user.email, emailParams, 18);
-      }
+      await this.sendTaskAssignmentEmails(task.id, assignedById);
     }
 
     return task;
@@ -263,6 +238,10 @@ export class TaskService {
       description: `Task reassigned to ${dto.userIds.length} user(s)`,
       type: 'task',
     });
+
+    if (dto.sendEmail) {
+      await this.sendTaskAssignmentEmails(taskId, reassignedById);
+    }
 
     return { message: 'Task reassigned successfully' };
   }
@@ -528,7 +507,67 @@ export class TaskService {
       type: 'task',
     });
 
+    if (dto.sendEmail) {
+      await this.sendTaskAssignmentEmails(taskId, editedById);
+    }
+
     return updatedTask;
+  }
+
+  private async sendTaskAssignmentEmails(taskId: number, assignedById: number) {
+    console.log(`[TaskService] Starting email notification process for task ${taskId}`);
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignments: {
+          include: {
+            user: {
+              select: { id: true, first_name: true, last_name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      console.warn(`[TaskService] Task ${taskId} not found during email sending`);
+      return;
+    }
+
+    const assignedBy = await this.prisma.user.findUnique({
+      where: { id: assignedById },
+      select: { first_name: true, last_name: true, email: true },
+    });
+
+    const assignedByName =
+      `${assignedBy?.first_name || ''} ${assignedBy?.last_name || ''}`.trim();
+    const assignedByEmail = assignedBy?.email || '';
+    const assessmentName = 'ESG Assessment';
+
+    console.log(`[TaskService] Found ${task.assignments.length} assignments. Assigner: ${assignedByName} (${assignedByEmail})`);
+
+    for (const assignment of task.assignments) {
+      const user = assignment.user;
+      if (!user?.email) {
+        console.warn(`[TaskService] Skipping user with no email (ID: ${user?.id})`);
+        continue;
+      }
+
+      const emailParams = {
+        firstName: user.first_name,
+        firstNameFallback: user.first_name, // Some templates use different keys
+        CompanyAdminName: assignedByName,
+        AssessmentName: assessmentName,
+        TaskName: task.taskName,
+        DueDate: task.dueDate.toLocaleDateString(),
+        TaskLink: `${process.env.FRONTEND_URL}/assessments/tasks`,
+        CompanyAdminEmailAddress: assignedByEmail,
+      };
+
+      console.log(`[TaskService] Sending email to ${user.email} using template 18...`);
+      const result = await this.emailService.sendEmail(user.email, emailParams, 18);
+      console.log(`[TaskService] Email result for ${user.email}:`, result);
+    }
   }
 
   async addComment(taskId: number, dto: AddTaskCommentDto) {

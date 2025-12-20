@@ -4,9 +4,15 @@ import axios from 'axios';
 
 @Injectable()
 export class EmailService {
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
   async sendEmail(to: string, params: Record<string, any>, templateId: number) {
     try {
+      const apiKey = this.configService.get<string>('BREVO_API_KEY');
+      if (!apiKey) {
+        console.warn('[EmailService] BREVO_API_KEY is not defined in environment variables');
+        return { success: false, error: 'API key missing' };
+      }
+
       await axios.post(
         'https://api.brevo.com/v3/smtp/email',
         {
@@ -20,9 +26,7 @@ export class EmailService {
         {
           headers: {
             accept: 'application/json',
-            'api-key': this.configService.get<string>(
-              'BREVO_API_KEY',
-            ) as string,
+            'api-key': apiKey,
             'content-type': 'application/json',
           },
         },

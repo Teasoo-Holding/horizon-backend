@@ -42,18 +42,11 @@ export class AssessmentCalculatorService {
       total: number;
     };
     topEmissionSources: any[];
+    breakdown?: any;
   }> {
     const data = structuredClone(raw);
     data.environment ??= {};
     data.environment.ghg ??= { scope1: {} };
-
-    // Initialize new sections if missing
-    data.environment.airQuality ??= { airPollutantEmissions: {} };
-    data.environment.waterManagement ??= {
-      waterAndProducedWaterManagement: {},
-      hydraulicFracturingImpacts: {}
-    };
-    data.environment.biodiversityImpact ??= { environmentalManagement: {} };
 
     const ghg = data.environment.ghg!;
     ghg.scope1 ??= {
@@ -71,30 +64,20 @@ export class AssessmentCalculatorService {
       const group = ghg.scope1.stationarySources;
       group.totalEmission = 0;
 
+      const dto = this.mapStationarySources(group);
+      const result = await this.scope1.stationarySources(dto);
+      breakdown.stationarySources = result;
+      group.totalEmission = result.sum;
+      scope1Total += result.sum;
+
       if (group.electricityHeat) {
-        const dto = this.mapStationarySources(group);
-        const result = await this.scope1.stationarySources(dto);
-        group.electricityHeat.totalEmission = result.sum;
-        group.totalEmission += result.sum;
-        scope1Total += result.sum;
-        breakdown.stationarySources = result;
-        this.calculateFormProgress(group.electricityHeat, 2);
+        group.electricityHeat.totalEmission = (result.fuel_powered_generator?.value || 0) + (result.gas_powered_turbine?.value || 0);
       }
-      if (group.industrialProcess?.boilerFurnaces?.length > 0) {
-        const dto = this.mapStationarySources(group);
-        const result = await this.scope1.stationarySources(dto);
-        group.industrialProcess.totalEmission = result.sum;
-        group.totalEmission += result.sum;
-        scope1Total += result.sum;
-        this.calculateFormProgress(group.industrialProcess, 1);
+      if (group.industrialProcess) {
+        group.industrialProcess.totalEmission = result.boilers_and_furnaces_in_manufacturing?.value || 0;
       }
-      if (group.oilGasOperations?.onShoreProduction?.length > 0) {
-        const dto = this.mapStationarySources(group);
-        const result = await this.scope1.stationarySources(dto);
-        group.oilGasOperations.totalEmission = result.sum;
-        group.totalEmission += result.sum;
-        scope1Total += result.sum;
-        this.calculateFormProgress(group.oilGasOperations, 1);
+      if (group.oilGasOperations) {
+        group.oilGasOperations.totalEmission = result.heaters_and_boilers_at_oil_production_facilities?.value || 0;
       }
 
       this.calculateGroupProgress(
@@ -177,7 +160,6 @@ export class AssessmentCalculatorService {
       scope3Total += result.sum;
       breakdown.upstreamEmissions = result;
 
-      // Progress tracking for upstream (8 categories)
       this.calculateGroupProgress(
         upstream,
         [
@@ -190,7 +172,7 @@ export class AssessmentCalculatorService {
           'employeeCommuting',
           'upstreamLeasedAssets',
         ],
-        [1, 1, 1, 1, 1, 1, 1, 1], // 1 field per category
+        [1, 1, 1, 1, 1, 1, 1, 1],
       );
     }
 
@@ -203,7 +185,6 @@ export class AssessmentCalculatorService {
       scope3Total += result.sum;
       breakdown.downstreamEmissions = result;
 
-      // Progress tracking for downstream (7 categories)
       this.calculateGroupProgress(
         downstream,
         [
@@ -215,7 +196,7 @@ export class AssessmentCalculatorService {
           'franchises',
           'investments',
         ],
-        [1, 1, 1, 1, 1, 1, 1], // 1 field per category
+        [1, 1, 1, 1, 1, 1, 1],
       );
     }
 
@@ -223,56 +204,44 @@ export class AssessmentCalculatorService {
     ghg.scope3.progress = this.calculateScope3Progress(ghg.scope3);
 
     // --- Air Quality Calculations ---
-    if (data.environment.airQuality) {
+    if (this.hasData(data.environment?.airQuality?.airPollutantEmissions)) {
       const aq = data.environment.airQuality;
-      if (aq.airPollutantEmissions) {
-        const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
-        aq.airPollutantEmissions.calculated = result;
-        // Progress for Air Quality
-        this.calculateFormProgress(aq.airPollutantEmissions, 1); // Assuming 1 step
-      }
+      const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
+      aq.airPollutantEmissions.calculated = result;
+      this.calculateFormProgress(aq.airPollutantEmissions, 1);
     }
 
     // --- Water Management Calculations ---
-    if (data.environment.waterManagement) {
+    if (this.hasData(data.environment?.waterManagement)) {
       const wm = data.environment.waterManagement;
-      // Subtopic 1: Water and Produced Water Management
-      if (wm.waterAndProducedWaterManagement) {
+      if (this.hasData(wm.waterAndProducedWaterManagement)) {
         const sub = wm.waterAndProducedWaterManagement;
-        if (sub.freshwaterWithdrawals) {
+        if (this.hasData(sub.freshwaterWithdrawals)) {
           sub.freshwaterWithdrawals.calculated = await this.water.computeFreshwaterWithdrawals(sub.freshwaterWithdrawals);
-          this.calculateFormProgress(sub.freshwaterWithdrawals, 4); // 4 steps
+          this.calculateFormProgress(sub.freshwaterWithdrawals, 4);
         }
-        if (sub.producedWaterManagement) {
+        if (this.hasData(sub.producedWaterManagement)) {
           sub.producedWaterManagement.calculated = await this.water.computeProducedWaterManagement(sub.producedWaterManagement);
-          this.calculateFormProgress(sub.producedWaterManagement, 1); // 1 step
+          this.calculateFormProgress(sub.producedWaterManagement, 1);
         }
-      }
-      // Subtopic 2: Hydraulic Fracturing Impacts
-      if (wm.hydraulicFracturingImpacts) {
-        // Empty objects for now as per requirements, but we can init them
-        // wm.hydraulicFracturingImpacts.chemicalDisclosure = ...
-        // wm.hydraulicFracturingImpacts.waterQualityImpacts = ...
       }
     }
 
     // --- Biodiversity Impact Calculations ---
-    if (data.environment.biodiversityImpact) {
+    if (this.hasData(data.environment?.biodiversityImpact?.environmentalManagement)) {
       const bio = data.environment.biodiversityImpact;
-      if (bio.environmentalManagement) {
-        const sub = bio.environmentalManagement;
-        if (sub.environmentalManagementPolicies) {
-          sub.environmentalManagementPolicies.calculated = await this.biodiversity.computeEnvironmentalManagementPolicies(sub.environmentalManagementPolicies);
-          this.calculateFormProgress(sub.environmentalManagementPolicies, 1);
-        }
-        if (sub.hydrocarbonSpills) {
-          sub.hydrocarbonSpills.calculated = await this.biodiversity.computeHydrocarbonSpills(sub.hydrocarbonSpills);
-          this.calculateFormProgress(sub.hydrocarbonSpills, 1);
-        }
-        if (sub.reservesInSensitiveAreas) {
-          sub.reservesInSensitiveAreas.calculated = await this.biodiversity.computeReservesInSensitiveAreas(sub.reservesInSensitiveAreas);
-          this.calculateFormProgress(sub.reservesInSensitiveAreas, 1);
-        }
+      const sub = bio.environmentalManagement;
+      if (this.hasData(sub.environmentalManagementPolicies)) {
+        sub.environmentalManagementPolicies.calculated = await this.biodiversity.computeEnvironmentalManagementPolicies(sub.environmentalManagementPolicies);
+        this.calculateFormProgress(sub.environmentalManagementPolicies, 1);
+      }
+      if (this.hasData(sub.hydrocarbonSpills)) {
+        sub.hydrocarbonSpills.calculated = await this.biodiversity.computeHydrocarbonSpills(sub.hydrocarbonSpills);
+        this.calculateFormProgress(sub.hydrocarbonSpills, 1);
+      }
+      if (this.hasData(sub.reservesInSensitiveAreas)) {
+        sub.reservesInSensitiveAreas.calculated = await this.biodiversity.computeReservesInSensitiveAreas(sub.reservesInSensitiveAreas);
+        this.calculateFormProgress(sub.reservesInSensitiveAreas, 1);
       }
     }
 
@@ -281,7 +250,8 @@ export class AssessmentCalculatorService {
 
     data.topEmissionSources = this.deriveTop5(breakdown, scope1Total + scope3Total);
 
-    data.overallProgress = ghg.scope1.progress; // This might need to be updated to include other topics progress
+    const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
+    data.overallProgress = environmentalProgress;
 
     return {
       data,
@@ -292,6 +262,7 @@ export class AssessmentCalculatorService {
         total: Number((scope1Total + scope3Total).toFixed(4)),
       },
       topEmissionSources: data.topEmissionSources,
+      breakdown,
     };
   }
 
@@ -334,20 +305,20 @@ export class AssessmentCalculatorService {
       'processEmissions',
       'fugitiveEmissions',
     ];
-    let totalProgress = 0;
-    let totalWeight = 0;
+
+    let totalFilled = 0;
+    let totalExpected = 0;
 
     groups.forEach((groupKey) => {
       const group = scope1[groupKey];
-      if (group?.progress != null) {
-        const weight = groupKey === 'stationarySources' ? 0.4 : 0.2;
-        totalProgress += group.progress * weight;
-        totalWeight += weight;
+      if (group?.dataCount) {
+        totalFilled += group.dataCount.count;
+        totalExpected += group.dataCount.expected;
       }
     });
 
-    return totalWeight > 0
-      ? Number((totalProgress / totalWeight).toFixed(1))
+    return totalExpected > 0
+      ? Number(((totalFilled / totalExpected) * 100).toFixed(1))
       : 0;
   }
 
@@ -369,18 +340,23 @@ export class AssessmentCalculatorService {
       'cementQuantity',
       'gasVolume',
       'volumeOfGasVented',
+      'refrigerant_mass',
     ];
 
-    for (const key in obj) {
-      if (!metricKeys.includes(key)) continue;
-
+    for (const key of metricKeys) {
       const val = obj[key];
 
-      if (Array.isArray(val) && val.length > 0) {
-        count += 1;
+      if (val === undefined || val === null) continue;
+
+      if (Array.isArray(val)) {
+        // For array fields, count if there's at least one non-zero volume entry
+        const hasValues = val.some((item: any) =>
+          item.volume && parseFloat(item.volume.toString()) > 0,
+        );
+        if (hasValues) count += 1;
       } else if (typeof val === 'number' && val > 0) {
         count += 1;
-      } else if (typeof val === 'string' && val.trim() !== '') {
+      } else if (typeof val === 'string' && val.trim() !== '' && val !== '0') {
         count += 1;
       }
     }
@@ -649,6 +625,71 @@ export class AssessmentCalculatorService {
 
     return totalWeight > 0
       ? Number((totalProgress / totalWeight).toFixed(1))
+      : 0;
+  }
+
+  /**
+   * Calculate progress for the Environmental pillar
+   * This will be combined with other pillars (Social Capital, Human Capital, etc.)
+   * to determine overall assessment progress
+   */
+  private calculateEnvironmentalProgress(environment: any): number {
+    const topics: number[] = [];
+
+    // GHG Emissions (has 3 scopes)
+    if (environment.ghg) {
+      if (environment.ghg.scope1?.progress != null) {
+        topics.push(environment.ghg.scope1.progress);
+      }
+      if (environment.ghg.scope2?.progress != null) {
+        topics.push(environment.ghg.scope2.progress);
+      }
+      if (environment.ghg.scope3?.progress != null) {
+        topics.push(environment.ghg.scope3.progress);
+      }
+    }
+
+    // Air Quality
+    if (environment.airQuality?.airPollutantEmissions?.progress != null) {
+      topics.push(environment.airQuality.airPollutantEmissions.progress);
+    }
+
+    // Water Management (has 2 subtopics with multiple forms)
+    if (environment.waterManagement) {
+      const wm = environment.waterManagement;
+      if (wm.waterAndProducedWaterManagement?.freshwaterWithdrawals?.progress != null) {
+        topics.push(wm.waterAndProducedWaterManagement.freshwaterWithdrawals.progress);
+      }
+      if (wm.waterAndProducedWaterManagement?.producedWaterManagement?.progress != null) {
+        topics.push(wm.waterAndProducedWaterManagement.producedWaterManagement.progress);
+      }
+      // Hydraulic fracturing forms
+      if (wm.hydraulicFracturingImpacts?.chemicalDisclosure?.progress != null) {
+        topics.push(wm.hydraulicFracturingImpacts.chemicalDisclosure.progress);
+      }
+      if (wm.hydraulicFracturingImpacts?.waterQualityImpacts?.progress != null) {
+        topics.push(wm.hydraulicFracturingImpacts.waterQualityImpacts.progress);
+      }
+    }
+
+    // Biodiversity Impact
+    if (environment.biodiversityImpact?.environmentalManagement) {
+      const bio = environment.biodiversityImpact.environmentalManagement;
+      if (bio.environmentalManagementPolicies?.progress != null) {
+        topics.push(bio.environmentalManagementPolicies.progress);
+      }
+      if (bio.hydrocarbonSpills?.progress != null) {
+        topics.push(bio.hydrocarbonSpills.progress);
+      }
+      if (bio.reservesInSensitiveAreas?.progress != null) {
+        topics.push(bio.reservesInSensitiveAreas.progress);
+      }
+    }
+
+    // Average progress across all environmental topics that HAVE data
+    // This prevents empty sections from dragging the average down to 33.3%
+    return topics.length > 0
+      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
       : 0;
   }
 }

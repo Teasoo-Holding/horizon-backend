@@ -21,7 +21,7 @@ export class CompanySetupService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly activitiesService: ActivitiesService,
-  ) {}
+  ) { }
 
   async bulkCreate(companyId: number, dto: BulkCreateDto, invitedById: number) {
     return this.prisma.$transaction(async (prisma) => {
@@ -182,6 +182,27 @@ export class CompanySetupService {
 
       // Step 3: Create all user invitations
       for (const userDto of dto.users) {
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({
+          where: { email: userDto.email },
+        });
+        if (existingUser) {
+          throw new BadRequestException(
+            `User with email ${userDto.email} already exists`,
+          );
+        }
+
+        // Check for existing pending invitation
+        const pendingInvitation = await prisma.invitation.findFirst({
+          where: { email: userDto.email, status: 'pending' },
+        });
+
+        // Expire old pending invitations
+        await prisma.invitation.updateMany({
+          where: { email: userDto.email, status: 'pending' },
+          data: { status: 'expired' },
+        });
+
         const roleId = userDto.roleId;
         const roleName = userDto.roleName;
 
@@ -247,11 +268,15 @@ export class CompanySetupService {
 
         createdInvitations.push(newInvitation);
 
+        const activityDescription = pendingInvitation
+          ? `Resent invitation to "${newInvitation.email}" (previous invitation was pending)`
+          : `User invitation sent to "${newInvitation.email}" with role ID ${newInvitation.roleId}, subsidiary ID ${newInvitation.subsidiaryId}, department ID ${newInvitation.departmentId}.`;
+
         await this.activitiesService.logActivity({
           companyId,
           createdById: invitedById,
           title: `Invited user (ID: ${newInvitation.id})`,
-          description: `User invitation sent to "${newInvitation.email}" with role ID ${newInvitation.roleId}, subsidiary ID ${newInvitation.subsidiaryId}, department ID ${newInvitation.departmentId}.`,
+          description: activityDescription,
           type: 'user',
           status: 'pending',
         });

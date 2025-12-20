@@ -19,7 +19,7 @@ export class AssessmentService {
     private activitiesService: ActivitiesService,
     private reportService: ReportService,
     private emailService: EmailService,
-  ) {}
+  ) { }
 
   async createAssessment(
     companyId: number,
@@ -175,7 +175,12 @@ export class AssessmentService {
       progress: recalculated.overallProgress
         ? [{ progress: recalculated.overallProgress }]
         : [],
-      totals: recalculated.totals,
+      totals: {
+        totals: {
+          sum: result.scopeTotals.total,
+          breakdown: result.breakdown,
+        },
+      },
     };
   }
 

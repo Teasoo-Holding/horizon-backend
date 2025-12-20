@@ -52,33 +52,28 @@ export class ReportService {
     });
 
     const report = sumSummary?.assessmentData as any;
-    const totals = report?.totals?.totals || {};
-    const breakdown = totals?.breakdown || {};
-
-    // Safely get values with fallback
-    const ghgScope1 = calculateScope1Total(breakdown)?.total ?? 0;
-    const ghgScope2 = calculateScope2Total(breakdown?.scope2)?.total ?? 0;
+    const ghg = report?.environment?.ghg;
 
     const result = {
-      ghg_total_emissions: totals?.sum ?? 0,
-      ghg_scope_one: ghgScope1,
-      ghg_scope_two: ghgScope2,
+      ghg_total_emissions: report?.totalEmission ?? 0,
+      ghg_scope_one: ghg?.scope1?.totalEmission ?? 0,
+      ghg_scope_two: ghg?.scope2?.totalEmission ?? 0,
+      ghg_scope_three: ghg?.scope3?.totalEmission ?? 0,
+      ghg_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
+      ghg_datacount_scope_two: ghg?.scope2?.dataCount?.count ?? 0,
+      ghg_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
+      environmental_total_emissions: report?.environment?.totalEmission ?? report?.totalEmission ?? 0,
+      environmental_scope_one: ghg?.scope1?.totalEmission ?? 0,
+      environmental_scope_two: ghg?.scope2?.totalEmission ?? 0,
+      environmental_scope_three: ghg?.scope3?.totalEmission ?? 0,
+      environmental_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
+      environmental_datacount_scope_two: 0,
+      environmental_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
       startMonth: sumSummary?.startMonth,
       startYear: sumSummary?.startYear,
       endMonth: sumSummary?.endMonth,
       endYear: sumSummary?.endYear,
       subsidiary: sumSummary?.subsidiary,
-      ghg_scope_three: 0,
-      ghg_datacount_scope_one: 0,
-      ghg_datacount_scope_two: 0,
-      ghg_datacount_scope_three: 0,
-      environmental_total_emissions: 0,
-      environmental_scope_one: 0,
-      environmental_scope_two: 0,
-      environmental_scope_three: 0,
-      environmental_datacount_scope_one: 0,
-      environmental_datacount_scope_two: 0,
-      environmental_datacount_scope_three: 0,
       social_total_emissions: 0,
       social_scope_one: 0,
       social_scope_two: 0,
@@ -93,7 +88,6 @@ export class ReportService {
       governance_datacount_scope_one: 0,
       governance_datacount_scope_two: 0,
       governance_datacount_scope_three: 0,
-
     };
 
     await this.prisma.report.upsert({
@@ -102,7 +96,22 @@ export class ReportService {
       create: { assessmentId: id, ...result },
     });
 
-    return { result, totals };
+    const nestedResult = {
+      ghg: {
+        total: result.ghg_total_emissions,
+        scope1: { total: result.ghg_scope_one, dataCount: result.ghg_datacount_scope_one },
+        scope2: { total: result.ghg_scope_two, dataCount: result.ghg_datacount_scope_two },
+        scope3: { total: result.ghg_scope_three, dataCount: result.ghg_datacount_scope_three },
+      },
+      environment: {
+        total: result.environmental_total_emissions,
+        scope1: result.environmental_scope_one,
+        scope2: result.environmental_scope_two,
+        scope3: result.environmental_scope_three,
+      }
+    };
+
+    return { result: nestedResult, totals: result };
   }
 
 
