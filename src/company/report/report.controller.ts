@@ -7,21 +7,21 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 @ApiTags('Reports') // Groups endpoints under "Reports" in Swagger UI :cite[2]:cite[6]:cite[9]
 @Controller('report')
 export class ReportController {
-  constructor(private readonly reportService: ReportService) {}
+  constructor(private readonly reportService: ReportService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all assessment reports for organization',
-    description: 'Retrieves all assessment reports for the authenticated user\'s company' 
+    description: 'Retrieves all assessment reports for the authenticated user\'s company'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Successfully retrieved all organization assessment reports' 
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved all organization assessment reports'
   })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Unauthorized - invalid or missing JWT token' 
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid or missing JWT token'
   })
   findAll(
     @Req()
@@ -40,27 +40,27 @@ export class ReportController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get specific report by ID',
-    description: 'Retrieves a specific assessment report by ID for the authenticated user\'s company' 
+    description: 'Retrieves a specific assessment report by ID for the authenticated user\'s company'
   })
-  @ApiParam({ 
-    name: 'id', 
-    type: String, 
+  @ApiParam({
+    name: 'id',
+    type: String,
     description: 'The ID of the report to retrieve',
-    example: '123' 
+    example: '123'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Successfully retrieved the report' 
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved the report'
   })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Unauthorized - invalid or missing JWT token' 
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid or missing JWT token'
   })
-  @ApiResponse({ 
-    status: 404, 
-    description: 'Report not found for the given ID and company' 
+  @ApiResponse({
+    status: 404,
+    description: 'Report not found for the given ID and company'
   })
   findOne(
     @Param('id') id: string,
@@ -83,9 +83,16 @@ export class ReportController {
 
   @Get('/one/:id')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get report internal summary',
+    description: 'Retrieves internal reporting structure for a specific assessment'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved internal report object'
+  })
   getOneAssessmentReport(
     @Param('id') id: string,
-   
   ) {
     return this.reportService.getAssessmentReport(
       +id

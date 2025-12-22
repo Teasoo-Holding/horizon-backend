@@ -83,11 +83,19 @@ export class AssessmentService {
     });
 
     if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.status !== AssessmentStatus.in_progress) {
-      throw new BadRequestException('Cannot save to submitted assessment');
-    }
 
     const currentData = (assessment.assessmentData || {}) as any;
+    const submittedGroups = currentData.submittedGroups || [];
+
+    // Check if the current path is part of a submitted group
+    const isLocked = submittedGroups.some((groupPath: string) =>
+      payload.path.startsWith(groupPath),
+    );
+
+    if (isLocked) {
+      throw new BadRequestException('Cannot save to a submitted group');
+    }
+
     const merged = this.deepMerge(currentData, payload.path, payload.data);
 
     if (payload.lastSavedForm) {
@@ -138,6 +146,14 @@ export class AssessmentService {
     const currentData = (assessment.assessmentData || {}) as any;
     if (lastSavedForm) {
       currentData.lastSavedForm = lastSavedForm;
+      const groupPath = this.getGroupPath(lastSavedForm);
+      if (groupPath) {
+        currentData.submittedGroups = Array.from(
+          new Set([...(currentData.submittedGroups || []), groupPath]),
+        );
+      }
+      // After processing, clear it so next resume goes to hub
+      currentData.lastSavedForm = null;
     }
 
     const result = await this.calculator.recalculate(currentData);
@@ -177,11 +193,26 @@ export class AssessmentService {
         : [],
       totals: {
         totals: {
-          sum: result.scopeTotals.total,
+          sum: this.getGroupSum(result.breakdown, lastSavedForm),
           breakdown: result.breakdown,
         },
       },
     };
+  }
+
+  private getGroupSum(breakdown: any, lastSavedForm?: string): number {
+    if (!lastSavedForm) return 0;
+
+    if (lastSavedForm.includes("stationary")) return breakdown.stationarySources?.sum || 0;
+    if (lastSavedForm.includes("mobile")) return breakdown.mobileSources?.sum || 0;
+    if (lastSavedForm.includes("process")) return breakdown.processEmissions?.sum || 0;
+    if (lastSavedForm.includes("fugitive")) return breakdown.fugitiveEmissions?.sum || 0;
+    if (lastSavedForm.includes("location")) return breakdown.scope2Location?.sum || 0;
+    if (lastSavedForm.includes("market")) return breakdown.scope2Market?.sum || 0;
+    if (lastSavedForm.includes("upstream")) return breakdown.upstreamEmissions?.sum || 0;
+    if (lastSavedForm.includes("downstream")) return breakdown.downstreamEmissions?.sum || 0;
+
+    return 0;
   }
 
   async getAssessments(companyId: number): Promise<Assessment[]> {
@@ -308,5 +339,51 @@ export class AssessmentService {
     };
 
     return cloned;
+  }
+
+  private getGroupPath(formKey: string): string | null {
+    if (formKey.startsWith('ghg-scope1-stationary')) {
+      return 'environment.ghg.scope1.stationarySources';
+    }
+    if (
+      formKey.startsWith('ghg-mobile-sources') ||
+      formKey.startsWith('ghg-scope1-mobile')
+    ) {
+      return 'environment.ghg.scope1.mobileSources';
+    }
+    if (
+      formKey.startsWith('ghg-scope1-process') ||
+      formKey.startsWith('ghg-process-emissions')
+    ) {
+      return 'environment.ghg.scope1.processEmissions';
+    }
+    if (
+      formKey.startsWith('ghg-scope1-fugitive') ||
+      formKey.startsWith('ghg-fugitive-emissions')
+    ) {
+      return 'environment.ghg.scope1.fugitiveEmissions';
+    }
+    if (formKey.startsWith('ghg-scope2-location')) {
+      return 'environment.ghg.scope2.locationBased';
+    }
+    if (formKey.startsWith('ghg-scope2-market')) {
+      return 'environment.ghg.scope2.marketBased';
+    }
+    if (formKey.startsWith('ghg-scope3-upstream')) {
+      return 'environment.ghg.scope3.upstream';
+    }
+    if (formKey.startsWith('ghg-scope3-downstream')) {
+      return 'environment.ghg.scope3.downstream';
+    }
+    if (formKey.startsWith('env-air-quality')) {
+      return 'environment.airQuality';
+    }
+    if (formKey.startsWith('env-water-management')) {
+      return 'environment.waterManagement';
+    }
+    if (formKey.startsWith('env-biodiversity')) {
+      return 'environment.biodiversityImpact';
+    }
+    return null;
   }
 }

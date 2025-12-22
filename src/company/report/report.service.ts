@@ -182,16 +182,56 @@ export class ReportService {
       include: { scopeTargets: true, generalTarget: true }
     });
 
+    const env = parsedData?.environment || {};
+    const air = env.airQuality?.airPollutantEmissions || {};
+    const water = env.waterManagement || {};
+    const waterAndProduced = water.waterAndProducedWaterManagement || {};
+    const bio = env.biodiversityImpact?.environmentalManagement || {};
+
     const environmentDetails = {
+      total: env.totalEmission || report?.ghg_total_emissions || 0,
       ghg: {
         total: report?.ghg_total_emissions ?? 0,
         scope1: report?.ghg_scope_one ?? 0,
         scope2: report?.ghg_scope_two ?? 0,
         scope3: report?.ghg_scope_three ?? 0,
       },
-      airQuality: parsedData?.environment?.airQuality,
-      waterManagement: parsedData?.environment?.waterManagement,
-      biodiversityImpact: parsedData?.environment?.biodiversityImpact,
+      airQuality: {
+        totalAirPollutantEmission: (air.nox || 0) + (air.sox || 0) + (air.voc || 0) + (air.pm || 0),
+        nox: air.nox ?? 0,
+        sox: air.sox ?? 0,
+        voc: air.voc ?? 0,
+        pm: air.pm ?? 0,
+      },
+      waterManagement: {
+        totalWaterWithdrawal: waterAndProduced.freshwaterWithdrawals?.totalWithdrawal ?? 0,
+        totalWaterConsumed: waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed ?? 0,
+        totalProducedWaterGenerated: waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated ?? 0,
+        recycledReused: waterAndProduced.producedWaterManagement?.volumeRecycledReused ?? 0,
+        injectedForDisposal: waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal ?? 0,
+        dischargedToSurface: waterAndProduced.producedWaterManagement?.volumeDischargedToSurface ?? 0,
+        hydraulicFracturing: {
+          totalFracturedWells: water.hydraulicFracturingImpacts?.chemicalDisclosure?.operatesFrackedWells === 'yes' ? 1 : 0, // Simplified, as we don't have a count for fractured wells yet
+          volumeRecycledReused: water.hydraulicFracturingImpacts?.chemicalDisclosure?.volumeRecycledReused ?? 0,
+        },
+        waterQualityImpacts: {
+          wellsWithPublicChemicalDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure ?? 0,
+          volumeRecycledReused: water.hydraulicFracturingImpacts?.waterQualityImpacts?.volumeRecycledReused ?? 0,
+        }
+      },
+      biodiversityImpacts: {
+        hydrocarbonSpills: {
+          numberOfSpills: bio.hydrocarbonSpills?.numberOfSpills ?? 0,
+          totalVolumeSpilled: bio.hydrocarbonSpills?.totalVolumeSpilled ?? 0,
+          volumeRecovered: bio.hydrocarbonSpills?.volumeRecovered ?? 0,
+        },
+        reservesInSensitiveAreas: {
+          proved: bio.reservesInSensitiveAreas?.totalProvedReservesVolume ?? 0,
+          probable: bio.reservesInSensitiveAreas?.totalProbableReservesVolume ?? 0,
+        },
+        volumeInArctic: bio.hydrocarbonSpills?.volumeInArctic ?? 0,
+        sensitiveShorelines: bio.hydrocarbonSpills?.volumeImpactingShorelines ?? 0,
+      }
     };
 
     return {

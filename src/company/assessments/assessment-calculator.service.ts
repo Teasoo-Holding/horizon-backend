@@ -20,6 +20,7 @@ interface AssessmentData {
     percentage: number;
   }>;
   lastSavedForm?: string;
+  submittedGroups?: string[];
 }
 
 @Injectable()
@@ -57,7 +58,10 @@ export class AssessmentCalculatorService {
     };
 
     let scope1Total = 0;
+    let scope2Total = 0;
     const breakdown: any = {};
+
+    ghg.scope2 ??= { locationBased: {}, marketBased: {} };
 
     // --- GHG Scope 1 Calculations ---
     if (this.hasData(ghg.scope1.stationarySources)) {
@@ -146,6 +150,30 @@ export class AssessmentCalculatorService {
 
     ghg.scope1.totalEmission = Number(scope1Total.toFixed(4));
     ghg.scope1.progress = this.calculateScope1Progress(ghg.scope1);
+
+    // --- GHG Scope 2 Calculations ---
+    // Location Based
+    if (this.hasData(ghg.scope2.locationBased)) {
+      const group = ghg.scope2.locationBased;
+      const dto = this.mapScope2Location(group);
+      const result = await this.scope2.locationBasedEmission(dto);
+      group.totalEmission = result.sum;
+      scope2Total += result.sum;
+      breakdown.scope2Location = result;
+    }
+
+    // Market Based
+    if (this.hasData(ghg.scope2.marketBased)) {
+      const group = ghg.scope2.marketBased;
+      const dto = this.mapScope2Market(group);
+      const result = await this.scope2.marketBasedEmission(dto);
+      group.totalEmission = result.sum;
+      scope2Total += result.sum;
+      breakdown.scope2Market = result;
+    }
+
+    ghg.scope2.totalEmission = Number(scope2Total.toFixed(4));
+    ghg.scope2.progress = this.calculateScope2Progress(ghg.scope2);
 
     // --- GHG Scope 3 Calculations ---
     let scope3Total = 0;
@@ -245,10 +273,11 @@ export class AssessmentCalculatorService {
       }
     }
 
-    data.environment.totalEmission = Number((scope1Total + scope3Total).toFixed(4));
-    data.totalEmission = Number((scope1Total + scope3Total).toFixed(4));
+    const totalEmissionVal = scope1Total + scope2Total + scope3Total;
+    data.environment.totalEmission = Number(totalEmissionVal.toFixed(4));
+    data.totalEmission = Number(totalEmissionVal.toFixed(4));
 
-    data.topEmissionSources = this.deriveTop5(breakdown, scope1Total + scope3Total);
+    data.topEmissionSources = this.deriveTop5(breakdown, totalEmissionVal);
 
     const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
     data.overallProgress = environmentalProgress;
@@ -257,9 +286,9 @@ export class AssessmentCalculatorService {
       data,
       scopeTotals: {
         scope1: Number(scope1Total.toFixed(4)),
-        scope2: 0,
+        scope2: Number(scope2Total.toFixed(4)),
         scope3: Number(scope3Total.toFixed(4)),
-        total: Number((scope1Total + scope3Total).toFixed(4)),
+        total: Number(totalEmissionVal.toFixed(4)),
       },
       topEmissionSources: data.topEmissionSources,
       breakdown,
@@ -306,19 +335,74 @@ export class AssessmentCalculatorService {
       'fugitiveEmissions',
     ];
 
-    let totalFilled = 0;
-    let totalExpected = 0;
+    const weights = {
+      stationarySources: 4,
+      mobileSources: 14,
+      processEmissions: 4,
+      fugitiveEmissions: 4,
+    };
+
+    let weightedSum = 0;
+    let totalWeight = 0;
 
     groups.forEach((groupKey) => {
       const group = scope1[groupKey];
-      if (group?.dataCount) {
-        totalFilled += group.dataCount.count;
-        totalExpected += group.dataCount.expected;
+      const weight = weights[groupKey];
+      totalWeight += weight;
+      if (group?.progress != null) {
+        weightedSum += (group.progress / 100) * weight;
       }
     });
 
-    return totalExpected > 0
-      ? Number(((totalFilled / totalExpected) * 100).toFixed(1))
+    return totalWeight > 0
+      ? Number(((weightedSum / totalWeight) * 100).toFixed(1))
+      : 0;
+  }
+
+  private calculateScope2Progress(scope2: any): number {
+    const weights = {
+      locationBased: 4,
+      marketBased: 4,
+    };
+
+    let totalFilled = 0;
+    let totalExpected = 0;
+
+    // Location Based Progress
+    const loc = scope2.locationBased;
+    if (loc) {
+      const locFields = ['purchasedElectricity', 'cooling', 'steam', 'heating'];
+      let count = 0;
+      locFields.forEach(f => {
+        if (this.hasData(loc[f])) count++;
+      });
+      loc.progress = Number(((count / 4) * 100).toFixed(1));
+    }
+
+    // Market Based Progress
+    const mar = scope2.marketBased;
+    if (mar) {
+      const marFields = ['ipps', 'eac', 'residual', 'coolingSteam'];
+      let count = 0;
+      marFields.forEach(f => {
+        if (this.hasData(mar[f])) count++;
+      });
+      mar.progress = Number(((count / 4) * 100).toFixed(1));
+    }
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    ['locationBased', 'marketBased'].forEach(key => {
+      const weight = weights[key];
+      totalWeight += weight;
+      if (scope2[key]?.progress != null) {
+        weightedSum += (scope2[key].progress / 100) * weight;
+      }
+    });
+
+    return totalWeight > 0
+      ? Number(((weightedSum / totalWeight) * 100).toFixed(1))
       : 0;
   }
 
@@ -409,6 +493,8 @@ export class AssessmentCalculatorService {
     add('scope1', 'mobileSources', breakdown.mobileSources || {});
     add('scope1', 'processEmissions', breakdown.processEmissions || {});
     add('scope1', 'fugitiveEmissions', breakdown.fugitiveEmissions || {});
+    add('scope2', 'locationBased', breakdown.scope2Location || {});
+    add('scope2', 'marketBased', breakdown.scope2Market || {});
     add('scope3', 'upstreamEmissions', breakdown.upstreamEmissions || {});
     add('scope3', 'downstreamEmissions', breakdown.downstreamEmissions || {});
 
@@ -502,6 +588,32 @@ export class AssessmentCalculatorService {
     return {
       volume: Number(group.ventingNaturalGas?.volumeOfGasVented || 0),
       hfcMass: Number(group.hfcLeaks?.refrigerant_mass || 0),
+    };
+  }
+
+  private mapScope2Location(group: any) {
+    return {
+      electiricity_consumed: Number(group.purchasedElectricity?.electricityConsumed || 0),
+      electiricity_emission_factor: 0.45,
+      amount_of_cooling_energy_consumed: Number(group.cooling?.coolingConsumed || 0),
+      amt_of_c_emission_factor: 0.45,
+      total_steam_consumed: Number(group.steam?.volume || 0),
+      total_steam_consumed_factor: 0.45,
+      total_heating_energy_consumed: Number(group.heating?.heatingConsumed || 0),
+      total_heating_energy_consumed_EF: 0.45,
+    };
+  }
+
+  private mapScope2Market(group: any) {
+    return {
+      ipp_electricity_consumed: Number(group.ipps?.electricityConsumed || 0),
+      ipp_emission_factor: Number(group.ipps?.emissionFactor || 0),
+      eac_electricity_consumed: Number(group.eac?.gridElectricity || 0),
+      eac_emission_factor: Number(group.eac?.emissionFactor || 0),
+      residual_electricity_consumed: Number(group.residual?.electricityConsumed || 0),
+      residual_emission_factor: Number(group.residual?.residualMixFactor || 0),
+      coolingsteam_energy_consumed: Number(group.coolingSteam?.energyConsumed || 0),
+      coolingsteam_emission_factor: Number(group.coolingSteam?.emissionFactor || 0),
     };
   }
 
