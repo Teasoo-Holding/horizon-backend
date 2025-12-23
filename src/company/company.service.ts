@@ -379,4 +379,62 @@ export class CompanyService {
       );
     }
   }
+
+  async getOnboardingProgress(companyId: number, userId: number) {
+    const [company, user, subsidiaryCount, departmentCount, userCount, assessmentCount] = await Promise.all([
+      this.prisma.company.findUnique({ where: { id: companyId } }),
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.subsidiary.count({ where: { parentCompanyId: companyId } }),
+      this.prisma.department.count({ where: { companyId: companyId } }),
+      this.prisma.user.count({ where: { companyId: companyId } }),
+      this.prisma.assessment.count({ where: { companyId: companyId } }),
+    ]);
+
+    if (!company || !user) {
+      throw new NotFoundException('Company or User not found');
+    }
+
+    // Item 1: Complete Organization & Personal Profile
+    const isCompanyProfileComplete = !!(
+      company.name &&
+      company.registration_number &&
+      company.industryId &&
+      (company.country || company.address) &&
+      company.contact_email &&
+      company.company_logo_url
+    );
+    const isUserProfileComplete = !!(
+      user.first_name &&
+      user.last_name &&
+      (user.profile_photo_url || user.phone_number)
+    );
+    const item1 = isCompanyProfileComplete && isUserProfileComplete;
+
+    const item2 = subsidiaryCount > 0 || departmentCount > 0 || userCount > 1;
+
+    const item3 = assessmentCount > 0;
+
+    const item4 = user.has_viewed_dashboard;
+
+    const progress = [item1, item2, item3, item4];
+    const completedCount = progress.filter(Boolean).length;
+    const progressPercent = Math.round((completedCount / progress.length) * 100);
+
+    return {
+      progressPercent,
+      checklist: [
+        { title: 'Complete Organization & Personal Profile', isCompleted: item1 },
+        { title: 'Invite Your Teams, Set Up Departments & Subsidiaries', isCompleted: item2 },
+        { title: 'Start First Assessment', isCompleted: item3 },
+        { title: 'View ESG Dashboard', isCompleted: item4 },
+      ],
+    };
+  }
+
+  async markDashboardAsViewed(userId: number) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { has_viewed_dashboard: true },
+    });
+  }
 }
