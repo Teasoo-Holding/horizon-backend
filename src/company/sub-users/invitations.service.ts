@@ -12,9 +12,23 @@ export class InvitationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly activitiesService: ActivitiesService,
-  ) {}
+  ) { }
 
   async create(dto: CreateInvitationDto, invitedById: number) {
+    // 1. Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new BadRequestException('User with this email already exists');
+    }
+
+    // 2. Check for existing pending invitation
+    const pendingInvitation = await this.prisma.invitation.findFirst({
+      where: { email: dto.email, status: 'pending' },
+    });
+
+    // We expire old ones anyway to ensure fresh token
     await this.prisma.invitation.updateMany({
       where: { email: dto.email, status: 'pending' },
       data: { status: 'expired' },
@@ -86,6 +100,13 @@ export class InvitationsService {
       description: `${invitingUser.first_name} invited ${dto.email}`,
       type: 'invitation',
     });
+
+    if (pendingInvitation) {
+      return {
+        message: 'This user invitation already pending. Resending invitation reminder',
+        invitation,
+      };
+    }
 
     return invitation;
   }
