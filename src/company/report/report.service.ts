@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class ReportService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async findOrganizationAssessmentReport(id: number) {
     const report = await this.prisma.assessment.findMany({
@@ -26,74 +26,106 @@ export class ReportService {
         endYear: true,
         subsidiary: true,
         status: true,
+        assessmentData: true,
+        report: {
+          select: {
+            progress: true,
+          }
+        }
       },
+      orderBy: {
+        createdAt: 'desc',
+      }
     });
-    return report;
+    return report.map(r => {
+      const data = (r.assessmentData || {}) as any;
+      return {
+        ...r,
+        progress: data.overallProgress ?? r.report?.progress ?? 0,
+        report: undefined, // Clean up
+        assessmentData: undefined // Clean up
+      };
+    });
   }
 
-  async getAssessmentReport(id:number){
+  async getAssessmentReport(id: number) {
     return await this.prisma.report.findUnique({
-      where: {id}
+      where: { id }
     })
   }
-async saveReportingData(id: number) {
-  const sumSummary = await this.prisma.assessment.findUnique({
-    where: { id },
-  });
 
-  const report = sumSummary?.assessmentData as any;
-  const totals = report?.totals?.totals || {};
-  const breakdown = totals?.breakdown || {};
+  async saveReportingData(id: number) {
+    const sumSummary = await this.prisma.assessment.findUnique({
+      where: { id },
+    });
 
-  // Safely get values with fallback
-  const ghgScope1 = calculateScope1Total(breakdown)?.total ?? 0;
-  const ghgScope2 = calculateScope2Total(breakdown?.scope2)?.total ?? 0;
+    const report = sumSummary?.assessmentData as any;
+    const ghg = report?.environment?.ghg;
 
-  const result = {
-    ghg_total_emissions: totals?.sum ?? 0,
-    ghg_scope_one: ghgScope1,
-    ghg_scope_two: ghgScope2,
-    startMonth: sumSummary?.startMonth,
-    startYear: sumSummary?.startYear,
-    endMonth: sumSummary?.endMonth,
-    endYear: sumSummary?.endYear,
-    subsidiary: sumSummary?.subsidiary,
-    ghg_scope_three: 0,
-    ghg_datacount_scope_one: 0,
-    ghg_datacount_scope_two: 0,
-    ghg_datacount_scope_three: 0,
-    environmental_total_emissions: 0,
-    environmental_scope_one: 0,
-    environmental_scope_two: 0,
-    environmental_scope_three: 0,
-    environmental_datacount_scope_one: 0,
-    environmental_datacount_scope_two: 0,
-    environmental_datacount_scope_three: 0,
-    social_total_emissions: 0,
-    social_scope_one: 0,
-    social_scope_two: 0,
-    social_scope_three: 0,
-    social_datacount_scope_one: 0,
-    social_datacount_scope_two: 0,
-    social_datacount_scope_three: 0,
-    governance_total_emissions: 0,
-    governance_scope_one: 0,
-    governance_scope_two: 0,
-    governance_scope_three: 0,
-    governance_datacount_scope_one: 0,
-    governance_datacount_scope_two: 0,
-    governance_datacount_scope_three: 0,
-    
-  };
+    const result = {
+      ghg_total_emissions: report?.totalEmission ?? 0,
+      ghg_scope_one: ghg?.scope1?.totalEmission ?? 0,
+      ghg_scope_two: ghg?.scope2?.totalEmission ?? 0,
+      ghg_scope_three: ghg?.scope3?.totalEmission ?? 0,
+      progress: Math.round(report?.overallProgress ?? 0),
+      ghg_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
+      ghg_datacount_scope_two: ghg?.scope2?.dataCount?.count ?? 0,
+      ghg_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
+      environmental_total_emissions: report?.environment?.totalEmission ?? report?.totalEmission ?? 0,
+      environmental_scope_one: ghg?.scope1?.totalEmission ?? 0,
+      environmental_scope_two: ghg?.scope2?.totalEmission ?? 0,
+      environmental_scope_three: ghg?.scope3?.totalEmission ?? 0,
+      environmental_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
+      environmental_datacount_scope_two: 0,
+      environmental_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
+      startMonth: sumSummary?.startMonth,
+      startYear: sumSummary?.startYear,
+      endMonth: sumSummary?.endMonth,
+      endYear: sumSummary?.endYear,
+      subsidiary: sumSummary?.subsidiary,
+      social_total_emissions: 0,
+      social_scope_one: 0,
+      social_scope_two: 0,
+      social_scope_three: 0,
+      social_datacount_scope_one: 0,
+      social_datacount_scope_two: 0,
+      social_datacount_scope_three: 0,
+      governance_total_emissions: 0,
+      governance_scope_one: 0,
+      governance_scope_two: 0,
+      governance_scope_three: 0,
+      governance_datacount_scope_one: 0,
+      governance_datacount_scope_two: 0,
+      governance_datacount_scope_three: 0,
+    };
 
-  await this.prisma.report.upsert({
-    where: { assessmentId: id },
-    update: result,
-    create: { assessmentId: id, ...result },
-  });
+    console.log(`Upserting report for assessment ${id}`, result);
 
-  return { result, totals };
-}
+    const saved = await this.prisma.report.upsert({
+      where: { assessmentId: id },
+      update: result,
+      create: { assessmentId: id, ...result },
+    });
+
+    console.log(`Report saved: ${saved.id}`);
+
+    const nestedResult = {
+      ghg: {
+        total: result.ghg_total_emissions,
+        scope1: { total: result.ghg_scope_one, dataCount: result.ghg_datacount_scope_one },
+        scope2: { total: result.ghg_scope_two, dataCount: result.ghg_datacount_scope_two },
+        scope3: { total: result.ghg_scope_three, dataCount: result.ghg_datacount_scope_three },
+      },
+      environment: {
+        total: result.environmental_total_emissions,
+        scope1: result.environmental_scope_one,
+        scope2: result.environmental_scope_two,
+        scope3: result.environmental_scope_three,
+      }
+    };
+
+    return { result: nestedResult, totals: result };
+  }
 
 
   async getReport(id: number, companyId: number) {
@@ -142,7 +174,7 @@ async saveReportingData(id: number) {
         : record.assessmentData;
 
     const chartData = extractFuelMixBreakdown(parsed);
-    
+
     // const trendData = await this.prisma.assessment.findMany({
     //   where: { companyId },
     //   select: {
@@ -158,6 +190,63 @@ async saveReportingData(id: number) {
     //   },
     // });
 
+    const targets = await this.prisma.target.findMany({
+      where: { companyId },
+      include: { scopeTargets: true, generalTarget: true }
+    });
+
+    const env = parsedData?.environment || {};
+    const air = env.airQuality?.airPollutantEmissions || {};
+    const water = env.waterManagement || {};
+    const waterAndProduced = water.waterAndProducedWaterManagement || {};
+    const bio = env.biodiversityImpact?.environmentalManagement || {};
+
+    const environmentDetails = {
+      total: env.totalEmission || report?.ghg_total_emissions || 0,
+      ghg: {
+        total: report?.ghg_total_emissions ?? 0,
+        scope1: report?.ghg_scope_one ?? 0,
+        scope2: report?.ghg_scope_two ?? 0,
+        scope3: report?.ghg_scope_three ?? 0,
+      },
+      airQuality: {
+        totalAirPollutantEmission: (air.nox || 0) + (air.sox || 0) + (air.voc || 0) + (air.pm || 0),
+        nox: air.nox ?? 0,
+        sox: air.sox ?? 0,
+        voc: air.voc ?? 0,
+        pm: air.pm ?? 0,
+      },
+      waterManagement: {
+        totalWaterWithdrawal: waterAndProduced.freshwaterWithdrawals?.totalWithdrawal ?? 0,
+        totalWaterConsumed: waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed ?? 0,
+        totalProducedWaterGenerated: waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated ?? 0,
+        recycledReused: waterAndProduced.producedWaterManagement?.volumeRecycledReused ?? 0,
+        injectedForDisposal: waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal ?? 0,
+        dischargedToSurface: waterAndProduced.producedWaterManagement?.volumeDischargedToSurface ?? 0,
+        hydraulicFracturing: {
+          totalFracturedWells: water.hydraulicFracturingImpacts?.chemicalDisclosure?.operatesFrackedWells === 'yes' ? 1 : 0, // Simplified, as we don't have a count for fractured wells yet
+          volumeRecycledReused: water.hydraulicFracturingImpacts?.chemicalDisclosure?.volumeRecycledReused ?? 0,
+        },
+        waterQualityImpacts: {
+          wellsWithPublicChemicalDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure ?? 0,
+          volumeRecycledReused: water.hydraulicFracturingImpacts?.waterQualityImpacts?.volumeRecycledReused ?? 0,
+        }
+      },
+      biodiversityImpacts: {
+        hydrocarbonSpills: {
+          numberOfSpills: bio.hydrocarbonSpills?.numberOfSpills ?? 0,
+          totalVolumeSpilled: bio.hydrocarbonSpills?.totalVolumeSpilled ?? 0,
+          volumeRecovered: bio.hydrocarbonSpills?.volumeRecovered ?? 0,
+        },
+        reservesInSensitiveAreas: {
+          proved: bio.reservesInSensitiveAreas?.totalProvedReservesVolume ?? 0,
+          probable: bio.reservesInSensitiveAreas?.totalProbableReservesVolume ?? 0,
+        },
+        volumeInArctic: bio.hydrocarbonSpills?.volumeInArctic ?? 0,
+        sensitiveShorelines: bio.hydrocarbonSpills?.volumeImpactingShorelines ?? 0,
+      }
+    };
+
     return {
       report,
       percentage_emission_summary: {
@@ -171,7 +260,18 @@ async saveReportingData(id: number) {
         breakdown,
       },
       fuel_mix_breakdown: chartData,
-      summary
+      summary,
+      environment_details: environmentDetails,
+      targets: targets.map(t => ({
+        name: t.name,
+        type: t.type,
+        baselineYear: t.baselineYear,
+        targetYear: t.targetYear,
+        reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
+        baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
+        current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
+        target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
+      }))
     };
   }
 }

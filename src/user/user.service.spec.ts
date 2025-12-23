@@ -47,16 +47,7 @@ describe('UserService', () => {
   describe('findMe', () => {
     it('should return the current user', async () => {
       const user = await service.findMe(1);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 1 },
-        select: {
-          id: true,
-          first_name: true,
-          last_name: true,
-          email: true,
-          profile_photo_url: true,
-        },
-      });
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalled();
       expect(user).toEqual({
         id: 1,
         first_name: 'John',

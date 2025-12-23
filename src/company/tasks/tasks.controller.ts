@@ -33,7 +33,19 @@ interface CustomRequest extends Request {
 @Controller('tasks')
 @UseGuards(JwtRolesGuard)
 export class TaskController {
-  constructor(private taskService: TaskService) {}
+  constructor(private taskService: TaskService) { }
+
+  @Get('my-tasks')
+  @ApiOperation({ summary: 'Get all tasks assigned to the current user' })
+  getMyTasks(@Req() req: CustomRequest) {
+    return this.taskService.getUserAssignedTasks(req.user.id);
+  }
+
+  @Post(':id/start')
+  @ApiOperation({ summary: 'Start a task - creates assessment and links it' })
+  startTask(@Param('id') id: string, @Req() req: CustomRequest) {
+    return this.taskService.startTask(Number(id), req.user.id);
+  }
 
   @Post('assign')
   @Roles('company_esg_admin', 'super_admin')

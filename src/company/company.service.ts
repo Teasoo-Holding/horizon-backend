@@ -13,7 +13,7 @@ export class CompanyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
   async findAll() {
     return this.prisma.company.findMany({
       include: {
@@ -117,10 +117,11 @@ export class CompanyService {
             in: [
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
+              AssessmentStatus.awaiting_review,
             ],
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { updatedAt: 'desc' },
       });
 
       const parseAssessmentData = (raw: any) => {
@@ -134,23 +135,59 @@ export class CompanyService {
 
       const extractTotals = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
-        const totals = data?.totals?.totals ?? data?.totals ?? null;
-        return totals;
+        if (!data) return null;
+        return {
+          total: data.totalEmission ?? 0,
+          environment: data.environment?.totalEmission ?? data.totalEmission ?? 0,
+          social: data.social?.totalEmission ?? 0,
+          governance: data.governance?.totalEmission ?? 0,
+        };
       };
 
       const latestTotals = extractTotals(latestAssessment);
 
-      const overallScore =
-        latestTotals?.sum ??
-        latestTotals?.overall ??
-        latestTotals?.total ??
-        latestTotals?.esgTotal ??
-        null;
+      const getHubStats = (assessment: any) => {
+        const data = parseAssessmentData(assessment?.assessmentData);
+        if (!data) return null;
+
+        const env = data.environment;
+        const sections = [
+          env?.ghg?.scope1,
+          env?.ghg?.scope2,
+          env?.ghg?.scope3,
+          env?.airQuality?.airPollutantEmissions,
+          env?.waterManagement?.waterAndProducedWaterManagement?.freshwaterWithdrawals,
+          env?.waterManagement?.waterAndProducedWaterManagement?.producedWaterManagement,
+          env?.waterManagement?.hydraulicFracturingImpacts?.chemicalDisclosure,
+          env?.biodiversityImpact?.environmentalManagement?.environmentalManagementPolicies,
+        ];
+
+        const completedSections = sections.filter(s => s?.progress && s.progress > 0).length;
+
+        return {
+          environment: {
+            progress: env?.progress ?? data.overallProgress ?? 0,
+            completed: `${completedSections} of 8 sections completed`,
+          },
+          social: {
+            progress: data.social?.progress ?? 0,
+            completed: `0 sections completed`,
+          },
+          governance: {
+            progress: data.governance?.progress ?? 0,
+            completed: `0 sections completed`,
+          },
+        };
+      };
+
+      const hubStats = getHubStats(latestAssessment);
+
+      const overallScore = latestTotals?.total ?? null;
 
       const breakdown = {
-        environment: latestTotals?.sum ?? 0,
-        social: 0,
-        governance: 0,
+        environment: latestTotals?.environment ?? 0,
+        social: latestTotals?.social ?? 0,
+        governance: latestTotals?.governance ?? 0,
       };
 
       const activities = await this.prisma.activities.findMany({
@@ -183,11 +220,11 @@ export class CompanyService {
 
       const subscriptionDto = companySub
         ? {
-            tier: companySub.Subscription.name,
-            amount: companySub.Subscription.price_monthly,
-            dueDate: companySub.end_date,
-            status: companySub.status,
-          }
+          tier: companySub.Subscription.name,
+          amount: companySub.Subscription.price_monthly,
+          dueDate: companySub.end_date,
+          status: companySub.status,
+        }
         : null;
 
       const reviewedAssessments = await this.prisma.assessment.findMany({
@@ -197,6 +234,7 @@ export class CompanyService {
             in: [
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
+              AssessmentStatus.awaiting_review,
             ],
           },
         },
@@ -264,19 +302,12 @@ export class CompanyService {
       >();
 
       for (const a of reviewedAssessments) {
-        const data = parseAssessmentData(a.assessmentData);
-        const totals = data?.totals?.totals ?? data?.totals ?? null;
-        const emissionFromAssessmentData =
-          data?.totalEmission ??
-          totals?.sum ??
-          totals?.overall ??
-          totals?.total ??
-          totals?.esgTotal ??
-          null;
-
         const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
         const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
         const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
+
+        const totals = extractTotals(a);
+        const emissionFromAssessmentData = totals?.total ?? null;
 
         const periodKey = makePeriodKey(
           a.startMonth,
@@ -323,6 +354,7 @@ export class CompanyService {
             in: [
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
+              AssessmentStatus.awaiting_review,
             ],
           },
         },
@@ -334,6 +366,7 @@ export class CompanyService {
         recentActivities,
         subscription: subscriptionDto,
         esgJourney,
+        hubStats,
         stats: {
           totalAssessments: totalAssessmentsCount,
           reviewedAssessments: reviewedCount,
@@ -345,5 +378,63 @@ export class CompanyService {
         'Failed to build company dashboard',
       );
     }
+  }
+
+  async getOnboardingProgress(companyId: number, userId: number) {
+    const [company, user, subsidiaryCount, departmentCount, userCount, assessmentCount] = await Promise.all([
+      this.prisma.company.findUnique({ where: { id: companyId } }),
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.subsidiary.count({ where: { parentCompanyId: companyId } }),
+      this.prisma.department.count({ where: { companyId: companyId } }),
+      this.prisma.user.count({ where: { companyId: companyId } }),
+      this.prisma.assessment.count({ where: { companyId: companyId } }),
+    ]);
+
+    if (!company || !user) {
+      throw new NotFoundException('Company or User not found');
+    }
+
+    // Item 1: Complete Organization & Personal Profile
+    const isCompanyProfileComplete = !!(
+      company.name &&
+      company.registration_number &&
+      company.industryId &&
+      (company.country || company.address) &&
+      company.contact_email &&
+      company.company_logo_url
+    );
+    const isUserProfileComplete = !!(
+      user.first_name &&
+      user.last_name &&
+      (user.profile_photo_url || user.phone_number)
+    );
+    const item1 = isCompanyProfileComplete && isUserProfileComplete;
+
+    const item2 = subsidiaryCount > 0 || departmentCount > 0 || userCount > 1;
+
+    const item3 = assessmentCount > 0;
+
+    const item4 = user.has_viewed_dashboard;
+
+    const progress = [item1, item2, item3, item4];
+    const completedCount = progress.filter(Boolean).length;
+    const progressPercent = Math.round((completedCount / progress.length) * 100);
+
+    return {
+      progressPercent,
+      checklist: [
+        { title: 'Complete Organization & Personal Profile', isCompleted: item1 },
+        { title: 'Invite Your Teams, Set Up Departments & Subsidiaries', isCompleted: item2 },
+        { title: 'Start First Assessment', isCompleted: item3 },
+        { title: 'View ESG Dashboard', isCompleted: item4 },
+      ],
+    };
+  }
+
+  async markDashboardAsViewed(userId: number) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { has_viewed_dashboard: true },
+    });
   }
 }

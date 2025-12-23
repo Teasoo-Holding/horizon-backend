@@ -47,6 +47,11 @@ export class ReassignTaskDto {
   @IsArray()
   @IsOptional()
   topics?: string[];
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  sendEmail?: boolean;
 }
 
 export class EditTaskDto {

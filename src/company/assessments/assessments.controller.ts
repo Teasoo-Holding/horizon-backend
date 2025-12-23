@@ -15,7 +15,7 @@ import {
 import { AssessmentService } from './assessments.service';
 import { Request } from 'express';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { PartialAssessmentPayloadDto } from './dto/partial-assessment-payload.dto';
 
@@ -31,9 +31,12 @@ interface CustomRequest extends Request {
 @Controller('assessments')
 @UseGuards(JwtRolesGuard)
 export class AssessmentController {
-  constructor(private readonly assessmentService: AssessmentService) {}
+  constructor(private readonly assessmentService: AssessmentService) { }
 
   @Post()
+  @ApiOperation({ summary: 'Create a new assessment' })
+  @ApiResponse({ status: 201, description: 'Assessment created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
   async createAssessment(
     @Req() req: CustomRequest,
     @Body() dto: CreateAssessmentDto,
@@ -48,6 +51,10 @@ export class AssessmentController {
   }
 
   @Post(':id/save')
+  @ApiOperation({ summary: 'Save assessment progress' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiResponse({ status: 200, description: 'Progress saved successfully' })
+  @ApiResponse({ status: 404, description: 'Assessment not found' })
   async saveProgress(
     @Req() req: CustomRequest,
     @Param('id') idStr: string,
@@ -68,6 +75,10 @@ export class AssessmentController {
   }
 
   @Post(':id/submit')
+  @ApiOperation({ summary: 'Submit an assessment group' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiBody({ schema: { properties: { lastSavedForm: { type: 'string' } } } })
+  @ApiResponse({ status: 200, description: 'Group submitted successfully' })
   async submitGroup(
     @Req() req: CustomRequest,
     @Param('id') idStr: string,
@@ -94,6 +105,8 @@ export class AssessmentController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Get all assessments for company' })
+  @ApiResponse({ status: 200, description: 'Returns all assessments' })
   async getAssessments(@Req() req: CustomRequest) {
     const companyId = req.user.companyId;
     const assessments = await this.assessmentService.getAssessments(companyId);
@@ -101,6 +114,10 @@ export class AssessmentController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get specific assessment by ID' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiResponse({ status: 200, description: 'Returns the assessment' })
+  @ApiResponse({ status: 404, description: 'Assessment not found' })
   async getAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -122,6 +139,11 @@ export class AssessmentController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a draft assessment' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiResponse({ status: 204, description: 'Assessment deleted' })
+  @ApiResponse({ status: 400, description: 'Assessment is not a draft' })
+  @ApiResponse({ status: 404, description: 'Assessment not found' })
   async deleteDraftAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -154,6 +176,9 @@ export class AssessmentController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve an assessment' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiResponse({ status: 200, description: 'Assessment approved' })
   async approveAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -177,6 +202,10 @@ export class AssessmentController {
 
   @Post(':id/decline')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Decline an assessment' })
+  @ApiParam({ name: 'id', description: 'Assessment ID' })
+  @ApiBody({ schema: { properties: { reason: { type: 'string' } } } })
+  @ApiResponse({ status: 200, description: 'Assessment declined' })
   async rejectAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,

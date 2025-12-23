@@ -12,7 +12,7 @@ import {
   EditTaskDto,
   ReassignTaskDto,
 } from './dto/task.dto';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, AssessmentStatus } from '@prisma/client';
 
 @Injectable()
 export class TaskService {
@@ -20,7 +20,150 @@ export class TaskService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private activitiesService: ActivitiesService,
-  ) {}
+  ) { }
+
+  async getUserAssignedTasks(userId: number) {
+    return this.prisma.taskAssignment.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        assessmentId: true,
+        startedAt: true,
+        topics: true,
+        task: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                company: { select: { id: true, name: true } },
+              },
+            },
+            assignments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    first_name: true,
+                    last_name: true,
+                    email: true,
+                    company: { select: { id: true, name: true } },
+                  },
+                },
+                assessment: {
+                  select: {
+                    id: true,
+                    status: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        assessment: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            subsidiary: true,
+            startMonth: true,
+            startYear: true,
+            endMonth: true,
+            endYear: true,
+          },
+        },
+      },
+      orderBy: { task: { createdAt: 'desc' } },
+    });
+  }
+
+  async startTask(taskId: number, userId: number) {
+    // 1. Find the user's assignment for this task
+    const assignment = await this.prisma.taskAssignment.findFirst({
+      where: { taskId, userId },
+      include: {
+        user: { include: { company: true } },
+        task: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Task assignment not found for this user');
+    }
+
+    if (assignment.assessmentId) {
+      // Task already started - return existing assessment
+      const existingAssessment = await this.prisma.assessment.findUnique({
+        where: { id: assignment.assessmentId },
+      });
+      return {
+        taskAssignment: assignment,
+        assessment: existingAssessment,
+        message: 'Task already started',
+      };
+    }
+
+    // 2. Create the assessment
+    const now = new Date();
+    const companyId = assignment.user.companyId;
+    if (!companyId) {
+      throw new BadRequestException('User must belong to a company to start a task');
+    }
+
+    const assessment = await this.prisma.assessment.create({
+      data: {
+        companyId,
+        created_by: userId,
+        updated_by: userId,
+        status: AssessmentStatus.in_progress,
+        subsidiary: 'Self',
+        startMonth: now.toLocaleString('default', { month: 'long' }),
+        startYear: now.getFullYear().toString(),
+        endMonth: assignment.task.dueDate.toLocaleString('default', { month: 'long' }),
+        endYear: assignment.task.dueDate.getFullYear().toString(),
+        assessmentData: { lastSavedForm: null },
+      },
+    });
+
+    // 3. Link assessment to task assignment
+    const updatedAssignment = await this.prisma.taskAssignment.update({
+      where: { id: assignment.id },
+      data: {
+        assessmentId: assessment.id,
+        startedAt: now,
+      },
+      include: {
+        assessment: true,
+        task: true,
+        user: { select: { id: true, first_name: true, last_name: true } },
+      },
+    });
+
+    // 4. Update task status to in_progress
+    await this.prisma.task.update({
+      where: { id: taskId },
+      data: { status: TaskStatus.in_progress },
+    });
+
+    // 5. Log activity
+    await this.activitiesService.logActivity({
+      companyId,
+      createdById: userId,
+      title: `Started task: ${assignment.task.taskName}`,
+      description: `Assessment #${assessment.id} created for task`,
+      type: 'task',
+    });
+
+    return {
+      taskAssignment: updatedAssignment,
+      assessment,
+      message: 'Task started successfully',
+    };
+  }
 
   async assignTask(dto: AssignTaskDto, assignedById: number) {
     const { taskName, dueDate, userIds, topics, sendEmail } = dto;
@@ -28,16 +171,6 @@ export class TaskService {
     if (!userIds || userIds.length === 0) {
       throw new BadRequestException('At least one user must be assigned');
     }
-
-    const assignedBy = await this.prisma.user.findUnique({
-      where: { id: assignedById },
-      select: { first_name: true, last_name: true, email: true },
-    });
-    const assignedByName =
-      `${assignedBy?.first_name || ''} ${assignedBy?.last_name || ''}`.trim();
-    const assignedByEmail = assignedBy?.email || '';
-
-    const assessmentName = 'ESG Assessment';
 
     const task = await this.prisma.task.create({
       data: {
@@ -68,22 +201,7 @@ export class TaskService {
     });
 
     if (sendEmail) {
-      for (const assignment of task.assignments) {
-        const user = assignment.user;
-        if (!user?.email) continue;
-
-        const emailParams = {
-          firstName: user.first_name,
-          CompanyAdminName: assignedByName,
-          AssessmentName: assessmentName,
-          TaskName: taskName,
-          DueDate: new Date(dueDate).toDateString(),
-          TaskLink: `${process.env.FRONTEND_URL}/assessments/tasks`,
-          CompanyAdminEmailAddress: assignedByEmail,
-        };
-
-        await this.emailService.sendEmail(user.email, emailParams, 18);
-      }
+      await this.sendTaskAssignmentEmails(task.id, assignedById);
     }
 
     return task;
@@ -120,6 +238,10 @@ export class TaskService {
       description: `Task reassigned to ${dto.userIds.length} user(s)`,
       type: 'task',
     });
+
+    if (dto.sendEmail) {
+      await this.sendTaskAssignmentEmails(taskId, reassignedById);
+    }
 
     return { message: 'Task reassigned successfully' };
   }
@@ -211,7 +333,7 @@ export class TaskService {
     const task = await this.prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
-    await this.prisma.taskComment.deleteMany({ where: { taskId }});
+    await this.prisma.taskComment.deleteMany({ where: { taskId } });
     await this.prisma.taskAssignment.deleteMany({ where: { taskId } });
     await this.prisma.task.delete({ where: { id: taskId } });
 
@@ -248,6 +370,14 @@ export class TaskService {
                 company: { select: { id: true, name: true } },
               },
             },
+            assessment: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -280,6 +410,14 @@ export class TaskService {
                 company: { select: { id: true, name: true } },
               },
             },
+            assessment: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -310,6 +448,19 @@ export class TaskService {
                 last_name: true,
                 email: true,
                 companyId: true,
+              },
+            },
+            assessment: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                subsidiary: true,
+                startMonth: true,
+                startYear: true,
+                endMonth: true,
+                endYear: true,
               },
             },
           },
@@ -356,7 +507,67 @@ export class TaskService {
       type: 'task',
     });
 
+    if (dto.sendEmail) {
+      await this.sendTaskAssignmentEmails(taskId, editedById);
+    }
+
     return updatedTask;
+  }
+
+  private async sendTaskAssignmentEmails(taskId: number, assignedById: number) {
+    console.log(`[TaskService] Starting email notification process for task ${taskId}`);
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignments: {
+          include: {
+            user: {
+              select: { id: true, first_name: true, last_name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      console.warn(`[TaskService] Task ${taskId} not found during email sending`);
+      return;
+    }
+
+    const assignedBy = await this.prisma.user.findUnique({
+      where: { id: assignedById },
+      select: { first_name: true, last_name: true, email: true },
+    });
+
+    const assignedByName =
+      `${assignedBy?.first_name || ''} ${assignedBy?.last_name || ''}`.trim();
+    const assignedByEmail = assignedBy?.email || '';
+    const assessmentName = 'ESG Assessment';
+
+    console.log(`[TaskService] Found ${task.assignments.length} assignments. Assigner: ${assignedByName} (${assignedByEmail})`);
+
+    for (const assignment of task.assignments) {
+      const user = assignment.user;
+      if (!user?.email) {
+        console.warn(`[TaskService] Skipping user with no email (ID: ${user?.id})`);
+        continue;
+      }
+
+      const emailParams = {
+        firstName: user.first_name,
+        firstNameFallback: user.first_name, // Some templates use different keys
+        CompanyAdminName: assignedByName,
+        AssessmentName: assessmentName,
+        TaskName: task.taskName,
+        DueDate: task.dueDate.toLocaleDateString(),
+        TaskLink: `${process.env.FRONTEND_URL}/assessments/tasks`,
+        CompanyAdminEmailAddress: assignedByEmail,
+      };
+
+      console.log(`[TaskService] Sending email to ${user.email} using template 18...`);
+      const result = await this.emailService.sendEmail(user.email, emailParams, 18);
+      console.log(`[TaskService] Email result for ${user.email}:`, result);
+    }
   }
 
   async addComment(taskId: number, dto: AddTaskCommentDto) {

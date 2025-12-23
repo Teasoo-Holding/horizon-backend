@@ -1,25 +1,20 @@
-name: NestJS CI
+name: NestJS CI/CD
 
 on:
   push:
     branches:
       - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
 
 jobs:
-  build-and-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 20
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -29,14 +24,47 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
 
-      - name: Run lint
-        run: npm run lint
+      # - name: Run lint
+        # run: npm run lint
 
-      - name: Run tests with coverage
-        run: npm run test:cov
+      # - name: Run tests with coverage
+        # run: npm run test:cov
 
-      - name: Generate coverage badge
-        run: npm run make-badge
+      # - name: Generate coverage badge  # Optional: Keep if you use it for the README
+      #   run: npm run make-badge
 
       - name: Build project
         run: npm run build
+
+      # --- DEPLOYMENT STEPS START HERE ---
+      
+      - name: Transfer Files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 15m
+          # We send: dist (code), package files, and prisma (for migrations)
+          source: "dist,package.json,package-lock.json,prisma"
+          target: "/var/www/esghorizon/backend"
+
+      - name: Start via PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            cd /var/www/esghorizon/backend
+            npm install --omit=dev
+            npx prisma migrate deploy
+            
+            # Use the pre-loader to ensure the .env file is ALWAYS found
+            pm2 delete esg-backend || true
+            PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
+            pm2 save

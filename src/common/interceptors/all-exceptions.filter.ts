@@ -35,11 +35,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    // Logger.error(`HTTP Status: ${status} Error Message: ${JSON.stringify(message)}`);
-    Logger.error(
-      `HTTP Status: ${status} - Error Message: ${JSON.stringify(message)}`,
-      (exception as any).stack,
-    );
+    if (status >= 500) {
+      Logger.error(
+        `HTTP Status: ${status} - Error Message: ${JSON.stringify(message)}`,
+        (exception as any).stack,
+      );
+    } else if (status === 401) {
+      // Silence common unauthorized errors or log as debug/verbose if needed
+      // Logger.debug(`Unauthorized access attempt to ${request.url}`);
+    } else {
+      Logger.warn(
+        `HTTP Status: ${status} - Error Message: ${JSON.stringify(message)}`,
+      );
+    }
 
     response.status(status).json({
       statusCode: status,
