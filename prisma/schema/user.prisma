@@ -17,6 +17,7 @@ model User {
   otpHash                     String?
   otpExpiresAt                DateTime?
   profile_photo_url_public_id String?
+  has_viewed_dashboard        Boolean        @default(false)
   providerId                  String?        @map("provider_id") @db.VarChar(255)
   providerType                String?        @map("provider_type") @db.VarChar(50)
   activities                  Activities[]

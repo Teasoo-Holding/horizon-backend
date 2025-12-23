@@ -55,7 +55,7 @@ export class TestController {
 @ApiTags('Company')
 @Controller('company/esg')
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) {}
+  constructor(private readonly companyService: CompanyService) { }
 
   @UseGuards(JwtRolesGuard)
   @Roles('super_admin')
@@ -93,12 +93,40 @@ export class CompanyController {
   @HttpCode(HttpStatus.OK)
   async getDashboard(@Req() req: CustomRequest) {
     const companyId = Number(req.user.companyId);
+    const userId = Number(req.user.userId || req.user.id);
 
     const dashboard = await this.companyService.getDashboard(companyId);
+
+    // Mark dashboard as viewed when accessed
+    await this.companyService.markDashboardAsViewed(userId);
 
     return {
       message: 'Company dashboard data retrieved successfully.',
       data: dashboard,
+    };
+  }
+
+  @ApiOperation({ summary: 'Get onboarding progress' })
+  @UseGuards(JwtRolesGuard)
+  @Roles(
+    'company_esg_admin',
+    'company_esg_subadmin',
+    'company_esg_data_officer',
+    'company_esg_viewer',
+  )
+  @Get('onboarding-progress')
+  async getOnboardingProgress(@Req() req: CustomRequest) {
+    const companyId = Number(req.user.companyId);
+    const userId = Number(req.user.userId || req.user.id);
+
+    const progress = await this.companyService.getOnboardingProgress(
+      companyId,
+      userId,
+    );
+
+    return {
+      message: 'Onboarding progress retrieved successfully.',
+      data: progress,
     };
   }
 
