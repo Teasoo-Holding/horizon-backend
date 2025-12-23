@@ -93,7 +93,9 @@ export class AssessmentService {
     );
 
     if (isLocked) {
-      throw new BadRequestException('Cannot save to a submitted group');
+      throw new BadRequestException(
+        'Cannot save to a submitted group. Please continue the assessment or enter new data.',
+      );
     }
 
     const merged = this.deepMerge(currentData, payload.path, payload.data);
@@ -269,7 +271,7 @@ export class AssessmentService {
     currentUserId: number,
     assessmentId: number,
   ): Promise<Assessment> {
-    return this.prisma.assessment.update({
+    const updated = await this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
         status: AssessmentStatus.approved,
@@ -277,6 +279,11 @@ export class AssessmentService {
         rejection_reason: null,
       },
     });
+
+    // Trigger report generation upon approval
+    await this.reportService.saveReportingData(assessmentId);
+
+    return updated;
   }
 
   async declineAssessment(

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -97,5 +97,21 @@ export class ReportController {
     return this.reportService.getAssessmentReport(
       +id
     );
+  }
+
+  @Post('/generate/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Manually generate/refresh report for assessment',
+    description: 'Triggers report data recalculation and persistence for a specific assessment'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully generated report data'
+  })
+  generateReport(
+    @Param('id') id: string,
+  ) {
+    return this.reportService.saveReportingData(+id);
   }
 }

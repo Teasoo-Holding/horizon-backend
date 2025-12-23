@@ -26,18 +26,26 @@ export class ReportService {
         endYear: true,
         subsidiary: true,
         status: true,
+        assessmentData: true,
         report: {
           select: {
             progress: true,
           }
         }
       },
+      orderBy: {
+        createdAt: 'desc',
+      }
     });
-    return report.map(r => ({
-      ...r,
-      progress: r.report?.progress || 0,
-      report: undefined // Clean up
-    }));
+    return report.map(r => {
+      const data = (r.assessmentData || {}) as any;
+      return {
+        ...r,
+        progress: data.overallProgress ?? r.report?.progress ?? 0,
+        report: undefined, // Clean up
+        assessmentData: undefined // Clean up
+      };
+    });
   }
 
   async getAssessmentReport(id: number) {
@@ -59,6 +67,7 @@ export class ReportService {
       ghg_scope_one: ghg?.scope1?.totalEmission ?? 0,
       ghg_scope_two: ghg?.scope2?.totalEmission ?? 0,
       ghg_scope_three: ghg?.scope3?.totalEmission ?? 0,
+      progress: Math.round(report?.overallProgress ?? 0),
       ghg_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
       ghg_datacount_scope_two: ghg?.scope2?.dataCount?.count ?? 0,
       ghg_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
@@ -90,11 +99,15 @@ export class ReportService {
       governance_datacount_scope_three: 0,
     };
 
-    await this.prisma.report.upsert({
+    console.log(`Upserting report for assessment ${id}`, result);
+
+    const saved = await this.prisma.report.upsert({
       where: { assessmentId: id },
       update: result,
       create: { assessmentId: id, ...result },
     });
+
+    console.log(`Report saved: ${saved.id}`);
 
     const nestedResult = {
       ghg: {
