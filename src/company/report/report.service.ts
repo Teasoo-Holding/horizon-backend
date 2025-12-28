@@ -175,20 +175,37 @@ export class ReportService {
 
     const chartData = extractFuelMixBreakdown(parsed);
 
-    // const trendData = await this.prisma.assessment.findMany({
-    //   where: { companyId },
-    //   select: {
-    //     startYear: true,
-    //     report: {
-    //       select: {
-    //         ghg_scope_one: true,
-    //         ghg_scope_two: true,
-    //         ghg_scope_three: true,
-    //         ghg_total_emissions: true,
-    //       },
-    //     },
-    //   },
-    // });
+    const trendData = await this.prisma.assessment.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        startMonth: true,
+        startYear: true,
+        endMonth: true,
+        endYear: true,
+        report: {
+          select: {
+            ghg_scope_one: true,
+            ghg_scope_two: true,
+            ghg_scope_three: true,
+            ghg_total_emissions: true,
+          },
+        },
+      },
+    });
+
+    const formatHistory = (data: any[], key: string) => {
+      return data.map(t => ({
+        score: t.report?.[key] ?? 0,
+        period: `${t.startMonth} ${t.startYear} - ${t.endMonth} ${t.endYear}`
+      }));
+    };
+
+    const ghg_history = formatHistory(trendData, 'ghg_total_emissions');
+    const ghg_scope_1_history = formatHistory(trendData, 'ghg_scope_one');
+    const ghg_scope_2_history = formatHistory(trendData, 'ghg_scope_two');
+    const ghg_scope_3_history = formatHistory(trendData, 'ghg_scope_three');
 
     const targets = await this.prisma.target.findMany({
       where: { companyId },
@@ -204,10 +221,14 @@ export class ReportService {
     const environmentDetails = {
       total: env.totalEmission || report?.ghg_total_emissions || 0,
       ghg: {
-        total: report?.ghg_total_emissions ?? 0,
-        scope1: report?.ghg_scope_one ?? 0,
-        scope2: report?.ghg_scope_two ?? 0,
-        scope3: report?.ghg_scope_three ?? 0,
+        ghg_total_emissions: report?.ghg_total_emissions ?? 0,
+        ghg_history,
+        ghg_scope_1: report?.ghg_scope_one ?? 0,
+        ghg_scope_1_history,
+        ghg_scope_2: report?.ghg_scope_two ?? 0,
+        ghg_scope_2_history,
+        ghg_scope_3: report?.ghg_scope_three ?? 0,
+        ghg_scope_3_history,
       },
       airQuality: {
         totalAirPollutantEmission: (air.nox || 0) + (air.sox || 0) + (air.voc || 0) + (air.pm || 0),
