@@ -238,12 +238,26 @@ export class ReportService {
         pm: air.pm ?? 0,
       },
       waterManagement: {
+        freshwaterWithdrawals: {
+          surfaceWater: waterAndProduced.freshwaterWithdrawals?.withdrawalfromSurfaceWater ?? 0,
+          groundwater: waterAndProduced.freshwaterWithdrawals?.withdrawalfromGroundwater ?? 0,
+          municipal: waterAndProduced.freshwaterWithdrawals?.withdrawalfromMunicipalotherOtherSources ?? 0,
+        },
         totalWaterWithdrawal: waterAndProduced.freshwaterWithdrawals?.totalWithdrawal ?? 0,
         totalWaterConsumed: waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed ?? 0,
         totalProducedWaterGenerated: waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated ?? 0,
         recycledReused: waterAndProduced.producedWaterManagement?.volumeRecycledReused ?? 0,
         injectedForDisposal: waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal ?? 0,
         dischargedToSurface: waterAndProduced.producedWaterManagement?.volumeDischargedToSurface ?? 0,
+        wells: {
+          totalWells: water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfWells ?? 0,
+          wellsWithPublicDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure ?? 0,
+          percentageWithDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.percentageWellsWithDisclosure ?? 0,
+        },
+        sites: {
+          totalSites: water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfSites ?? 0,
+          sitesWithDeterioratedWaterQuality: water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfSitesWithDeterioratedWaterQuality ?? 0,
+        },
         hydraulicFracturing: {
           totalFracturedWells: water.hydraulicFracturingImpacts?.chemicalDisclosure?.operatesFrackedWells === 'yes' ? 1 : 0, // Simplified, as we don't have a count for fractured wells yet
           volumeRecycledReused: water.hydraulicFracturingImpacts?.chemicalDisclosure?.volumeRecycledReused ?? 0,
