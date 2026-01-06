@@ -247,7 +247,10 @@ export class TaskService {
   }
 
   async approveTask(taskId: number, approvedById: number) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { createdBy: { select: { companyId: true } } },
+    });
     if (!task) throw new NotFoundException('Task not found');
 
     const updated = await this.prisma.task.update({
@@ -256,7 +259,7 @@ export class TaskService {
     });
 
     await this.activitiesService.logActivity({
-      companyId: task.createdById ?? undefined,
+      companyId: task.createdBy?.companyId ?? undefined,
       createdById: approvedById,
       title: `Approved task: ${task.taskName}`,
       description: `Task approved`,
@@ -267,7 +270,10 @@ export class TaskService {
   }
 
   async rejectTask(taskId: number, rejectedById: number) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { createdBy: { select: { companyId: true } } },
+    });
     if (!task) throw new NotFoundException('Task not found');
 
     const updated = await this.prisma.task.update({
@@ -276,7 +282,7 @@ export class TaskService {
     });
 
     await this.activitiesService.logActivity({
-      companyId: task.createdById ?? undefined,
+      companyId: task.createdBy?.companyId ?? undefined,
       createdById: rejectedById,
       title: `Rejected task: ${task.taskName}`,
       description: `Task rejected`,
@@ -330,7 +336,10 @@ export class TaskService {
   }
 
   async deleteTask(taskId: number, deletedById: number) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { createdBy: { select: { companyId: true } } },
+    });
     if (!task) throw new NotFoundException('Task not found');
 
     await this.prisma.taskComment.deleteMany({ where: { taskId } });
@@ -338,7 +347,7 @@ export class TaskService {
     await this.prisma.task.delete({ where: { id: taskId } });
 
     await this.activitiesService.logActivity({
-      companyId: task.createdById ?? undefined,
+      companyId: task.createdBy?.companyId ?? undefined,
       createdById: deletedById,
       title: `Deleted task: ${task.taskName}`,
       description: `Task deleted`,

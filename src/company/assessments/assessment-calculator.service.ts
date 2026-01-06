@@ -804,4 +804,19 @@ export class AssessmentCalculatorService {
       ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
       : 0;
   }
+
+  private calculateOverallProgress(data: any): number {
+    const pillars: number[] = [];
+
+    if (data.environment) {
+      pillars.push(this.calculateEnvironmentalProgress(data.environment));
+    }
+
+    // TODO: Add other pillars when implemented
+    // if (data.socialCapital) pillars.push(this.calculateSocialProgress(data.socialCapital));
+    // if (data.humanCapital) pillars.push(this.calculateHumanProgress(data.humanCapital));
+    // if (data.businessModel) pillars.push(this.calculateBusinessProgress(data.businessModel));
+
+    return pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / pillars.length).toFixed(1)) : 0;
+  }
 }
