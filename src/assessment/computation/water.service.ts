@@ -30,10 +30,15 @@ export class WaterComputationService {
 
         const fracturing = {
             isOperated: step3.operateHydraulicallyFracturedWells === 'yes',
+            totalWells: this.parseValue(step4.totalNumberOfWells),
+            totalSites: this.parseValue(step4.totalNumberOfSites),
+            sitesWithDeterioratedWaterQuality: this.parseValue(step4.numberOfSitesWithDeterioratedWaterQuality),
             disclosure: step3.operateHydraulicallyFracturedWells === 'yes' ? {
                 wellsWithDisclosure: this.parseValue(step4.numberOfWellsWithPublicDisclosure),
                 volumeRecycled: this.parseValue(step4.volumeRecycledReused)
-            } : null
+            } : null,
+            percentageWellsWithDisclosure: step3.operateHydraulicallyFracturedWells === 'yes' && step4.totalNumberOfWells && step4.numberOfWellsWithPublicDisclosure ?
+                (Number(step4.numberOfWellsWithPublicDisclosure) / Number(step4.totalNumberOfWells)) * 100 : null
         };
 
         return {

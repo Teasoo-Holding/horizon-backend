@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import {
-  calculateScope1Total,
-  calculateScope2Total,
   extractFuelMixBreakdown,
   getPercentage,
   getTop5ByFuelType,
@@ -238,12 +236,26 @@ export class ReportService {
         pm: air.pm ?? 0,
       },
       waterManagement: {
+        freshwaterWithdrawals: {
+          surfaceWater: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.surfaceWater?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromSurfaceWater ?? 0,
+          groundwater: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.groundwater?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromGroundwater ?? 0,
+          municipal: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.municipal?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromMunicipalotherOtherSources ?? 0,
+        },
         totalWaterWithdrawal: waterAndProduced.freshwaterWithdrawals?.totalWithdrawal ?? 0,
         totalWaterConsumed: waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed ?? 0,
         totalProducedWaterGenerated: waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated ?? 0,
         recycledReused: waterAndProduced.producedWaterManagement?.volumeRecycledReused ?? 0,
         injectedForDisposal: waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal ?? 0,
         dischargedToSurface: waterAndProduced.producedWaterManagement?.volumeDischargedToSurface ?? 0,
+        wells: {
+          totalWells: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.totalWells ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfWells ?? 0,
+          wellsWithPublicDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.wellsWithDisclosure ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure ?? 0,
+          percentageWithDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.percentageWellsWithDisclosure ?? 0,
+        },
+        sites: {
+          totalSites: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.totalSites ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfSites ?? 0,
+          sitesWithDeterioratedWaterQuality: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.sitesWithDeterioratedWaterQuality ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfSitesWithDeterioratedWaterQuality ?? 0,
+        },
         hydraulicFracturing: {
           totalFracturedWells: water.hydraulicFracturingImpacts?.chemicalDisclosure?.operatesFrackedWells === 'yes' ? 1 : 0, // Simplified, as we don't have a count for fractured wells yet
           volumeRecycledReused: water.hydraulicFracturingImpacts?.chemicalDisclosure?.volumeRecycledReused ?? 0,

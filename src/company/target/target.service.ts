@@ -23,37 +23,83 @@ export class TargetService {
   /**
    * Create a new target for a company
    */
-  async createTarget(companyId: number, createdById: number, data: CreateTargetData): Promise<TargetResponseDto> {
+async createTarget(
+  companyId: number,
+  createdById: number,
+  data: CreateTargetData
+): Promise<TargetResponseDto> {
+  const baselineData = await this.getBaselineValue(companyId);
 
+  if (!baselineData) {
+    throw new BadRequestException(
+      'You must complete at least one assessment before setting a target'
+    );
+  }
 
-    // Check if assessment exists
-    const baselineData = await this.getBaselineValue(companyId);
+  if (!baselineData.startYear || baselineData?.totals === null) {
+    throw new BadRequestException(
+      'Your assessment must have a valid start year and emissions data before setting a target'
+    );
+  }
 
-    // Check if assessment exists
-    if (!baselineData) {
+  if (data.targetYear <= data.baselineYear) {
+    throw new BadRequestException('Target year must be after baseline year');
+  }
+
+  // 🚨 Fetch all existing targets
+  const existingTargets = await this.prisma.target.findMany({
+    where: { companyId },
+    select: {
+      id: true,
+      baselineYear: true,
+      targetYear: true,
+      name: true,
+    },
+  });
+
+  const currentYear = new Date().getFullYear();
+
+  // 🚨 Rule 1: No overlapping ranges
+  for (const target of existingTargets) {
+    const overlaps =
+      data.baselineYear <= target.targetYear &&
+      data.targetYear >= target.baselineYear;
+
+    if (overlaps) {
       throw new BadRequestException(
-        'You must complete at least one assessment before setting a target'
+        `A target (${target.name}) already exists covering ${target.baselineYear}–${target.targetYear}. You cannot create overlapping targets.`
       );
-    }
-
-    // Check if assessment has required data
-    if (!baselineData.startYear || baselineData.totals?.total === null) {
-      throw new BadRequestException(
-        'Your assessment must have a valid start year and emissions data before setting a target'
-      );
-    }
-    // Validate timeline
-    if (data.targetYear <= data.baselineYear) {
-      throw new BadRequestException('Target year must be after baseline year');
-    }
-
-    // Create target based on type
-    if (data.type === 'GENERAL') {
-      return this.createGeneralTarget(companyId, createdById, data);
-    } else {
-      return this.createScopeTarget(companyId, createdById, data);
     }
   }
+
+  // 🚨 Rule 2: One target per year
+  const duplicateYear = existingTargets.find(
+    (t) => t.baselineYear === data.baselineYear && t.targetYear === data.targetYear
+  );
+
+  if (duplicateYear) {
+    throw new BadRequestException(
+      `A target already exists for year ${data.baselineYear}–${data.targetYear}. Only one target per year is allowed.`
+    );
+  }
+
+  // 🚨 Rule 3: No new target if a valid target exists
+  const validTarget = existingTargets.find((t) => t.targetYear >= currentYear);
+  if (validTarget) {
+    throw new BadRequestException(
+      `You cannot create a new target while a valid target (${validTarget.name}, ${validTarget.baselineYear}–${validTarget.targetYear}) still exists.`
+    );
+  }
+
+  // ✅ Create target if all checks pass
+  if (data.type === 'GENERAL') {
+    return this.createGeneralTarget(companyId, createdById, data);
+  } else {
+    return this.createScopeTarget(companyId, createdById, data);
+  }
+}
+
+
 
   /**
    * Create a general target
@@ -494,12 +540,12 @@ export class TargetService {
     // Extract the total sum if it exists
 
 
-    const totals = assessmentData?.__computed?.scopeTotals
+    const totals = assessmentData?.totalEmission ?? null;
 
     return {
       startYear,
       endYear,
-      totals,
+      totals
     };
   }
 
