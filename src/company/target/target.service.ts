@@ -536,9 +536,9 @@ async createTarget(
     if (!baseline) return null;
 
     const { startYear, endYear, assessmentData } = baseline as any;
+    
 
     // Extract the total sum if it exists
-
 
     const totals = assessmentData?.totalEmission ?? null;
 
