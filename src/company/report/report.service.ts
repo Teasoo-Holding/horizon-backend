@@ -210,6 +210,7 @@ export class ReportService {
       include: { scopeTargets: true, generalTarget: true }
     });
 
+    // console.log('Targets fetched for report:', targets);
     const env = parsedData?.environment || {};
     const air = env.airQuality?.airPollutantEmissions || {};
     const water = env.waterManagement || {};
@@ -295,16 +296,17 @@ export class ReportService {
       fuel_mix_breakdown: chartData,
       summary,
       environment_details: environmentDetails,
-      targets: targets.map(t => ({
-        name: t.name,
-        type: t.type,
-        baselineYear: t.baselineYear,
-        targetYear: t.targetYear,
-        reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
-        baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
-        current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
-        target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
-      }))
+      // targets: targets.map(t => ({
+      //   name: t.name,
+      //   type: t.type,
+      //   baselineYear: t.baselineYear,
+      //   targetYear: t.targetYear,
+      //   reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
+      //   baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
+      //   current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
+      //   target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
+      // }))
+      targets: targets[0]
     };
   }
 }
