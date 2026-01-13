@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import {
-  calculateScope1Total,
-  calculateScope2Total,
   extractFuelMixBreakdown,
   getPercentage,
   getTop5ByFuelType,
@@ -175,26 +173,44 @@ export class ReportService {
 
     const chartData = extractFuelMixBreakdown(parsed);
 
-    // const trendData = await this.prisma.assessment.findMany({
-    //   where: { companyId },
-    //   select: {
-    //     startYear: true,
-    //     report: {
-    //       select: {
-    //         ghg_scope_one: true,
-    //         ghg_scope_two: true,
-    //         ghg_scope_three: true,
-    //         ghg_total_emissions: true,
-    //       },
-    //     },
-    //   },
-    // });
+    const trendData = await this.prisma.assessment.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        startMonth: true,
+        startYear: true,
+        endMonth: true,
+        endYear: true,
+        report: {
+          select: {
+            ghg_scope_one: true,
+            ghg_scope_two: true,
+            ghg_scope_three: true,
+            ghg_total_emissions: true,
+          },
+        },
+      },
+    });
+
+    const formatHistory = (data: any[], key: string) => {
+      return data.map(t => ({
+        score: t.report?.[key] ?? 0,
+        period: `${t.startMonth} ${t.startYear} - ${t.endMonth} ${t.endYear}`
+      }));
+    };
+
+    const ghg_history = formatHistory(trendData, 'ghg_total_emissions');
+    const ghg_scope_1_history = formatHistory(trendData, 'ghg_scope_one');
+    const ghg_scope_2_history = formatHistory(trendData, 'ghg_scope_two');
+    const ghg_scope_3_history = formatHistory(trendData, 'ghg_scope_three');
 
     const targets = await this.prisma.target.findMany({
       where: { companyId },
       include: { scopeTargets: true, generalTarget: true }
     });
 
+    // console.log('Targets fetched for report:', targets);
     const env = parsedData?.environment || {};
     const air = env.airQuality?.airPollutantEmissions || {};
     const water = env.waterManagement || {};
@@ -204,10 +220,14 @@ export class ReportService {
     const environmentDetails = {
       total: env.totalEmission || report?.ghg_total_emissions || 0,
       ghg: {
-        total: report?.ghg_total_emissions ?? 0,
-        scope1: report?.ghg_scope_one ?? 0,
-        scope2: report?.ghg_scope_two ?? 0,
-        scope3: report?.ghg_scope_three ?? 0,
+        ghg_total_emissions: report?.ghg_total_emissions ?? 0,
+        ghg_history,
+        ghg_scope_1: report?.ghg_scope_one ?? 0,
+        ghg_scope_1_history,
+        ghg_scope_2: report?.ghg_scope_two ?? 0,
+        ghg_scope_2_history,
+        ghg_scope_3: report?.ghg_scope_three ?? 0,
+        ghg_scope_3_history,
       },
       airQuality: {
         totalAirPollutantEmission: (air.nox || 0) + (air.sox || 0) + (air.voc || 0) + (air.pm || 0),
@@ -217,12 +237,26 @@ export class ReportService {
         pm: air.pm ?? 0,
       },
       waterManagement: {
+        freshwaterWithdrawals: {
+          surfaceWater: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.surfaceWater?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromSurfaceWater ?? 0,
+          groundwater: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.groundwater?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromGroundwater ?? 0,
+          municipal: waterAndProduced.freshwaterWithdrawals?.calculated?.withdrawals?.municipal?.volume ?? waterAndProduced.freshwaterWithdrawals?.withdrawalfromMunicipalotherOtherSources ?? 0,
+        },
         totalWaterWithdrawal: waterAndProduced.freshwaterWithdrawals?.totalWithdrawal ?? 0,
         totalWaterConsumed: waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed ?? 0,
         totalProducedWaterGenerated: waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated ?? 0,
         recycledReused: waterAndProduced.producedWaterManagement?.volumeRecycledReused ?? 0,
         injectedForDisposal: waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal ?? 0,
         dischargedToSurface: waterAndProduced.producedWaterManagement?.volumeDischargedToSurface ?? 0,
+        wells: {
+          totalWells: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.totalWells ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfWells ?? 0,
+          wellsWithPublicDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.wellsWithDisclosure ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure ?? 0,
+          percentageWithDisclosure: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.percentageWellsWithDisclosure ?? 0,
+        },
+        sites: {
+          totalSites: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.totalSites ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfSites ?? 0,
+          sitesWithDeterioratedWaterQuality: water.hydraulicFracturingImpacts?.waterQualityImpacts?.calculated?.fracturing?.sitesWithDeterioratedWaterQuality ?? water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfSitesWithDeterioratedWaterQuality ?? 0,
+        },
         hydraulicFracturing: {
           totalFracturedWells: water.hydraulicFracturingImpacts?.chemicalDisclosure?.operatesFrackedWells === 'yes' ? 1 : 0, // Simplified, as we don't have a count for fractured wells yet
           volumeRecycledReused: water.hydraulicFracturingImpacts?.chemicalDisclosure?.volumeRecycledReused ?? 0,
@@ -262,16 +296,17 @@ export class ReportService {
       fuel_mix_breakdown: chartData,
       summary,
       environment_details: environmentDetails,
-      targets: targets.map(t => ({
-        name: t.name,
-        type: t.type,
-        baselineYear: t.baselineYear,
-        targetYear: t.targetYear,
-        reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
-        baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
-        current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
-        target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
-      }))
+      // targets: targets.map(t => ({
+      //   name: t.name,
+      //   type: t.type,
+      //   baselineYear: t.baselineYear,
+      //   targetYear: t.targetYear,
+      //   reductionPercentage: t.generalTarget?.reductionPercentage || t.scopeTargets?.[0]?.reductionPercentage, // Simplified
+      //   baseline: t.generalTarget?.baselineYearEmission || t.scopeTargets?.[0]?.baselineYearEmission,
+      //   current: t.generalTarget?.currentEmission || t.scopeTargets?.[0]?.currentEmission,
+      //   target: t.generalTarget?.targetEmission || t.scopeTargets?.[0]?.targetEmission,
+      // }))
+      targets: targets[0]
     };
   }
 }
