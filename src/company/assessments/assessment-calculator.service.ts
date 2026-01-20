@@ -811,12 +811,135 @@ export class AssessmentCalculatorService {
     if (data.environment) {
       pillars.push(this.calculateEnvironmentalProgress(data.environment));
     }
-
-    // TODO: Add other pillars when implemented
-    // if (data.socialCapital) pillars.push(this.calculateSocialProgress(data.socialCapital));
-    // if (data.humanCapital) pillars.push(this.calculateHumanProgress(data.humanCapital));
-    // if (data.businessModel) pillars.push(this.calculateBusinessProgress(data.businessModel));
+    if (data.socialCapital) {
+      pillars.push(this.calculateSocialProgress(data.socialCapital));
+    }
+    if (data.humanCapital) {
+      pillars.push(this.calculateHumanProgress(data.humanCapital));
+    }
+    if (data.businessModel) {
+      pillars.push(this.calculateBusinessProgress(data.businessModel));
+    }
+    if (data.leadershipGovernance) {
+      pillars.push(this.calculateLeadershipProgress(data.leadershipGovernance));
+    }
 
     return pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / pillars.length).toFixed(1)) : 0;
+  }
+
+  private calculateSocialProgress(social: any): number {
+    const topics: number[] = [];
+
+    // Security, Human Rights & Indigenous People
+    if (social.securityHumanRights) {
+      // Forms: operationsInConflictZones, reservesInNearIndigenousLand, humanRightsEngagementProcesses
+      const forms = [
+        'operationsInConflictZones',
+        'reservesInNearIndigenousLand',
+        'humanRightsEngagementProcesses'
+      ];
+      // Assuming each form has roughly same number of required fields or we estimate expected fields
+      // Using generic 4 fields per form as estimation if not known, or sticking to previous small numbers
+      this.calculateGroupProgress(social.securityHumanRights, forms, [2, 2, 4]);
+      if (social.securityHumanRights.progress != null) topics.push(social.securityHumanRights.progress);
+    }
+
+    // Community Relations
+    if (social.communityRelations) {
+      // communityRiskOpportunityManagement, hcdtContribution, communityDisputeResolution, operationalDelays
+      const forms = [
+        'communityRiskOpportunityManagement',
+        'hcdtContribution',
+        'communityDisputeResolution',
+        'operationalDelays'
+      ];
+      this.calculateGroupProgress(social.communityRelations, forms, [4, 3, 3, 2]);
+      if (social.communityRelations.progress != null) topics.push(social.communityRelations.progress);
+    }
+
+    return topics.length > 0
+      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      : 0;
+  }
+
+  private calculateHumanProgress(human: any): number {
+    const topics: number[] = [];
+
+    // Workforce Health & Safety
+    if (human.workforceHealthSafety) {
+      // healthSafetyPerformance, safetyManagementSystems
+      const forms = ['healthSafetyPerformance', 'safetyManagementSystems'];
+      this.calculateGroupProgress(human.workforceHealthSafety, forms, [6, 4]); // 6 fields for performance (direct/contract combined approx), 4 for systems
+      if (human.workforceHealthSafety.progress != null) topics.push(human.workforceHealthSafety.progress);
+    }
+
+    return topics.length > 0
+      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      : 0;
+  }
+
+  private calculateBusinessProgress(business: any): number {
+    const topics: number[] = [];
+
+    // Reserves Valuation & CapEx
+    if (business.reservesValuation) {
+      const forms = [
+        'reservesSensitivity',
+        'embeddedCarbon',
+        'renewableEnergyInvestment',
+        'capitalExpenditureStrategy'
+      ];
+      this.calculateGroupProgress(business.reservesValuation, forms, [3, 4, 3, 2]);
+      if (business.reservesValuation.progress != null) topics.push(business.reservesValuation.progress);
+    }
+
+    // Business Ethics & Transparency
+    if (business.businessEthics) {
+      const forms = [
+        'reservesCountriesCorruptionRisk',
+        'antiCorruptionManagement'
+      ];
+      this.calculateGroupProgress(business.businessEthics, forms, [3, 4]);
+      if (business.businessEthics.progress != null) topics.push(business.businessEthics.progress);
+    }
+
+    return topics.length > 0
+      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      : 0;
+  }
+
+  private calculateLeadershipProgress(leadership: any): number {
+    const topics: number[] = [];
+
+    // Critical Incident Risk Management
+    if (leadership.criticalIncidentRiskManagement) {
+      const forms = [
+        'processSafetyEvents',
+        'catastrophicRiskManagementSystems'
+      ];
+      this.calculateGroupProgress(leadership.criticalIncidentRiskManagement, forms, [5, 4]);
+      if (leadership.criticalIncidentRiskManagement.progress != null) topics.push(leadership.criticalIncidentRiskManagement.progress);
+    }
+
+    // Management of Legal & Regulatory Environment
+    if (leadership.legalRegulatoryEnvironment) {
+      const forms = [
+        'boardManagementOversight',
+        'publicPolicyEngagement'
+      ];
+      this.calculateGroupProgress(leadership.legalRegulatoryEnvironment, forms, [4, 4]);
+      if (leadership.legalRegulatoryEnvironment.progress != null) topics.push(leadership.legalRegulatoryEnvironment.progress);
+    }
+
+    return topics.length > 0
+      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      : 0;
+  }
+
+  private hasValue(val: any): boolean {
+    if (val === undefined || val === null) return false;
+    if (typeof val === 'number') return true; // 0 is a value
+    if (typeof val === 'string') return val.trim().length > 0;
+    return true;
   }
 }
