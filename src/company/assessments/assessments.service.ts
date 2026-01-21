@@ -11,6 +11,48 @@ import { ActivitiesService } from 'src/activities/activities.service';
 import { EmailService } from 'src/email/email.service';
 import { AssessmentCalculatorService } from './assessment-calculator.service';
 
+const PILLAR_GROUPS = {
+  environment: [
+    'environment.ghg.scope1.stationarySources',
+    'environment.ghg.scope1.mobileSources',
+    'environment.ghg.scope1.processEmissions',
+    'environment.ghg.scope1.fugitiveEmissions',
+    'environment.ghg.scope2.locationBased',
+    'environment.ghg.scope2.marketBased',
+    'environment.ghg.scope3.upstream',
+    'environment.ghg.scope3.downstream',
+    'environment.airQuality',
+    'environment.waterManagement',
+    'environment.biodiversityImpact',
+  ],
+  socialCapital: [
+    'socialCapital.securityHumanRights.operationsInConflictZones',
+    'socialCapital.securityHumanRights.reservesInNearIndigenousLand',
+    'socialCapital.securityHumanRights.humanRightsEngagementProcesses',
+    'socialCapital.communityRelations.communityRiskOpportunityManagement',
+    'socialCapital.communityRelations.hcdtContribution',
+    'socialCapital.communityRelations.communityDisputeResolution',
+    'socialCapital.communityRelations.operationalDelays',
+  ],
+  humanCapital: [
+    'humanCapital.workforceHealthSafety',
+  ],
+  businessModel: [
+    'businessModel.reservesValuation.reservesSensitivity',
+    'businessModel.reservesValuation.embeddedCarbon',
+    'businessModel.reservesValuation.renewableEnergyInvestment',
+    'businessModel.reservesValuation.capitalExpenditureStrategy',
+    'businessModel.businessEthics.reservesCountriesCorruptionRisk',
+    'businessModel.businessEthics.antiCorruptionManagement',
+  ],
+  leadershipGovernance: [
+    'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents',
+    'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems',
+    'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight',
+    'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement',
+  ],
+};
+
 @Injectable()
 export class AssessmentService {
   constructor(
@@ -162,10 +204,45 @@ export class AssessmentService {
     const recalculated = result.data as any; // ← THIS LINE FIXES THE ERROR
     const scopeTotals = result.scopeTotals;
 
+
     const requireReview = assessment.company?.requireAssessmentReview ?? false;
-    const newStatus = requireReview
-      ? AssessmentStatus.awaiting_review
-      : AssessmentStatus.submitted_approved;
+    let newStatus: AssessmentStatus = AssessmentStatus.in_progress;
+
+    if (requireReview) {
+      newStatus = AssessmentStatus.awaiting_review;
+    } else {
+      // Logic: Only set to submitted_approved if the entire pillar is complete
+      // 1. Identify which pillar this submission belongs to
+      let currentPillar: string | null = null;
+      if (lastSavedForm) {
+        const path = this.getGroupPath(lastSavedForm);
+        if (path?.startsWith('environment.')) currentPillar = 'environment';
+        if (path?.startsWith('socialCapital.')) currentPillar = 'socialCapital';
+        if (path?.startsWith('humanCapital.')) currentPillar = 'humanCapital';
+        if (path?.startsWith('businessModel.')) currentPillar = 'businessModel';
+        if (path?.startsWith('leadershipGovernance.')) currentPillar = 'leadershipGovernance';
+        // Add other pillars here as they are defined in PILLAR_GROUPS
+      }
+
+      // 2. Check if pillar is complete
+      if (currentPillar && PILLAR_GROUPS[currentPillar]) {
+        const requiredGroups = PILLAR_GROUPS[currentPillar];
+        const submittedSet = new Set(currentData.submittedGroups || []);
+        const isComplete = requiredGroups.every((g) => submittedSet.has(g));
+
+        if (isComplete) {
+          newStatus = AssessmentStatus.submitted_approved;
+        } else {
+          if (assessment.status === AssessmentStatus.submitted_approved) {
+            newStatus = AssessmentStatus.submitted_approved;
+          }
+        }
+      }
+    }
+
+    if (newStatus === AssessmentStatus.submitted_approved) {
+      recalculated.overallProgress = 100;
+    }
 
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
@@ -391,6 +468,69 @@ export class AssessmentService {
     if (formKey.startsWith('env-biodiversity')) {
       return 'environment.biodiversityImpact';
     }
+
+    // Social Capital
+    if (formKey.startsWith('soc-security-conflict')) {
+      return 'socialCapital.securityHumanRights.operationsInConflictZones';
+    }
+    if (formKey.startsWith('soc-security-indigenous')) {
+      return 'socialCapital.securityHumanRights.reservesInNearIndigenousLand';
+    }
+    if (formKey.startsWith('soc-security-engagement')) {
+      return 'socialCapital.securityHumanRights.humanRightsEngagementProcesses';
+    }
+    if (formKey.startsWith('soc-community-risk')) {
+      return 'socialCapital.communityRelations.communityRiskOpportunityManagement';
+    }
+    if (formKey.startsWith('soc-community-hcdt')) {
+      return 'socialCapital.communityRelations.hcdtContribution';
+    }
+    if (formKey.startsWith('soc-community-dispute')) {
+      return 'socialCapital.communityRelations.communityDisputeResolution';
+    }
+    if (formKey.startsWith('soc-community-delays')) {
+      return 'socialCapital.communityRelations.operationalDelays';
+    }
+
+    // Human Capital
+    if (formKey.startsWith('humanCapital.riskAndOpportunityManagement')) {
+      return 'humanCapital.workforceHealthSafety';
+    }
+
+    // Business Model
+    if (formKey.includes('reserveValuation.climateImpact.reserveSensitivity')) {
+      return 'businessModel.reservesValuation.reservesSensitivity';
+    }
+    if (formKey.includes('reserveValuation.climateImpact.embeddedCarbon')) {
+      return 'businessModel.reservesValuation.embeddedCarbon';
+    }
+    if (formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment')) {
+      return 'businessModel.reservesValuation.renewableEnergyInvestment';
+    }
+    if (formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy')) {
+      return 'businessModel.reservesValuation.capitalExpenditureStrategy';
+    }
+    if (formKey.includes('businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+      return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
+    }
+    if (formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')) {
+      return 'businessModel.businessEthics.antiCorruptionManagement';
+    }
+
+    // Leadership
+    if (formKey.includes('criticalIncidentRiskManagement.processSafetyEvents')) {
+      return 'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents';
+    }
+    if (formKey.includes('criticalIncidentRiskManagement.catastrophicRiskManagementSystems')) {
+      return 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems';
+    }
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.boardManagementOversight')) {
+      return 'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight';
+    }
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement')) {
+      return 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement';
+    }
+
     return null;
   }
 }
