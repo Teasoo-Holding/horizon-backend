@@ -21,6 +21,8 @@ interface AssessmentData {
   }>;
   lastSavedForm?: string;
   submittedGroups?: string[];
+  completedSections?: number;
+  totalSections?: number;
 }
 
 @Injectable()
@@ -63,7 +65,7 @@ export class AssessmentCalculatorService {
 
     ghg.scope2 ??= { locationBased: {}, marketBased: {} };
 
-    // --- GHG Scope 1 Calculations ---
+    // GHG Scope 1 Calculations
     if (this.hasData(ghg.scope1.stationarySources)) {
       const group = ghg.scope1.stationarySources;
       group.totalEmission = 0;
@@ -151,7 +153,7 @@ export class AssessmentCalculatorService {
     ghg.scope1.totalEmission = Number(scope1Total.toFixed(4));
     ghg.scope1.progress = this.calculateScope1Progress(ghg.scope1);
 
-    // --- GHG Scope 2 Calculations ---
+    // GHG Scope 2 Calculations
     // Location Based
     if (this.hasData(ghg.scope2.locationBased)) {
       const group = ghg.scope2.locationBased;
@@ -175,7 +177,7 @@ export class AssessmentCalculatorService {
     ghg.scope2.totalEmission = Number(scope2Total.toFixed(4));
     ghg.scope2.progress = this.calculateScope2Progress(ghg.scope2);
 
-    // --- GHG Scope 3 Calculations ---
+    // GHG Scope 3 Calculations
     let scope3Total = 0;
     ghg.scope3 ??= { upstream: {}, downstream: {} };
 
@@ -231,7 +233,7 @@ export class AssessmentCalculatorService {
     ghg.scope3.totalEmission = Number(scope3Total.toFixed(4));
     ghg.scope3.progress = this.calculateScope3Progress(ghg.scope3);
 
-    // --- Air Quality Calculations ---
+    // Air Quality Calculations
     if (this.hasData(data.environment?.airQuality?.airPollutantEmissions)) {
       const aq = data.environment.airQuality;
       const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
@@ -239,7 +241,7 @@ export class AssessmentCalculatorService {
       this.calculateFormProgress(aq.airPollutantEmissions, 1);
     }
 
-    // --- Water Management Calculations ---
+    // Water Management Calculations
     if (this.hasData(data.environment?.waterManagement)) {
       const wm = data.environment.waterManagement;
       if (this.hasData(wm.waterAndProducedWaterManagement)) {
@@ -255,7 +257,7 @@ export class AssessmentCalculatorService {
       }
     }
 
-    // --- Biodiversity Impact Calculations ---
+    // Biodiversity Impact Calculations
     if (this.hasData(data.environment?.biodiversityImpact?.environmentalManagement)) {
       const bio = data.environment.biodiversityImpact;
       const sub = bio.environmentalManagement;
@@ -281,6 +283,11 @@ export class AssessmentCalculatorService {
 
     const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
     data.overallProgress = environmentalProgress;
+
+    // Calculate total completed and expected sections
+    const counts = this.calculateTotalSectionCounts(data);
+    data.completedSections = counts.completed;
+    data.totalSections = counts.total;
 
     return {
       data,
@@ -376,6 +383,7 @@ export class AssessmentCalculatorService {
       locFields.forEach(f => {
         if (this.hasData(loc[f])) count++;
       });
+      loc.dataCount = { expected: 4, count };
       loc.progress = Number(((count / 4) * 100).toFixed(1));
     }
 
@@ -387,6 +395,7 @@ export class AssessmentCalculatorService {
       marFields.forEach(f => {
         if (this.hasData(mar[f])) count++;
       });
+      mar.dataCount = { expected: 4, count };
       mar.progress = Number(((count / 4) * 100).toFixed(1));
     }
 
@@ -740,11 +749,6 @@ export class AssessmentCalculatorService {
       : 0;
   }
 
-  /**
-   * Calculate progress for the Environmental pillar
-   * This will be combined with other pillars (Social Capital, Human Capital, etc.)
-   * to determine overall assessment progress
-   */
   private calculateEnvironmentalProgress(environment: any): number {
     const topics: number[] = [];
 
@@ -798,8 +802,6 @@ export class AssessmentCalculatorService {
       }
     }
 
-    // Average progress across all environmental topics that HAVE data
-    // This prevents empty sections from dragging the average down to 33.3%
     return topics.length > 0
       ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
       : 0;
@@ -832,21 +834,17 @@ export class AssessmentCalculatorService {
 
     // Security, Human Rights & Indigenous People
     if (social.securityHumanRights) {
-      // Forms: operationsInConflictZones, reservesInNearIndigenousLand, humanRightsEngagementProcesses
       const forms = [
         'operationsInConflictZones',
         'reservesInNearIndigenousLand',
         'humanRightsEngagementProcesses'
       ];
-      // Assuming each form has roughly same number of required fields or we estimate expected fields
-      // Using generic 4 fields per form as estimation if not known, or sticking to previous small numbers
       this.calculateGroupProgress(social.securityHumanRights, forms, [2, 2, 4]);
       if (social.securityHumanRights.progress != null) topics.push(social.securityHumanRights.progress);
     }
 
     // Community Relations
     if (social.communityRelations) {
-      // communityRiskOpportunityManagement, hcdtContribution, communityDisputeResolution, operationalDelays
       const forms = [
         'communityRiskOpportunityManagement',
         'hcdtContribution',
@@ -867,9 +865,8 @@ export class AssessmentCalculatorService {
 
     // Workforce Health & Safety
     if (human.workforceHealthSafety) {
-      // healthSafetyPerformance, safetyManagementSystems
       const forms = ['healthSafetyPerformance', 'safetyManagementSystems'];
-      this.calculateGroupProgress(human.workforceHealthSafety, forms, [6, 4]); // 6 fields for performance (direct/contract combined approx), 4 for systems
+      this.calculateGroupProgress(human.workforceHealthSafety, forms, [6, 4]);
       if (human.workforceHealthSafety.progress != null) topics.push(human.workforceHealthSafety.progress);
     }
 
@@ -934,6 +931,91 @@ export class AssessmentCalculatorService {
     return topics.length > 0
       ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
       : 0;
+  }
+
+  private calculateTotalSectionCounts(data: any): { completed: number; total: number } {
+    let completed = 0;
+    let total = 0;
+
+    const extract = (obj: any) => {
+      if (obj?.dataCount) {
+        completed += obj.dataCount.count || 0;
+        total += obj.dataCount.expected || 0;
+        return true;
+      }
+      return false;
+    };
+
+    // Environmental
+    if (data.environment) {
+      const g = data.environment.ghg || {};
+      // Scope 1
+      if (g.scope1) {
+        ['stationarySources', 'mobileSources', 'processEmissions', 'fugitiveEmissions'].forEach(k => {
+          const group = g.scope1[k];
+          if (group) {
+            // Groups like stationarySources have forms like electricityHeat
+            // We want the form-level dataCount if it exists, otherwise the group level
+            let groupCounted = false;
+            for (const key in group) {
+              if (extract(group[key])) groupCounted = true;
+            }
+            if (!groupCounted) extract(group);
+          }
+        });
+      }
+      // Scope 2
+      if (g.scope2) {
+        ['locationBased', 'marketBased'].forEach(k => {
+          const s = g.scope2[k];
+          if (s) {
+            total += 4;
+            if (s.progress) completed += Math.round((s.progress / 100) * 4);
+          }
+        });
+      }
+      // Scope 3
+      if (g.scope3) {
+        ['upstream', 'downstream'].forEach(k => {
+          const s = g.scope3[k];
+          if (s) {
+            for (const key in s) {
+              extract(s[key]);
+            }
+          }
+        });
+      }
+      // Air, Water, Bio
+      if (data.environment.airQuality?.airPollutantEmissions) extract(data.environment.airQuality.airPollutantEmissions);
+      if (data.environment.waterManagement?.waterAndProducedWaterManagement) {
+        const w = data.environment.waterManagement.waterAndProducedWaterManagement;
+        extract(w.freshwaterWithdrawals);
+        extract(w.producedWaterManagement);
+      }
+      if (data.environment.biodiversityImpact?.environmentalManagement) {
+        const b = data.environment.biodiversityImpact.environmentalManagement;
+        extract(b.environmentalManagementPolicies);
+        extract(b.hydrocarbonSpills);
+        extract(b.reservesInSensitiveAreas);
+      }
+    }
+
+    // Social, Human, Business, Leadership
+    const pillars = ['socialCapital', 'humanCapital', 'businessModel', 'leadershipGovernance'];
+    pillars.forEach(p => {
+      if (data[p]) {
+        for (const topicKey in data[p]) {
+          const topic = data[p][topicKey];
+          if (typeof topic === 'object') {
+            for (const formKey in topic) {
+              extract(topic[formKey]);
+            }
+          }
+        }
+      }
+    });
+
+    return { completed, total: total || 100 };
   }
 
   private hasValue(val: any): boolean {
