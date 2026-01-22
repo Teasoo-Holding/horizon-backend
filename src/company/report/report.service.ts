@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 import {
   getPercentage,
   // extractFuelMixBreakdown,
@@ -9,7 +9,7 @@ import {
 
 @Injectable()
 export class ReportService {
-  constructor(private prisma: PrismaClient) { }
+  constructor(private prisma: PrismaService) { }
 
   async findOrganizationAssessmentReport(id: number) {
     const report = await this.prisma.assessment.findMany({
@@ -28,6 +28,8 @@ export class ReportService {
         report: {
           select: {
             progress: true,
+            completed_sections: true,
+            total_sections: true,
           }
         }
       },
@@ -35,13 +37,15 @@ export class ReportService {
         createdAt: 'desc',
       }
     });
-    return report.map(r => {
+    return report.map((r: any) => {
       const data = (r.assessmentData || {}) as any;
       return {
         ...r,
         progress: data.overallProgress ?? r.report?.progress ?? 0,
-        report: undefined, // Clean up
-        assessmentData: undefined // Clean up
+        completed_sections: data.completedSections ?? r.report?.completed_sections ?? 0,
+        total_sections: data.totalSections ?? r.report?.total_sections ?? 100,
+        report: undefined,
+        assessmentData: undefined
       };
     });
   }
@@ -59,6 +63,10 @@ export class ReportService {
 
     const report = sumSummary?.assessmentData as any;
     const ghg = report?.environment?.ghg;
+    const socialCapital = report?.socialCapital || {};
+    const humanCapital = report?.humanCapital || {};
+    const businessModel = report?.businessModelAndInnovation || report?.businessModel || {};
+    const leadershipGovernance = report?.leadershipGovernance || {};
 
     const result = {
       ghg_total_emissions: report?.totalEmission ?? 0,
@@ -85,7 +93,7 @@ export class ReportService {
       social_scope_one: 0,
       social_scope_two: 0,
       social_scope_three: 0,
-      social_datacount_scope_one: 0,
+      social_datacount_scope_one: Object.keys(socialCapital.securityRights || {}).length + Object.keys(socialCapital.communityRelations || {}).length,
       social_datacount_scope_two: 0,
       social_datacount_scope_three: 0,
       governance_total_emissions: 0,
@@ -95,9 +103,33 @@ export class ReportService {
       governance_datacount_scope_one: 0,
       governance_datacount_scope_two: 0,
       governance_datacount_scope_three: 0,
+      // Human Capital metrics
+      human_total_emissions: 0,
+      human_scope_one: 0,
+      human_scope_two: 0,
+      human_scope_three: 0,
+      human_datacount_scope_one: Object.keys(humanCapital.workforceHealthAndSafety || {}).length + Object.keys(humanCapital.riskAndOpportunityManagement || {}).length,
+      human_datacount_scope_two: 0,
+      human_datacount_scope_three: 0,
+      // Business Model metrics
+      business_total_emissions: 0,
+      business_scope_one: 0,
+      business_scope_two: 0,
+      business_scope_three: 0,
+      business_datacount_scope_one: Object.keys(businessModel.reserveValuation || {}).length + Object.keys(businessModel.businessEthicsAndTransparency || {}).length,
+      business_datacount_scope_two: 0,
+      business_datacount_scope_three: 0,
+      // Leadership & Governance metrics
+      leadership_total_emissions: 0,
+      leadership_scope_one: 0,
+      leadership_scope_two: 0,
+      leadership_scope_three: 0,
+      leadership_datacount_scope_one: Object.keys(leadershipGovernance.criticalIncidentRiskManagement || {}).length + Object.keys(leadershipGovernance.managementOfLegalAndRegulatoryEnvironment || {}).length,
+      leadership_datacount_scope_two: 0,
+      leadership_datacount_scope_three: 0,
+      completed_sections: report?.completedSections ?? 0,
+      total_sections: report?.totalSections ?? 100,
     };
-
-    console.log(`Upserting report for assessment ${id}`, result);
 
     const saved = await this.prisma.report.upsert({
       where: { assessmentId: id },
@@ -203,11 +235,17 @@ export class ReportService {
     // Environmental
     const env = currentData.environment || {};
     const prevEnv = previousData?.environment || {};
-    const ghg = env.ghg || {};
-    const air = env.airQuality?.airPollutantEmissions || {};
+    // Read from calculated air quality data
+    const air = env.airQuality?.airPollutantEmissions?.calculated?.breakdown || {};
     const water = env.waterManagement || {};
     const waterAndProduced = water.waterAndProducedWaterManagement || {};
-    const bio = env.biodiversityImpact?.environmentalManagement || {};
+    // Read from calculated water data
+    const freshwaterCalculated = waterAndProduced.freshwaterWithdrawals?.calculated || {};
+    const producedWaterCalculated = waterAndProduced.producedWaterManagement?.calculated || {};
+    // Read from calculated biodiversity data
+    const biodiversityManagement = env.biodiversityImpact?.environmentalManagement || {};
+    const hydrocarbonSpillsCalculated = biodiversityManagement.hydrocarbonSpills?.calculated || {};
+    const reservesCalculated = biodiversityManagement.reservesInSensitiveAreas?.calculated || {};
 
     // Activity Metrics
     const am = currentData.activityMetrics || {};
@@ -218,21 +256,26 @@ export class ReportService {
 
     // Social Capital
     const soc = currentData.socialCapital || {};
-    const sec = soc.securityHumanRights || {};
+    const sec = soc.securityRights || soc.securityHumanRights || {};
     const com = soc.communityRelations || {};
-    const opDelays = com.operationalDelays || {};
 
     // Human Capital
     const hum = currentData.humanCapital || {};
+    const humWorkforce = hum.workforceHealthAndSafety || {};
+    const humRiskManagement = hum.riskAndOpportunityManagement || {};
+    const humHealthSafety = humRiskManagement.healthAndSafetyPerformance || {};
 
     // Business Model
-    const bus = currentData.businessModel || {};
-    const busReserves = bus.reservesValuation || {};
-    const busEthics = bus.businessEthics || {};
+    const bus = currentData.businessModelAndInnovation || currentData.businessModel || {};
+    const busReserves = bus.reserveValuation || bus.reservesValuation || {};
+    const busClimateImpact = busReserves.climateImpact || {};
+    const busStrategic = busReserves.strategicCapitalAllocation || {};
+    const busEthics = bus.businessEthicsAndTransparency || bus.businessEthics || {};
 
     // Leadership & Governance
     const lead = currentData.leadershipGovernance || {};
-    const crit = lead.criticalIncidenceRiskManagement || {};
+    const crit = lead.criticalIncidentRiskManagement || {};
+    const legal = lead.managementOfLegalAndRegulatoryEnvironment || {};
 
     // Scope Percentages
     const totalEmissions = report?.ghg_total_emissions ?? getNum(currentData.totalEmission);
@@ -286,48 +329,49 @@ export class ReportService {
           scope3History: formatHistory(trendData, 'ghg_scope_three'),
         },
         airQuality: {
-          totalEmission: (getNum(air.nox) + getNum(air.sox) + getNum(air.voc) + getNum(air.pm)),
-          nox: getNum(air.nox),
-          sox: getNum(air.sox),
-          voc: getNum(air.voc),
-          pm10: getNum(air.pm),
+          totalEmission: (getNum(air.oxidesOfNitrogen?.volume) + getNum(air.oxidesOfSulphur?.volume) + getNum(air.volatileOrganicCompounds?.volume) + getNum(air.particulateMatter?.volume)),
+          nox: getNum(air.oxidesOfNitrogen?.volume),
+          sox: getNum(air.oxidesOfSulphur?.volume),
+          voc: getNum(air.volatileOrganicCompounds?.volume),
+          pm10: getNum(air.particulateMatter?.volume),
         },
         waterManagement: {
-          totalWaterWithdrawal: getNum(waterAndProduced.freshwaterWithdrawals?.totalWithdrawal),
-          totalWaterConsumed: getNum(waterAndProduced.freshwaterWithdrawals?.totalWaterConsumed),
-          totalProducedWaterGenerated: getNum(waterAndProduced.producedWaterManagement?.totalProducedWaterGenerated),
-          recycledWater: getNum(waterAndProduced.producedWaterManagement?.volumeRecycledReused),
-          injectedForDisposal: getNum(waterAndProduced.producedWaterManagement?.volumeInjectedForDisposal),
-          dischargedToSurface: getNum(waterAndProduced.producedWaterManagement?.volumeDischargedToSurface),
+          totalWaterWithdrawal: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume) + getNum(freshwaterCalculated.withdrawals?.groundwater?.volume) + getNum(freshwaterCalculated.withdrawals?.municipal?.volume),
+          totalWaterConsumed: getNum(freshwaterCalculated.withdrawals?.totalConsumed?.volume),
+          totalProducedWaterGenerated: getNum(producedWaterCalculated.totalProducedWater?.volume) || getNum(freshwaterCalculated.producedWater?.generated?.volume),
+          recycledWater: getNum(producedWaterCalculated.recycledReused?.volume) || getNum(freshwaterCalculated.producedWater?.recycled?.volume),
+          injectedForDisposal: getNum(producedWaterCalculated.injectedForDisposal?.volume) || getNum(freshwaterCalculated.producedWater?.injected?.volume),
+          dischargedToSurface: getNum(producedWaterCalculated.dischargedToSurface?.volume) || getNum(freshwaterCalculated.producedWater?.discharged?.volume),
           freshwaterWithdrawalBySource: {
-            surfaceWater: getNum(waterAndProduced.freshwaterWithdrawals?.withdrawalfromSurfaceWater),
-            groundwater: getNum(waterAndProduced.freshwaterWithdrawals?.withdrawalfromGroundwater),
-            municipalWater: getNum(waterAndProduced.freshwaterWithdrawals?.withdrawalfromMunicipalotherOtherSources),
+            surfaceWater: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume),
+            groundwater: getNum(freshwaterCalculated.withdrawals?.groundwater?.volume),
+            municipalWater: getNum(freshwaterCalculated.withdrawals?.municipal?.volume),
           },
           hydraulicFracturingChemicalDisclosure: {
             wells: {
-              totalFracturedWells: getNum(water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfWells),
-              numberOfWellsWithPublicDisclosure: getNum(water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfWellsWithPublicDisclosure),
-              percentageWithDisclosure: getNum(water.hydraulicFracturingImpacts?.waterQualityImpacts?.percentageWellsWithDisclosure), // Logic might be needed if not pre-calculated
+              totalFracturedWells: getNum(freshwaterCalculated.fracturing?.totalWells),
+              numberOfWellsWithPublicDisclosure: getNum(freshwaterCalculated.fracturing?.disclosure?.wellsWithDisclosure),
+              percentageWithDisclosure: getNum(freshwaterCalculated.fracturing?.percentageWellsWithDisclosure),
             },
           },
           hydraulicFracturingWaterQualityImpacts: {
             sites: {
-              totalFracturedSitesMonitored: getNum(water.hydraulicFracturingImpacts?.waterQualityImpacts?.totalNumberOfSites),
-              withDeterioratedWaterQuality: getNum(water.hydraulicFracturingImpacts?.waterQualityImpacts?.numberOfSitesWithDeterioratedWaterQuality),
-              percentageWithDeterioratedWaterQuality: 0, // Calculate if needed: (deteriorated / total) * 100
+              totalFracturedSitesMonitored: getNum(freshwaterCalculated.fracturing?.totalSites),
+              withDeterioratedWaterQuality: getNum(freshwaterCalculated.fracturing?.sitesWithDeterioratedWaterQuality),
+              percentageWithDeterioratedWaterQuality: freshwaterCalculated.fracturing?.totalSites && freshwaterCalculated.fracturing?.sitesWithDeterioratedWaterQuality ?
+                (freshwaterCalculated.fracturing.sitesWithDeterioratedWaterQuality / freshwaterCalculated.fracturing.totalSites) * 100 : 0,
             }
           }
         },
         biodiversityImpact: {
           hydrocarbonSpills: {
-            numberOfSpills: getNum(bio.hydrocarbonSpills?.numberOfSpills),
-            totalVolumeSpilled: getNum(bio.hydrocarbonSpills?.totalVolumeSpilled),
-            volumeRecovered: getNum(bio.hydrocarbonSpills?.volumeRecovered),
+            numberOfSpills: getNum(hydrocarbonSpillsCalculated.numberOfSpills),
+            totalVolumeSpilled: getNum(hydrocarbonSpillsCalculated.totalVolumeSpilled?.volume),
+            volumeRecovered: getNum(hydrocarbonSpillsCalculated.volumeRecovered?.volume),
           },
           reservesInSensitiveAreas: {
-            provedReserves: getNum(bio.reservesInSensitiveAreas?.totalProvedReservesVolume),
-            probableReserves: getNum(bio.reservesInSensitiveAreas?.totalProbableReservesVolume),
+            provedReserves: getNum(reservesCalculated.totalProvedReserves?.volume),
+            probableReserves: getNum(reservesCalculated.totalProbableReserves?.volume),
           }
         },
       },
@@ -337,45 +381,45 @@ export class ReportService {
         totalNumberOfIncidents: getNum(soc.totalNumberOfIncidents),
         securityHumanRightsAndIndigenousPeople: {
           operationsInConflictZones: {
-            provedReserves: getNum(sec.operationsInConflictZones?.provedReserves),
-            probableReserves: getNum(sec.operationsInConflictZones?.probableReserves),
+            provedReserves: getNum(sec.reservesAreaConflict?.totalProvedReservesVolume),
+            probableReserves: getNum(sec.reservesAreaConflict?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
-            provedReserves: getNum(sec.reservesInNearIndigenousLand?.provedReserves),
-            probableReserves: getNum(sec.reservesInNearIndigenousLand?.probableReserves),
+            provedReserves: getNum(sec.reservesIndigenousLand?.totalProvedReservesVolume),
+            probableReserves: getNum(sec.reservesIndigenousLand?.probableIndigenousVolume),
           }
         },
         communityRelations: {
           hcdtContribution: {
-            priorYearOpexAmount: getNum(com.hcdtContribution?.priorYearOPEX),
-            annualContribution: getNum(com.hcdtContribution?.annualContribution),
+            priorYearOpexAmount: getNum(com.hcdtContribution?.opexAmount),
+            annualContribution: getNum(com.hcdtContribution?.hcdtAmount),
             percentage: getNum(com.hcdtContribution?.percentage),
           },
           communityDisputeResolution: {
-            resolvedDisputes: getNum(com.communityDisputeResolution?.resolvedDisputes),
-            pending: getNum(com.communityDisputeResolution?.pending),
-            total: getNum(com.communityDisputeResolution?.total),
+            resolvedDisputes: getNum(com.disputeResolution?.disputesResolved),
+            pending: getNum(com.disputeResolution?.disputesReferred),
+            total: getNum(com.disputeResolution?.disputesResolved) + getNum(com.disputeResolution?.disputesReferred),
           },
           operationalDelays: {
             protests: {
-              count: getNum(opDelays.protests?.count),
-              delay: getNum(opDelays.protests?.delay),
+              count: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests),
+              delay: getNum(com.operationalDelays?.durationDelaysCommunityProtests),
             },
             otherIssues: {
-              count: getNum(opDelays.otherIssues?.count),
-              delay: getNum(opDelays.otherIssues?.delay),
+              count: getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder),
+              delay: getNum(com.operationalDelays?.durationDelaysOtherIssues),
             }
           }
         },
       },
       humanCapital: {
-        totalRecordableIncidentRatePer200kHours: getNum(hum.totalRecordableIncidentRate),
-        desc: hum.desc || "",
-        changePercentage: getChange(getNum(hum.totalRecordableIncidentRate), getNum(previousData?.humanCapital?.totalRecordableIncidentRate)),
-        recordableIncidents: getNum(hum.recordableIncidents),
-        fatalities: getNum(hum.fatalities),
-        nearMisses: getNum(hum.nearMisses),
-        averageSafetyTrainingHoursPerEmployee: getNum(hum.averageSafetyTrainingHours),
+        totalRecordableIncidentRatePer200kHours: getNum(humHealthSafety.recordableIncidents),
+        desc: humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems?.safetyDescription || "",
+        changePercentage: getChange(getNum(humHealthSafety.recordableIncidents), getNum(previousData?.humanCapital?.riskAndOpportunityManagement?.healthAndSafetyPerformance?.recordableIncidents)),
+        recordableIncidents: getNum(humHealthSafety.recordableIncidents),
+        fatalities: getNum(humHealthSafety.fatalities),
+        nearMisses: getNum(humHealthSafety.nearMisses),
+        averageSafetyTrainingHoursPerEmployee: getNum(humHealthSafety.safetyTrainingHours),
       },
       businessModel: {
         totalReservesAmountAtRisk: getNum(bus.totalReservesAmountAtRisk),
@@ -383,55 +427,66 @@ export class ReportService {
         changePercentage: getChange(getNum(bus.totalReservesAmountAtRisk), getNum(previousData?.businessModel?.totalReservesAmountAtRisk)),
         reservesValuationAndCapitalExpenditure: {
           climateImpactOnReserves: {
-            carbonPriceScenario: busReserves.climateImpact?.carbonPriceScenario || "",
-            reservesAtRiskPercent: getNum(busReserves.climateImpact?.reservesAtRiskPercent),
-            totalProvedReserves: getNum(busReserves.climateImpact?.totalProvedReserves),
-            embeddedCarbon: getNum(busReserves.climateImpact?.embeddedCarbon),
+            carbonPriceScenario: getNum(busClimateImpact.reserveSensitivity?.carbonPriceScenario),
+            reservesAtRiskPercent: getNum(busClimateImpact.reserveSensitivity?.percentageDecrease),
+            totalProvedReserves: getNum(busClimateImpact.reserveSensitivity?.estimatedDecrease),
+            embeddedCarbon: getNum(busClimateImpact.embeddedCarbonInReserve?.estimatedEmbeddedEmissions),
           },
           strategicCapitalAllocation: {
-            renewableInvestmentAmount: getNum(busReserves.strategicCapitalAllocation?.renewableInvestmentAmount),
-            renewableRevenueAmount: getNum(busReserves.strategicCapitalAllocation?.renewableRevenueAmount),
-            gasProjectsValueCount: getNum(busReserves.strategicCapitalAllocation?.gasProjectsValueCount),
-            maintenanceValueCount: getNum(busReserves.strategicCapitalAllocation?.maintenanceValueCount),
-            renewableProjectsValueCount: getNum(busReserves.strategicCapitalAllocation?.renewableProjectsValueCount),
+            renewableInvestmentAmount: getNum(busStrategic.renewableEnergyInvestment?.investmentAmount),
+            renewableRevenueAmount: getNum(busStrategic.renewableEnergyInvestment?.revenueAmount),
+            gasProjectsValueCount: getNum(busStrategic.capitalExpenditureStrategy?.capexPercentage),
+            maintenanceValueCount: 0, // Not mapped in data
+            renewableProjectsValueCount: 0, // Not mapped in data
           },
         },
         businessEthicsAndTransparency: {
           geopoliticalAndCorruptionRisk: {
             proved: {
-              total: getNum(busEthics.geopoliticalRisk?.proved?.total),
-              risk: getNum(busEthics.geopoliticalRisk?.proved?.risk),
+              total: getNum(busEthics.reservesCountriesCorruptionRisk?.totalProvedReservesUnit),
+              risk: getNum(busEthics.reservesCountriesCorruptionRisk?.provedReservesInConflictVolume),
             },
             probable: {
-              total: getNum(busEthics.geopoliticalRisk?.probable?.total),
-              risk: getNum(busEthics.geopoliticalRisk?.probable?.risk),
+              total: getNum(busEthics.reservesCountriesCorruptionRisk?.totalProbableReservesUnit),
+              risk: getNum(busEthics.reservesCountriesCorruptionRisk?.probableReservesInConflictUnit),
             },
           },
-          antiCorruptionManagement: busEthics.antiCorruptionManagement || "",
+          antiCorruptionManagement: busEthics.antiCorruptionManagement?.discussion || "",
         },
       },
       leadershipAndGovernance: {
-        processSafetyPercentage: getNum(lead.processSafetyPercentage),
+        processSafetyPercentage: 0,
         desc: lead.desc || "",
-        numberOfTierEventsAndWhatTier: lead.numberOfTierEvents || "",
+        numberOfTierEventsAndWhatTier: crit.processSafetyEvents?.tierOneEvents || "",
         managementOfLegalAndRegulatoryEnvironment: {
-          publicPolicyAndLobbying: lead.managementLegal?.publicPolicy || "",
-          policyPosition: lead.managementLegal?.policyPosition || "",
-          sustainabilityGovernance: lead.managementLegal?.sustainabilityGovernance || "",
-          sustainabilityPosition: lead.managementLegal?.sustainabilityPosition || "",
+          publicPolicyAndLobbying: legal.publicPolicyEngagement?.discussion || "",
+          policyPosition: legal.publicPolicyEngagement?.position || "",
+          sustainabilityGovernance: legal.boardManagementOversight?.discussion || "",
+          sustainabilityPosition: legal.boardManagementOversight?.position || "",
         },
         criticalIncidenceRiskManagement: {
           processSafetyEvents: {
             tierOneEvents: getNum(crit.processSafetyEvents?.tierOneEvents),
             totalHoursWorked: getNum(crit.processSafetyEvents?.totalHoursWorked),
-            rate: getNum(crit.processSafetyEvents?.rate),
+            rate: getNum(crit.processSafetyEvents?.recordableIncidents),
           },
           catastrophicEvents: {
-            lastAssetIntegrityAudit: crit.catastrophicEvents?.lastAudit || "",
-            description: crit.catastrophicEvents?.description || "",
+            lastAssetIntegrityAudit: crit.catastrophicRiskManagementSystems?.lastAudit || "",
+            description: crit.catastrophicRiskManagementSystems?.description || "",
           },
         }
       },
+      percentage_emission_summary: {
+        scope1_emission_summary: scope1_percentage,
+        scope2_emission_summary: scope2_percentage,
+        scope3_emission_summary: scope3_percentage,
+      },
+      status: record.status,
+      subsidiary: record.subsidiary,
+      startMonth: record.startMonth,
+      startYear: record.startYear,
+      endMonth: record.endMonth,
+      endYear: record.endYear,
       targets: targets[0] || null,
     };
   }

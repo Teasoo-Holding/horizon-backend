@@ -493,7 +493,7 @@ export class AssessmentService {
     }
 
     // Human Capital
-    if (formKey.startsWith('humanCapital.riskAndOpportunityManagement')) {
+    if (formKey.startsWith('humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems')) {
       return 'humanCapital.workforceHealthSafety';
     }
 
@@ -514,6 +514,25 @@ export class AssessmentService {
       return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
     }
     if (formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')) {
+      return 'businessModel.businessEthics.antiCorruptionManagement';
+    }
+    // Handle the actual frontend form keys
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.reserveSensitivity')) {
+      return 'businessModel.reservesValuation.reservesSensitivity';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.embeddedCarbon')) {
+      return 'businessModel.reservesValuation.embeddedCarbon';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.renewableEnergyInvestment')) {
+      return 'businessModel.reservesValuation.renewableEnergyInvestment';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.capitalExpenditureStrategy')) {
+      return 'businessModel.reservesValuation.capitalExpenditureStrategy';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+      return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.antiCorruptionManagement')) {
       return 'businessModel.businessEthics.antiCorruptionManagement';
     }
 
