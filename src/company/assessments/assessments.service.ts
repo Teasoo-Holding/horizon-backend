@@ -21,9 +21,17 @@ const PILLAR_GROUPS = {
     'environment.ghg.scope2.marketBased',
     'environment.ghg.scope3.upstream',
     'environment.ghg.scope3.downstream',
-    'environment.airQuality',
-    'environment.waterManagement',
-    'environment.biodiversityImpact',
+    'environment.airQuality.airPollutantEmissions',
+    'environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals',
+    'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement',
+    'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills',
+    'environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies',
+    'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas',
+  ],
+  foundationalData: [
+    'foundationalData.activityMetrics.productionVolumes',
+    'foundationalData.activityMetrics.offshoreSites',
+    'foundationalData.activityMetrics.terrestrialSites',
   ],
   socialCapital: [
     'socialCapital.securityHumanRights.operationsInConflictZones',
@@ -36,6 +44,7 @@ const PILLAR_GROUPS = {
   ],
   humanCapital: [
     'humanCapital.workforceHealthSafety',
+    'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance',
   ],
   businessModel: [
     'businessModel.reservesValuation.reservesSensitivity',
@@ -221,7 +230,7 @@ export class AssessmentService {
         if (path?.startsWith('humanCapital.')) currentPillar = 'humanCapital';
         if (path?.startsWith('businessModel.')) currentPillar = 'businessModel';
         if (path?.startsWith('leadershipGovernance.')) currentPillar = 'leadershipGovernance';
-        // Add other pillars here as they are defined in PILLAR_GROUPS
+        if (path?.startsWith('foundationalData.')) currentPillar = 'foundationalData';
       }
 
       // 2. Check if pillar is complete
@@ -459,6 +468,35 @@ export class AssessmentService {
     if (formKey.startsWith('ghg-scope3-downstream')) {
       return 'environment.ghg.scope3.downstream';
     }
+    if (formKey === 'air-pollutant-emissions') {
+      return 'environment.airQuality.airPollutantEmissions';
+    }
+    if (formKey === 'freshwater-withdrawal-consumption') {
+      return 'environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals';
+    }
+    if (formKey === 'produced-water-management') {
+      return 'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement';
+    }
+    if (formKey === 'hydrocarbon-spills') {
+      return 'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills';
+    }
+    if (formKey === 'environmental-management-policies') {
+      return 'environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies';
+    }
+    if (formKey === 'reserves-in-sensitive-areas') {
+      return 'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas';
+    }
+
+    if (formKey === 'foundational-activity-production') {
+      return 'foundationalData.activityMetrics.productionVolumes';
+    }
+    if (formKey === 'foundational-activity-offshore') {
+      return 'foundationalData.activityMetrics.offshoreSites';
+    }
+    if (formKey === 'foundational-activity-terrestrial') {
+      return 'foundationalData.activityMetrics.terrestrialSites';
+    }
+
     if (formKey.startsWith('env-air-quality')) {
       return 'environment.airQuality';
     }
@@ -495,6 +533,9 @@ export class AssessmentService {
     // Human Capital
     if (formKey.startsWith('humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems')) {
       return 'humanCapital.workforceHealthSafety';
+    }
+    if (formKey.startsWith('humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance')) {
+      return 'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance';
     }
 
     // Business Model
