@@ -8,17 +8,18 @@ export class WaterComputationService {
         // step3: Hydraulic fracturing (Yes/No)
         // step4: Disclosure (if Yes)
 
-        const step1 = data?.step1 || {};
-        const step2 = data?.step2 || {};
-        const step3 = data?.step3 || {};
-        const step4 = data?.step4 || {};
+        // Flattened structure from frontend
+        const step1 = data || {};
+        const step2 = data || {};
+        const step3 = data || {};
+        const step4 = data || {};
 
         const withdrawals = {
-            surfaceWater: this.parseValue(step1.withdrawalFromSurfaceWater),
-            groundwater: this.parseValue(step1.withdrawalFromGroundwater),
-            municipal: this.parseValue(step1.withdrawalFromMunicipal),
+            surfaceWater: this.parseValue(step1.withdrawalfromSurfaceWater || step1.withdrawalFromSurfaceWater),
+            groundwater: this.parseValue(step1.withdrawalfromGroundwater || step1.withdrawalvalues || step1.withdrawalFromGroundwater),
+            municipal: this.parseValue(step1.withdrawalfromMunicipalotherOtherSources || step1.withdrawalFromMunicipal),
             totalConsumed: this.parseValue(step1.totalWaterConsumed),
-            waterStressed: this.parseValue(step1.volumeWithdrawnFromWaterStressedRegions),
+            waterStressed: this.parseValue(step1.volumeWithdrawnfromWaterStressedRegions || step1.volumeWithdrawnFromWaterStressedRegions),
         };
 
         const producedWater = {
@@ -50,7 +51,7 @@ export class WaterComputationService {
     }
 
     async computeProducedWaterManagement(data: any) {
-        const step1 = data?.step1 || {};
+        const step1 = data || {};
         return {
             totalProducedWater: this.parseValue(step1.totalProducedWater),
             dischargedToSurface: this.parseValue(step1.volumeDischargedToSurface),
@@ -61,7 +62,13 @@ export class WaterComputationService {
     }
 
     private parseValue(item: any) {
-        if (!item) return null;
+        if (item === null || item === undefined) return null;
+        if (typeof item === 'number' || (typeof item === 'string' && !isNaN(Number(item)))) {
+            return {
+                volume: Number(item),
+                unit: undefined
+            };
+        }
         return {
             volume: Number(item.volume || 0),
             unit: item.unit

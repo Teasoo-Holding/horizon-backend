@@ -235,21 +235,33 @@ export class ReportService {
     // Environmental
     const env = currentData.environment || {};
     const prevEnv = previousData?.environment || {};
-    // Read from calculated air quality data
-    const air = env.airQuality?.airPollutantEmissions?.calculated?.breakdown || {};
+
+    const airPollutants = env.airQuality?.airPollutantEmissions || {};
+    const airCalculated = airPollutants.calculated?.breakdown || {};
+    const air = {
+      oxidesOfNitrogen: airPollutants.oxidesOfNitrogen ?? airCalculated.oxidesOfNitrogen?.volume ?? 0,
+      oxidesOfSulphur: airPollutants.oxidesOfSuplphur ?? airPollutants.oxidesOfSulphur ?? airCalculated.oxidesOfSulphur?.volume ?? 0,
+      volatileOrganicCompounds: airPollutants.volatileOrganicCompound ?? airPollutants.volatileOrganicCompounds ?? airCalculated.volatileOrganicCompounds?.volume ?? 0,
+      particulateMatter: airPollutants.particulateMatter ?? airCalculated.particulateMatter?.volume ?? 0,
+    };
+
     const water = env.waterManagement || {};
     const waterAndProduced = water.waterAndProducedWaterManagement || {};
-    // Read from calculated water data
+
     const freshwaterCalculated = waterAndProduced.freshwaterWithdrawals?.calculated || {};
     const producedWaterCalculated = waterAndProduced.producedWaterManagement?.calculated || {};
-    // Read from calculated biodiversity data
+
+    const hydraulicFracturing = water.hydraulicFracturingImpacts || {};
+
     const biodiversityManagement = env.biodiversityImpact?.environmentalManagement || {};
     const hydrocarbonSpillsCalculated = biodiversityManagement.hydrocarbonSpills?.calculated || {};
+    const hydrocarbonSpillsDirect = biodiversityManagement.hydrocarbonSpills || {};
     const reservesCalculated = biodiversityManagement.reservesInSensitiveAreas?.calculated || {};
+    const reservesDirect = biodiversityManagement.reservesInSensitiveAreas || {};
 
     // Activity Metrics
     const am = currentData.activityMetrics || {};
-    const prod = am.productionData || {};
+    const prod = am.productionVolume || am.productionData || {};
     const asset = am.assetPortfolio || {};
     const assetOffshore = asset.offshoreSites || {};
     const assetTerrestrial = asset.terrestrialSites || {};
@@ -291,12 +303,12 @@ export class ReportService {
       activityMetrics: {
         productionData: {
           oilProduction: {
-            crudeOil: getNum(prod.oilProduction?.crudeOil),
-            syntheticOil: getNum(prod.oilProduction?.syntheticOil),
+            crudeOil: getNum(prod.crudeOilProductionVolume || prod.oilProduction?.crudeOil),
+            syntheticOil: getNum(prod.syntheticOilProductionVolume || prod.oilProduction?.syntheticOil),
           },
           gasProduction: {
-            naturalGas: getNum(prod.gasProduction?.naturalGas),
-            syntheticGas: getNum(prod.gasProduction?.syntheticGas),
+            naturalGas: getNum(prod.naturalGasProductionVolume || prod.gasProduction?.naturalGas),
+            syntheticGas: getNum(prod.syntheticGasProductionVolume || prod.gasProduction?.syntheticGas),
           }
         },
         assetPortfolio: {
@@ -329,11 +341,11 @@ export class ReportService {
           scope3History: formatHistory(trendData, 'ghg_scope_three'),
         },
         airQuality: {
-          totalEmission: (getNum(air.oxidesOfNitrogen?.volume) + getNum(air.oxidesOfSulphur?.volume) + getNum(air.volatileOrganicCompounds?.volume) + getNum(air.particulateMatter?.volume)),
-          nox: getNum(air.oxidesOfNitrogen?.volume),
-          sox: getNum(air.oxidesOfSulphur?.volume),
-          voc: getNum(air.volatileOrganicCompounds?.volume),
-          pm10: getNum(air.particulateMatter?.volume),
+          totalEmission: (getNum(air.oxidesOfNitrogen) + getNum(air.oxidesOfSulphur) + getNum(air.volatileOrganicCompounds) + getNum(air.particulateMatter)),
+          nox: getNum(air.oxidesOfNitrogen),
+          sox: getNum(air.oxidesOfSulphur),
+          voc: getNum(air.volatileOrganicCompounds),
+          pm10: getNum(air.particulateMatter),
         },
         waterManagement: {
           totalWaterWithdrawal: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume) + getNum(freshwaterCalculated.withdrawals?.groundwater?.volume) + getNum(freshwaterCalculated.withdrawals?.municipal?.volume),
@@ -349,29 +361,33 @@ export class ReportService {
           },
           hydraulicFracturingChemicalDisclosure: {
             wells: {
-              totalFracturedWells: getNum(freshwaterCalculated.fracturing?.totalWells),
-              numberOfWellsWithPublicDisclosure: getNum(freshwaterCalculated.fracturing?.disclosure?.wellsWithDisclosure),
-              percentageWithDisclosure: getNum(freshwaterCalculated.fracturing?.percentageWellsWithDisclosure),
+              totalFracturedWells: getNum(hydraulicFracturing.chemicalDisclosure?.totalNumberOfFracturedWells) || getNum(hydraulicFracturing.chemicalDisclosure?.totalFracturedWells) || getNum(hydraulicFracturing.waterQualityImpacts?.totalMonitoredSites),
+              numberOfWellsWithPublicDisclosure: getNum(hydraulicFracturing.chemicalDisclosure?.numberOfWellsWithPublicDisclosure),
+              percentageWithDisclosure: getNum(hydraulicFracturing.chemicalDisclosure?.percentageWellsWithDisclosure) ||
+                (getNum(hydraulicFracturing.chemicalDisclosure?.numberOfWellsWithPublicDisclosure) && getNum(hydraulicFracturing.chemicalDisclosure?.totalNumberOfFracturedWells) ?
+                  (getNum(hydraulicFracturing.chemicalDisclosure?.numberOfWellsWithPublicDisclosure) / getNum(hydraulicFracturing.chemicalDisclosure?.totalNumberOfFracturedWells) * 100) : 0),
             },
           },
           hydraulicFracturingWaterQualityImpacts: {
             sites: {
-              totalFracturedSitesMonitored: getNum(freshwaterCalculated.fracturing?.totalSites),
-              withDeterioratedWaterQuality: getNum(freshwaterCalculated.fracturing?.sitesWithDeterioratedWaterQuality),
-              percentageWithDeterioratedWaterQuality: freshwaterCalculated.fracturing?.totalSites && freshwaterCalculated.fracturing?.sitesWithDeterioratedWaterQuality ?
-                (freshwaterCalculated.fracturing.sitesWithDeterioratedWaterQuality / freshwaterCalculated.fracturing.totalSites) * 100 : 0,
+              totalFracturedSitesMonitored: getNum(hydraulicFracturing.waterQualityImpacts?.totalMonitoredSites),
+              withDeterioratedWaterQuality: getNum(hydraulicFracturing.waterQualityImpacts?.sitesWithDeterioratedQuality),
+              percentageWithDeterioratedWaterQuality: getNum(hydraulicFracturing.waterQualityImpacts?.percentageWithDeterioratedWaterQuality) || (hydraulicFracturing.waterQualityImpacts?.totalMonitoredSites && hydraulicFracturing.waterQualityImpacts?.sitesWithDeterioratedQuality ?
+                (hydraulicFracturing.waterQualityImpacts.sitesWithDeterioratedQuality / hydraulicFracturing.waterQualityImpacts.totalMonitoredSites) * 100 : 0),
             }
           }
         },
         biodiversityImpact: {
           hydrocarbonSpills: {
-            numberOfSpills: getNum(hydrocarbonSpillsCalculated.numberOfSpills),
-            totalVolumeSpilled: getNum(hydrocarbonSpillsCalculated.totalVolumeSpilled?.volume),
-            volumeRecovered: getNum(hydrocarbonSpillsCalculated.volumeRecovered?.volume),
+            numberOfSpills: getNum(hydrocarbonSpillsCalculated.numberOfSpills) || getNum(hydrocarbonSpillsDirect.numberOfSpills),
+            totalVolumeSpilled: getNum(hydrocarbonSpillsCalculated.totalVolumeSpilled?.volume) || getNum(hydrocarbonSpillsDirect.totalVolumeSpilled),
+            volumeRecovered: getNum(hydrocarbonSpillsCalculated.volumeRecovered?.volume) || getNum(hydrocarbonSpillsDirect.volumeRecovered),
+            volumeInArctic: getNum(hydrocarbonSpillsCalculated.volumeInArctic?.volume) || getNum(hydrocarbonSpillsDirect.volumeInArctic),
+            volumeImpactingSensitiveShorelines: getNum(hydrocarbonSpillsCalculated.volumeImpactingSensitiveShorelines?.volume) || getNum(hydrocarbonSpillsDirect.volumeImpactingSensitiveShorelines) || getNum(hydrocarbonSpillsDirect.volumeImpactingShorelines),
           },
           reservesInSensitiveAreas: {
-            provedReserves: getNum(reservesCalculated.totalProvedReserves?.volume),
-            probableReserves: getNum(reservesCalculated.totalProbableReserves?.volume),
+            provedReserves: getNum(reservesCalculated.provedReservesInSensitiveAreas?.volume) || getNum(reservesDirect.provedReservesSensitiveVolume),
+            probableReserves: getNum(reservesCalculated.probableReservesInSensitiveAreas?.volume) || getNum(reservesDirect.probableReservesSensitiveVolume),
           }
         },
       },

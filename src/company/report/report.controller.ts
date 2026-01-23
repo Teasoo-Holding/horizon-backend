@@ -1,7 +1,8 @@
 import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ReportResponseDto } from './dto/report-response.dto';
 
 @ApiBearerAuth() // Adds Bearer token authentication to all endpoints :cite[2]:cite[3]:cite[6]
 @ApiTags('Reports') // Groups endpoints under "Reports" in Swagger UI :cite[2]:cite[6]:cite[9]
@@ -13,11 +14,11 @@ export class ReportController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get all assessment reports for organization',
-    description: 'Retrieves all assessment reports for the authenticated user\'s company'
+    description: 'Retrieves all assessment reports for the authenticated user\'s company, ordered by creation date. Includes basic report metadata and progress information.'
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully retrieved all organization assessment reports'
+  @ApiOkResponse({
+    description: 'Successfully retrieved all organization assessment reports',
+    type: [ReportResponseDto],
   })
   @ApiResponse({
     status: 401,
@@ -41,18 +42,18 @@ export class ReportController {
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Get specific report by ID',
-    description: 'Retrieves a specific assessment report by ID for the authenticated user\'s company'
+    summary: 'Get detailed assessment report by ID',
+    description: 'Retrieves comprehensive assessment report data including environmental metrics, social capital, human capital, business model data, targets, and emission summaries. Only returns reports for assessments belonging to the authenticated user\'s company.'
   })
   @ApiParam({
     name: 'id',
-    type: String,
-    description: 'The ID of the report to retrieve',
-    example: '123'
+    type: Number,
+    description: 'The ID of the assessment report to retrieve',
+    example: 123
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully retrieved the report'
+  @ApiOkResponse({
+    description: 'Successfully retrieved detailed report data',
+    type: ReportResponseDto,
   })
   @ApiResponse({
     status: 401,
@@ -60,7 +61,7 @@ export class ReportController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Report not found for the given ID and company'
+    description: 'Report not found for the given assessment ID and company'
   })
   findOne(
     @Param('id') id: string,
@@ -84,12 +85,26 @@ export class ReportController {
   @Get('/one/:id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Get report internal summary',
-    description: 'Retrieves internal reporting structure for a specific assessment'
+    summary: 'Get internal report summary',
+    description: 'Retrieves internal report structure and calculation data for a specific assessment. Used for debugging and internal analysis.'
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+    example: 123
   })
   @ApiResponse({
     status: 200,
-    description: 'Successfully retrieved internal report object'
+    description: 'Successfully retrieved internal report object with calculation details',
+    schema: {
+      type: 'object',
+      description: 'Internal assessment data structure with calculated values and progress tracking',
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found'
   })
   getOneAssessmentReport(
     @Param('id') id: string,
@@ -102,12 +117,30 @@ export class ReportController {
   @Post('/generate/:id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Manually generate/refresh report for assessment',
-    description: 'Triggers report data recalculation and persistence for a specific assessment'
+    summary: 'Manually generate/refresh report data',
+    description: 'Triggers manual recalculation of all report metrics and persists the data to the database. Useful for updating reports after data changes or fixing calculation errors.'
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID to generate report for',
+    example: 123
   })
   @ApiResponse({
     status: 200,
-    description: 'Successfully generated report data'
+    description: 'Successfully generated and saved report data',
+    schema: {
+      type: 'object',
+      description: 'Generated report data with all calculated metrics',
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Assessment belongs to different company',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found',
   })
   generateReport(
     @Param('id') id: string,

@@ -7,9 +7,11 @@ import {
 import { AirQualityComputationService } from 'src/assessment/computation/air-quality.service';
 import { WaterComputationService } from 'src/assessment/computation/water.service';
 import { BiodiversityComputationService } from 'src/assessment/computation/biodiversity.service';
+import { ActivityMetricsComputationService } from 'src/assessment/computation/activity-metrics.service';
 
 interface AssessmentData {
   environment?: any;
+  foundationalData?: any;
   overallProgress?: number;
   totalEmission?: number;
   topEmissionSources?: Array<{
@@ -34,6 +36,7 @@ export class AssessmentCalculatorService {
     private airQuality: AirQualityComputationService,
     private water: WaterComputationService,
     private biodiversity: BiodiversityComputationService,
+    private activityMetrics: ActivityMetricsComputationService,
   ) { }
 
   async recalculate(raw: any): Promise<{
@@ -275,6 +278,24 @@ export class AssessmentCalculatorService {
       }
     }
 
+    // Activity Metrics Calc
+    if (this.hasData(data.foundationalData?.activityMetrics)) {
+      const am = data.foundationalData.activityMetrics;
+
+      if (this.hasData(am.productionVolumes)) {
+        am.productionVolumes.calculated = await this.activityMetrics.computeProductionVolumes(am.productionVolumes);
+        this.calculateFormProgress(am.productionVolumes, 4);
+      }
+      if (this.hasData(am.offshoreSites)) {
+        am.offshoreSites.calculated = await this.activityMetrics.computeOffshoreSites(am.offshoreSites);
+        this.calculateFormProgress(am.offshoreSites, 3);
+      }
+      if (this.hasData(am.terrestrialSites)) {
+        am.terrestrialSites.calculated = await this.activityMetrics.computeTerrestrialSites(am.terrestrialSites);
+        this.calculateFormProgress(am.terrestrialSites, 3);
+      }
+    }
+
     const totalEmissionVal = scope1Total + scope2Total + scope3Total;
     data.environment.totalEmission = Number(totalEmissionVal.toFixed(4));
     data.totalEmission = Number(totalEmissionVal.toFixed(4));
@@ -283,6 +304,11 @@ export class AssessmentCalculatorService {
 
     const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
     data.overallProgress = environmentalProgress;
+
+    // Foundational Data Progress
+    if (data.foundationalData) {
+      data.foundationalData.progress = this.calculateFoundationalProgress(data.foundationalData);
+    }
 
     // Calculate total completed and expected sections
     const counts = this.calculateTotalSectionCounts(data);
@@ -442,7 +468,6 @@ export class AssessmentCalculatorService {
       if (val === undefined || val === null) continue;
 
       if (Array.isArray(val)) {
-        // For array fields, count if there's at least one non-zero volume entry
         const hasValues = val.some((item: any) =>
           item.volume && parseFloat(item.volume.toString()) > 0,
         );
@@ -733,7 +758,6 @@ export class AssessmentCalculatorService {
     let totalProgress = 0;
     let totalWeight = 0;
 
-    // Weight upstream and downstream equally
     if (scope3.upstream?.progress != null) {
       totalProgress += scope3.upstream.progress * 0.5;
       totalWeight += 0.5;
@@ -802,9 +826,30 @@ export class AssessmentCalculatorService {
       }
     }
 
-    return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
-      : 0;
+    if (topics.length === 0) return 0;
+    const sum = topics.reduce((a, b) => a + b, 0);
+    return Number((sum / topics.length).toFixed(1));
+  }
+
+  private calculateFoundationalProgress(foundational: any): number {
+    const topics: number[] = [];
+
+    if (foundational.activityMetrics) {
+      const am = foundational.activityMetrics;
+      if (am.productionVolumes?.progress != null) {
+        topics.push(am.productionVolumes.progress);
+      }
+      if (am.offshoreSites?.progress != null) {
+        topics.push(am.offshoreSites.progress);
+      }
+      if (am.terrestrialSites?.progress != null) {
+        topics.push(am.terrestrialSites.progress);
+      }
+    }
+
+    if (topics.length === 0) return 0;
+    const sum = topics.reduce((a, b) => a + b, 0);
+    return Number((sum / topics.length).toFixed(1));
   }
 
   private calculateOverallProgress(data: any): number {
@@ -954,8 +999,6 @@ export class AssessmentCalculatorService {
         ['stationarySources', 'mobileSources', 'processEmissions', 'fugitiveEmissions'].forEach(k => {
           const group = g.scope1[k];
           if (group) {
-            // Groups like stationarySources have forms like electricityHeat
-            // We want the form-level dataCount if it exists, otherwise the group level
             let groupCounted = false;
             for (const key in group) {
               if (extract(group[key])) groupCounted = true;
