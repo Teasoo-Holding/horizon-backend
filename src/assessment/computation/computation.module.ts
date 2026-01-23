@@ -10,6 +10,7 @@ import {
 import { AirQualityComputationService } from './air-quality.service';
 import { WaterComputationService } from './water.service';
 import { BiodiversityComputationService } from './biodiversity.service';
+import { ActivityMetricsComputationService } from './activity-metrics.service';
 
 @Module({
   controllers: [ComputationController],
@@ -20,6 +21,7 @@ import { BiodiversityComputationService } from './biodiversity.service';
     AirQualityComputationService,
     WaterComputationService,
     BiodiversityComputationService,
+    ActivityMetricsComputationService,
   ],
   exports: [
     Scope1ComputationService,
@@ -28,6 +30,7 @@ import { BiodiversityComputationService } from './biodiversity.service';
     AirQualityComputationService,
     WaterComputationService,
     BiodiversityComputationService,
+    ActivityMetricsComputationService,
   ],
 })
 export class ComputationModule { }
