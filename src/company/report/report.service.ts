@@ -240,8 +240,8 @@ export class ReportService {
     const airCalculated = airPollutants.calculated?.breakdown || {};
     const air = {
       oxidesOfNitrogen: airPollutants.oxidesOfNitrogen ?? airCalculated.oxidesOfNitrogen?.volume ?? 0,
-      oxidesOfSulphur: airPollutants.oxidesOfSuplphur ?? airPollutants.oxidesOfSulphur ?? airCalculated.oxidesOfSulphur?.volume ?? 0,
-      volatileOrganicCompounds: airPollutants.volatileOrganicCompound ?? airPollutants.volatileOrganicCompounds ?? airCalculated.volatileOrganicCompounds?.volume ?? 0,
+      oxidesOfSulphur: airPollutants.oxidesOfSulphur ?? airPollutants.oxidesOfSuplphur ?? airCalculated.oxidesOfSulphur?.volume ?? 0,
+      volatileOrganicCompounds: airPollutants.volatileOrganicCompounds ?? airPollutants.volatileOrganicCompound ?? airCalculated.volatileOrganicCompounds?.volume ?? 0,
       particulateMatter: airPollutants.particulateMatter ?? airCalculated.particulateMatter?.volume ?? 0,
     };
 
@@ -289,11 +289,15 @@ export class ReportService {
     const crit = lead.criticalIncidentRiskManagement || {};
     const legal = lead.managementOfLegalAndRegulatoryEnvironment || {};
 
-    // Scope Percentages
-    const totalEmissions = report?.ghg_total_emissions ?? getNum(currentData.totalEmission);
-    const scope1 = report?.ghg_scope_one ?? getNum(env.ghg?.scope1?.totalEmission);
-    const scope2 = report?.ghg_scope_two ?? getNum(env.ghg?.scope2?.totalEmission);
-    const scope3 = report?.ghg_scope_three ?? getNum(env.ghg?.scope3?.totalEmission);
+    // Scope Totals (Prefer calculated data from assessmentData if available)
+    const scope1_live = getNum(env.ghg?.scope1?.totalEmission);
+    const scope2_live = getNum(env.ghg?.scope2?.totalEmission);
+    const scope3_live = getNum(env.ghg?.scope3?.totalEmission);
+
+    const scope1 = scope1_live || report?.ghg_scope_one || 0;
+    const scope2 = scope2_live || report?.ghg_scope_two || 0;
+    const scope3 = scope3_live || report?.ghg_scope_three || 0;
+    const totalEmissions = (scope1 + scope2 + scope3) || report?.ghg_total_emissions || getNum(currentData.totalEmission);
 
     const scope1_percentage = getPercentage(scope1, totalEmissions);
     const scope2_percentage = getPercentage(scope2, totalEmissions);
