@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Delete,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
 @ApiBearerAuth()
 @Controller('company/esg/invitations')
 export class InvitationsController {
-  constructor(private readonly invitationsService: InvitationsService) {}
+  constructor(private readonly invitationsService: InvitationsService) { }
 
   @Post()
   @UseGuards(JwtRolesGuard)
@@ -32,5 +33,15 @@ export class InvitationsController {
   @ApiOperation({ summary: 'Get invitation details by token' })
   async getInvitation(@Param('token') token: string) {
     return this.invitationsService.getByToken(token);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtRolesGuard)
+  @ApiOperation({ summary: 'Delete an invitation' })
+  async deleteInvitation(
+    @Param('id') id: string,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.invitationsService.delete(+id, req.user.id);
   }
 }
