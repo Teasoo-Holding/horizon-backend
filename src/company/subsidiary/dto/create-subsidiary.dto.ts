@@ -149,7 +149,7 @@ export class CreateSubsidiaryDto {
   @ApiPropertyOptional({ description: 'User ID of the team lead', example: 2 })
   @IsOptional()
   @IsInt()
-  teamLeadId?: number;
+  leadId?: number;
 
   @ApiPropertyOptional({
     description: 'Status of the subsidiary',
