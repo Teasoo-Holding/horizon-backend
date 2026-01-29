@@ -22,7 +22,6 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MarketBasedS2Service } from './scope-2-market-based.service';
 import { MarketBasedS2Dto } from './dto/create-scope-2.market_baseddto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Express } from 'express';
 
 @ApiTags('Market-Based S2')
 @ApiBearerAuth()
