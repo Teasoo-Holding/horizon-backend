@@ -20,7 +20,7 @@ export class SubsidiaryService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly activitiesService: ActivitiesService,
-  ) {}
+  ) { }
 
   async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
     try {
@@ -56,8 +56,26 @@ export class SubsidiaryService {
 
       let teamLead;
 
-      // CASE 1: teamLead_email was provided
-      if (createSubsidiaryDto.teamLead_email) {
+      // CASE 1: leadId was provided (user selected from dropdown)
+      if (createSubsidiaryDto.leadId) {
+        teamLead = await this.prisma.user.findUnique({
+          where: { id: createSubsidiaryDto.leadId },
+        });
+
+        if (!teamLead) {
+          throw new NotFoundException(
+            `User with id ${createSubsidiaryDto.leadId} not found`,
+          );
+        }
+
+        if (teamLead.companyId !== user.companyId) {
+          throw new ForbiddenException(
+            'You can only assign team leads from your own company',
+          );
+        }
+      }
+      // CASE 2: teamLead_email was provided
+      else if (createSubsidiaryDto.teamLead_email) {
         teamLead = await this.prisma.user.findUnique({
           where: { email: createSubsidiaryDto.teamLead_email },
         });
@@ -91,8 +109,9 @@ export class SubsidiaryService {
             'You can only create subsidiaries with your own team lead',
           );
         }
-      } else {
-        // CASE 2: No teamLead provided → use current user as teamLead
+      }
+      // CASE 3: No teamLead provided → use current user as teamLead
+      else {
         teamLead = user;
       }
 
@@ -310,7 +329,7 @@ export class SubsidiaryService {
         );
       }
 
-      const { industryId, parentCompanyId, teamLeadId, ...rest } =
+      const { industryId, parentCompanyId, leadId, ...rest } =
         updateSubsidiaryDto;
 
       const data: any = {
@@ -330,9 +349,9 @@ export class SubsidiaryService {
         };
       }
 
-      if (teamLeadId) {
+      if (leadId) {
         data.teamLead = {
-          connect: { id: teamLeadId },
+          connect: { id: leadId },
         };
       }
 

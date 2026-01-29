@@ -49,7 +49,17 @@ export class CompanySetupService {
       for (const subDto of dto.subsidiaries) {
         let teamLeadId: number;
 
-        if (subDto.teamLead_email) {
+        if (subDto.leadId) {
+          const leadUser = await prisma.user.findUnique({
+            where: { id: subDto.leadId },
+          });
+          if (!leadUser || leadUser.companyId !== companyId) {
+            throw new BadRequestException(
+              `Lead user with ID ${subDto.leadId} not found or doesn't belong to this company`,
+            );
+          }
+          teamLeadId = leadUser.id;
+        } else if (subDto.teamLead_email) {
           let teamLead = await prisma.user.findUnique({
             where: { email: subDto.teamLead_email },
           });

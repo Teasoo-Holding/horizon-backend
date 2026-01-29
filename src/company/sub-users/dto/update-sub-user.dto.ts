@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { UserStatus } from '@prisma/client';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class UpdateSubUserDto {
   @ApiProperty({ example: 'Barry', required: false })
@@ -34,4 +35,13 @@ export class UpdateSubUserDto {
   @IsString()
   @IsOptional()
   phone_number?: string;
+
+  @ApiProperty({
+    example: 'suspended',
+    required: false,
+    enum: UserStatus,
+  })
+  @IsEnum(UserStatus)
+  @IsOptional()
+  status?: UserStatus;
 }

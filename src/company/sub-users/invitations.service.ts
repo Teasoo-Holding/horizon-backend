@@ -18,9 +18,22 @@ export class InvitationsService {
     // 1. Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: { id: true, companyId: true },
     });
     if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
+      // Get inviting user's company
+      const invitingUser = await this.prisma.user.findUnique({
+        where: { id: invitedById },
+        select: { companyId: true },
+      });
+      if (!invitingUser) {
+        throw new BadRequestException('Inviting user not found');
+      }
+      if (existingUser.companyId !== invitingUser.companyId) {
+        throw new BadRequestException('User already belongs to a different company.');
+      } else {
+        throw new BadRequestException('User with this email already exists in your company.');
+      }
     }
 
     // 2. Check for existing pending invitation

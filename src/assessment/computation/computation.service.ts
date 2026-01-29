@@ -36,7 +36,7 @@ export class Scope1ComputationService {
   private readonly EF_HFC = 1300; // kgCO2e/kg
   private readonly EF_CEMENT = 0.4985; // tCO2/t cement
   private readonly EF_FLARING = 2.89; // kgCO2/m³ gas
-  constructor() {}
+  constructor() { }
 
   //  Diesel Generators, Diesel Vehicles, Fuel Oil (LPFO/HPFO)
   async directEmissionComputations(dto: BasicComputationDto) {
@@ -525,18 +525,18 @@ export class Scope3ComputationService {
     const total_amount_spent_on_goods_and_services =
       await this.directEmissionComputations(
         dto.total_amount_spent_on_goods_and_services,
-        dto.total_amount_spent_on_goods_and_services_ef || 0.45,
+        dto.total_amount_spent_on_goods_and_services !== undefined ? (dto.total_amount_spent_on_goods_and_services_ef ?? 0.45) : 0,
       );
 
     const total_cost_of_capital_goods_purchased =
       await this.directEmissionComputations(
         dto.total_cost_of_capital_goods_purchased,
-        dto.total_cost_of_capital_goods_purchased_ef || 0.55,
+        dto.total_cost_of_capital_goods_purchased !== undefined ? (dto.total_cost_of_capital_goods_purchased_ef ?? 0.55) : 0,
       );
 
     const volume_of_fuel_consumed = await this.directEmissionComputations(
       dto.volume_of_fuel_consumed,
-      dto.volume_of_fuel_consumed_ef || 0.55,
+      dto.volume_of_fuel_consumed !== undefined ? (dto.volume_of_fuel_consumed_ef ?? 0.55) : 0,
     );
 
     const mass_of_goods_transported =
@@ -554,28 +554,28 @@ export class Scope3ComputationService {
 
     const ground_travel = await this.travelEmissionComputation(
       dto.total_distance_travelled,
-      dto.total_distance_travelled_ef || 0.11,
+      dto.total_distance_travelled_ef ?? 0.11,
     );
     const air_travel = await this.travelEmissionComputation(
       dto.total_number_of_flights_taken *
-        dto.total_number_of_employee_for_all_trips *
-        dto.total_passenger_kilometers_travelled,
-      dto.total_passenger_kilometers_travelled_ef || 0.35,
+      dto.total_number_of_employee_for_all_trips *
+      dto.total_passenger_kilometers_travelled,
+      dto.total_passenger_kilometers_travelled_ef ?? 0.35,
     );
 
     const employee_commuting =
-      (dto.number_of_employees_commuting *
-        dto.average_distance_commuting *
-        (dto.number_of_employees_commuting_ef || 0.2) *
-        dto.average_number_of_workdays_per_year || 250) / 1000;
+      ((dto.number_of_employees_commuting || 0) *
+        (dto.average_distance_commuting || 0) *
+        (dto.number_of_employees_commuting_ef ?? 0.2) *
+        (dto.average_number_of_workdays_per_year || 250)) / 1000;
 
     const upstream_leased_asset =
-      (dto.total_electricity_consumedby_leased_assets *
-        dto.total_electricity_consumedby_leased_assets_ef || 0.526) /
-        1000 +
-      (dto.total_fuel_consumedby_leased_assets *
-        dto.total_fuel_consumedby_leased_assets_ef) /
-        1000;
+      ((dto.total_electricity_consumedby_leased_assets || 0) *
+        (dto.total_electricity_consumedby_leased_assets_ef ?? 0.526)) /
+      1000 +
+      ((dto.total_fuel_consumedby_leased_assets || 0) *
+        (dto.total_fuel_consumedby_leased_assets_ef ?? 2.68)) /
+      1000;
 
     return {
       total_amount_spent_on_goods_and_services,
@@ -630,14 +630,14 @@ export class Scope3ComputationService {
       (dto.total_fuel_consumed_by_tennant *
         dto.total_fuel_consumed_by_tennant_ef +
         dto.total_electiricity_consumed_by_tennant *
-          dto.total_electiricity_consumed_by_tennant_ef) /
+        dto.total_electiricity_consumed_by_tennant_ef) /
       1000;
 
     const franchise =
       (dto.total_fuel_consumed_by_franchise *
         dto.total_fuel_consumed_by_franchise_ef +
         dto.total_electiricity_consumed_by_franchise *
-          dto.total_electiricity_consumed_by_franchise_ef) /
+        dto.total_electiricity_consumed_by_franchise_ef) /
       1000;
 
     const investment =
