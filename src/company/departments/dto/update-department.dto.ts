@@ -21,4 +21,21 @@ export class UpdateDepartmentDto {
   @IsOptional()
   @IsEmail()
   contact_email?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  subsidiaryId?: number;
+
+  @ApiPropertyOptional({ example: 'Lighthouse LLC' })
+  @IsOptional()
+  @IsString()
+  subsidiaryName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  leadEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  leadName?: string;
 }

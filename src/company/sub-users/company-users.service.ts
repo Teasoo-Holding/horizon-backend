@@ -91,6 +91,20 @@ export class CompanyUsersService {
       throw new ForbiddenException('Not authorized to delete company users');
     }
 
+    // Check if the user is a lead for any department or subsidiary
+    const isDeptLead = await this.prisma.department.findFirst({
+      where: { leadId: targetUserId },
+    });
+    const isSubLead = await this.prisma.subsidiary.findFirst({
+      where: { teamLeadId: targetUserId },
+    });
+
+    if (isDeptLead || isSubLead) {
+      throw new BadRequestException(
+        'This user is a lead. Change the subsidiary/department lead to a different user before deleting this user',
+      );
+    }
+
     return this.prisma.user.delete({ where: { id: targetUserId } });
   }
 
@@ -117,6 +131,7 @@ export class CompanyUsersService {
         phone_number: true,
         role: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
+        subsidiary: { select: { id: true, name: true } },
         status: true,
         profile_photo_url: true,
         last_login: true,
@@ -160,7 +175,7 @@ export class CompanyUsersService {
     const uniqueInvitations = Array.from(invitationsByEmail.values());
 
     const combinedList = [
-      ...users,
+      ...users.map((u) => ({ ...u, is_invitation: false })),
       ...uniqueInvitations.map((inv) => ({
         id: inv.id,
         email: inv.email,
@@ -175,6 +190,7 @@ export class CompanyUsersService {
         status: 'pending',
         created_at: inv.createdAt,
         updated_at: null,
+        is_invitation: true,
       })),
     ];
 
