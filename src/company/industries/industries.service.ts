@@ -17,7 +17,7 @@ export class IndustriesService {
 
   async getIndustries() {
     return this.prisma.industry.findMany({
-      where: {sector: {equals: "Extractives and Minerals Processing"}},
+      where: { sector: { equals: 'Extractives and Minerals Processing' } },
       orderBy: { industry: 'asc' },
     });
   }

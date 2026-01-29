@@ -1,13 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ReportingPeriod } from '@prisma/client';
-import { 
-  IsString, 
-  IsNumber, 
-  IsBoolean, 
-  IsEnum, 
-  IsOptional 
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsEnum,
+  IsOptional,
 } from 'class-validator';
-
 
 export class LocationBasedS2Dto {
   @ApiPropertyOptional()
@@ -230,4 +229,3 @@ export class LocationBasedS2Dto {
   @IsOptional()
   updatedAt?: string; // ISO date string
 }
-

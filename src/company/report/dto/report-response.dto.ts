@@ -2,22 +2,26 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class ReportResponseDto {
   @ApiProperty({
-    description: 'Activity metrics including production and asset portfolio data',
+    description:
+      'Activity metrics including production and asset portfolio data',
   })
   activityMetrics: Record<string, any>;
 
   @ApiProperty({
-    description: 'Environmental assessment data including GHG emissions, air quality, water management, and biodiversity impact',
+    description:
+      'Environmental assessment data including GHG emissions, air quality, water management, and biodiversity impact',
   })
   environmental: Record<string, any>;
 
   @ApiProperty({
-    description: 'Social capital assessment data including community relations and security metrics',
+    description:
+      'Social capital assessment data including community relations and security metrics',
   })
   socialCapital: Record<string, any>;
 
   @ApiProperty({
-    description: 'Human capital assessment data including workforce health and safety metrics',
+    description:
+      'Human capital assessment data including workforce health and safety metrics',
   })
   humanCapital: Record<string, any>;
 

@@ -20,7 +20,7 @@ export class TaskService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async getUserAssignedTasks(userId: number) {
     return this.prisma.taskAssignment.findMany({
@@ -111,7 +111,9 @@ export class TaskService {
     const now = new Date();
     const companyId = assignment.user.companyId;
     if (!companyId) {
-      throw new BadRequestException('User must belong to a company to start a task');
+      throw new BadRequestException(
+        'User must belong to a company to start a task',
+      );
     }
 
     const assessment = await this.prisma.assessment.create({
@@ -123,7 +125,9 @@ export class TaskService {
         subsidiary: 'Self',
         startMonth: now.toLocaleString('default', { month: 'long' }),
         startYear: now.getFullYear().toString(),
-        endMonth: assignment.task.dueDate.toLocaleString('default', { month: 'long' }),
+        endMonth: assignment.task.dueDate.toLocaleString('default', {
+          month: 'long',
+        }),
         endYear: assignment.task.dueDate.getFullYear().toString(),
         assessmentData: { lastSavedForm: null },
       },
@@ -524,14 +528,21 @@ export class TaskService {
   }
 
   private async sendTaskAssignmentEmails(taskId: number, assignedById: number) {
-    console.log(`[TaskService] Starting email notification process for task ${taskId}`);
+    console.log(
+      `[TaskService] Starting email notification process for task ${taskId}`,
+    );
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: {
         assignments: {
           include: {
             user: {
-              select: { id: true, first_name: true, last_name: true, email: true },
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
             },
           },
         },
@@ -539,7 +550,9 @@ export class TaskService {
     });
 
     if (!task) {
-      console.warn(`[TaskService] Task ${taskId} not found during email sending`);
+      console.warn(
+        `[TaskService] Task ${taskId} not found during email sending`,
+      );
       return;
     }
 
@@ -553,12 +566,16 @@ export class TaskService {
     const assignedByEmail = assignedBy?.email || '';
     const assessmentName = 'ESG Assessment';
 
-    console.log(`[TaskService] Found ${task.assignments.length} assignments. Assigner: ${assignedByName} (${assignedByEmail})`);
+    console.log(
+      `[TaskService] Found ${task.assignments.length} assignments. Assigner: ${assignedByName} (${assignedByEmail})`,
+    );
 
     for (const assignment of task.assignments) {
       const user = assignment.user;
       if (!user?.email) {
-        console.warn(`[TaskService] Skipping user with no email (ID: ${user?.id})`);
+        console.warn(
+          `[TaskService] Skipping user with no email (ID: ${user?.id})`,
+        );
         continue;
       }
 
@@ -573,8 +590,14 @@ export class TaskService {
         CompanyAdminEmailAddress: assignedByEmail,
       };
 
-      console.log(`[TaskService] Sending email to ${user.email} using template 18...`);
-      const result = await this.emailService.sendEmail(user.email, emailParams, 18);
+      console.log(
+        `[TaskService] Sending email to ${user.email} using template 18...`,
+      );
+      const result = await this.emailService.sendEmail(
+        user.email,
+        emailParams,
+        18,
+      );
       console.log(`[TaskService] Email result for ${user.email}:`, result);
     }
   }

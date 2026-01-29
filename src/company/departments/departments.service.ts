@@ -9,7 +9,7 @@ export class DepartmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async create(
     companyId: number,

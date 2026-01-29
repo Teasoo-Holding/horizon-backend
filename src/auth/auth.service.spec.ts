@@ -30,21 +30,17 @@ describe('AuthService', () => {
             },
             refreshToken: { create: jest.fn(), findUnique: jest.fn() },
             role: {
-              findUnique: jest
-                .fn()
-                .mockResolvedValue({
-                  id: 'role-id',
-                  name: 'SUSTAINABILITY_MANAGER',
-                }),
+              findUnique: jest.fn().mockResolvedValue({
+                id: 'role-id',
+                name: 'SUSTAINABILITY_MANAGER',
+              }),
             },
             permission: {
-              findUnique: jest
-                .fn()
-                .mockResolvedValue({
-                  id: 'perm-id',
-                  name: 'can:edit',
-                  description: 'can edit stuff',
-                }),
+              findUnique: jest.fn().mockResolvedValue({
+                id: 'perm-id',
+                name: 'can:edit',
+                description: 'can edit stuff',
+              }),
             },
           },
         },

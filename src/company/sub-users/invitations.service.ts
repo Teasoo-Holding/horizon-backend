@@ -12,7 +12,7 @@ export class InvitationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async create(dto: CreateInvitationDto, invitedById: number) {
     // 1. Check if user already exists
@@ -30,9 +30,13 @@ export class InvitationsService {
         throw new BadRequestException('Inviting user not found');
       }
       if (existingUser.companyId !== invitingUser.companyId) {
-        throw new BadRequestException('User already belongs to a different company.');
+        throw new BadRequestException(
+          'User already belongs to a different company.',
+        );
       } else {
-        throw new BadRequestException('User with this email already exists in your company.');
+        throw new BadRequestException(
+          'User with this email already exists in your company.',
+        );
       }
     }
 
@@ -116,7 +120,8 @@ export class InvitationsService {
 
     if (pendingInvitation) {
       return {
-        message: 'This user invitation already pending. Resending invitation reminder',
+        message:
+          'This user invitation already pending. Resending invitation reminder',
         invitation,
       };
     }

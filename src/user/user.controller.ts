@@ -43,7 +43,7 @@ export class UserController {
   async getAllPlatformUsers() {
     return this.userService.getAllPlatformUsers();
   }
-  
+
   @Get('user-roles')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users roles' })

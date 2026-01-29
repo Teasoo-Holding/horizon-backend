@@ -16,44 +16,55 @@ export class FileUploadService {
 
   async handleFileUpload(file?: Express.Multer.File): Promise<UploadResult> {
     if (!file) {
-      return { url: '', publicId: '', success: false, error: 'No file provided' };
+      return {
+        url: '',
+        publicId: '',
+        success: false,
+        error: 'No file provided',
+      };
     }
-    
+
     try {
       const result = await this.cloudinaryService.uploadImage(file);
-      
+
       if ('url' in result && 'public_id' in result) {
-        return { 
-          url: result.url, 
-          publicId: result.public_id, 
-          success: true 
+        return {
+          url: result.url,
+          publicId: result.public_id,
+          success: true,
         };
       }
-      
-      return { 
-        url: '', 
-        publicId: '', 
-        success: false, 
-        error: 'Invalid response from cloud service' 
+
+      return {
+        url: '',
+        publicId: '',
+        success: false,
+        error: 'Invalid response from cloud service',
       };
     } catch (error) {
-      return { 
-        url: '', 
-        publicId: '', 
-        success: false, 
-        error: error.message 
+      return {
+        url: '',
+        publicId: '',
+        success: false,
+        error: error.message,
       };
     }
   }
 
   // Additional reusable method for multiple files
-  async handleMultipleFileUpload(files: Express.Multer.File[]): Promise<UploadResult[]> {
-    const uploadPromises = files.map(file => this.handleFileUpload(file));
+  async handleMultipleFileUpload(
+    files: Express.Multer.File[],
+  ): Promise<UploadResult[]> {
+    const uploadPromises = files.map((file) => this.handleFileUpload(file));
     return Promise.all(uploadPromises);
   }
 
   // Additional reusable method for file validation
-  validateFile(file: Express.Multer.File, allowedTypes: string[], maxSize: number): boolean {
+  validateFile(
+    file: Express.Multer.File,
+    allowedTypes: string[],
+    maxSize: number,
+  ): boolean {
     if (!file) return false;
     if (file.size > maxSize) return false;
     if (!allowedTypes.includes(file.mimetype)) return false;

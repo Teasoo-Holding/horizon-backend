@@ -13,7 +13,7 @@ export class CompanyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
   async findAll() {
     return this.prisma.company.findMany({
       include: {
@@ -138,7 +138,8 @@ export class CompanyService {
         if (!data) return null;
         return {
           total: data.totalEmission ?? 0,
-          environment: data.environment?.totalEmission ?? data.totalEmission ?? 0,
+          environment:
+            data.environment?.totalEmission ?? data.totalEmission ?? 0,
           social: data.social?.totalEmission ?? 0,
           governance: data.governance?.totalEmission ?? 0,
         };
@@ -156,13 +157,18 @@ export class CompanyService {
           env?.ghg?.scope2,
           env?.ghg?.scope3,
           env?.airQuality?.airPollutantEmissions,
-          env?.waterManagement?.waterAndProducedWaterManagement?.freshwaterWithdrawals,
-          env?.waterManagement?.waterAndProducedWaterManagement?.producedWaterManagement,
+          env?.waterManagement?.waterAndProducedWaterManagement
+            ?.freshwaterWithdrawals,
+          env?.waterManagement?.waterAndProducedWaterManagement
+            ?.producedWaterManagement,
           env?.waterManagement?.hydraulicFracturingImpacts?.chemicalDisclosure,
-          env?.biodiversityImpact?.environmentalManagement?.environmentalManagementPolicies,
+          env?.biodiversityImpact?.environmentalManagement
+            ?.environmentalManagementPolicies,
         ];
 
-        const completedSections = sections.filter(s => s?.progress && s.progress > 0).length;
+        const completedSections = sections.filter(
+          (s) => s?.progress && s.progress > 0,
+        ).length;
 
         return {
           environment: {
@@ -220,11 +226,11 @@ export class CompanyService {
 
       const subscriptionDto = companySub
         ? {
-          tier: companySub.Subscription.name,
-          amount: companySub.Subscription.price_monthly,
-          dueDate: companySub.end_date,
-          status: companySub.status,
-        }
+            tier: companySub.Subscription.name,
+            amount: companySub.Subscription.price_monthly,
+            dueDate: companySub.end_date,
+            status: companySub.status,
+          }
         : null;
 
       const reviewedAssessments = await this.prisma.assessment.findMany({
@@ -257,8 +263,18 @@ export class CompanyService {
 
         const short = trimmed.toLowerCase().slice(0, 3);
         const map: Record<string, number> = {
-          jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-          jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+          jan: 1,
+          feb: 2,
+          mar: 3,
+          apr: 4,
+          may: 5,
+          jun: 6,
+          jul: 7,
+          aug: 8,
+          sep: 9,
+          oct: 10,
+          nov: 11,
+          dec: 12,
         };
         return map[short] ?? null;
       };
@@ -269,7 +285,8 @@ export class CompanyService {
       };
 
       const formatYearTwoDigits = (y?: string | null, createdAt?: Date) => {
-        if (!y && createdAt) return createdAt.getFullYear().toString().slice(-2);
+        if (!y && createdAt)
+          return createdAt.getFullYear().toString().slice(-2);
         if (!y) return '--';
         const yearNum = parseInt(y, 10);
         if (!isNaN(yearNum)) return yearNum.toString().slice(-2);
@@ -302,9 +319,14 @@ export class CompanyService {
       >();
 
       for (const a of reviewedAssessments) {
-        const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
-        const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
-        const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
+        const pm =
+          parseMonthNumber(a.startMonth) ??
+          (a.createdAt as Date).getMonth() + 1;
+        const py = a.startYear
+          ? parseInt(a.startYear, 10)
+          : (a.createdAt as Date).getFullYear();
+        const sortDate =
+          !isNaN(py) && pm ? new Date(py, pm - 1, 1) : (a.createdAt as Date);
 
         const totals = extractTotals(a);
         const emissionFromAssessmentData = totals?.total ?? null;
@@ -327,8 +349,14 @@ export class CompanyService {
           });
         } else {
           const existing = periodMap.get(periodKey)!;
-          if (existing.score === null && typeof emissionFromAssessmentData === 'number') {
-            periodMap.set(periodKey, { score: emissionFromAssessmentData, sortDate });
+          if (
+            existing.score === null &&
+            typeof emissionFromAssessmentData === 'number'
+          ) {
+            periodMap.set(periodKey, {
+              score: emissionFromAssessmentData,
+              sortDate,
+            });
           }
         }
       }
@@ -381,7 +409,14 @@ export class CompanyService {
   }
 
   async getOnboardingProgress(companyId: number, userId: number) {
-    const [company, user, subsidiaryCount, departmentCount, userCount, assessmentCount] = await Promise.all([
+    const [
+      company,
+      user,
+      subsidiaryCount,
+      departmentCount,
+      userCount,
+      assessmentCount,
+    ] = await Promise.all([
       this.prisma.company.findUnique({ where: { id: companyId } }),
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.subsidiary.count({ where: { parentCompanyId: companyId } }),
@@ -418,13 +453,21 @@ export class CompanyService {
 
     const progress = [item1, item2, item3, item4];
     const completedCount = progress.filter(Boolean).length;
-    const progressPercent = Math.round((completedCount / progress.length) * 100);
+    const progressPercent = Math.round(
+      (completedCount / progress.length) * 100,
+    );
 
     return {
       progressPercent,
       checklist: [
-        { title: 'Complete Organization & Personal Profile', isCompleted: item1 },
-        { title: 'Invite Your Teams, Set Up Departments & Subsidiaries', isCompleted: item2 },
+        {
+          title: 'Complete Organization & Personal Profile',
+          isCompleted: item1,
+        },
+        {
+          title: 'Invite Your Teams, Set Up Departments & Subsidiaries',
+          isCompleted: item2,
+        },
         { title: 'Start First Assessment', isCompleted: item3 },
         { title: 'View ESG Dashboard', isCompleted: item4 },
       ],

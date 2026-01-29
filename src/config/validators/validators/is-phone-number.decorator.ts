@@ -1,10 +1,17 @@
 // validators/is-phone-number.decorator.ts
-import { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
+} from 'class-validator';
 import { PhoneNumberUtil } from 'google-libphonenumber';
 
 const phoneUtil = PhoneNumberUtil.getInstance();
 
-export function IsValidPhoneNumber(region: string = 'NG', validationOptions?: ValidationOptions) {
+export function IsValidPhoneNumber(
+  region: string = 'NG',
+  validationOptions?: ValidationOptions,
+) {
   return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidPhoneNumber',
@@ -14,7 +21,7 @@ export function IsValidPhoneNumber(region: string = 'NG', validationOptions?: Va
       options: validationOptions,
       validator: {
         validate(value: any, args: ValidationArguments) {
-           console.log('Validating phone:', value);
+          console.log('Validating phone:', value);
           try {
             const [region] = args.constraints;
             const number = phoneUtil.parseAndKeepRawInput(value, region);

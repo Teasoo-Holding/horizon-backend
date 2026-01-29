@@ -15,7 +15,16 @@ import {
 import { AssessmentService } from './assessments.service';
 import { Request } from 'express';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiNoContentResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { PartialAssessmentPayloadDto } from './dto/partial-assessment-payload.dto';
 import {
@@ -23,7 +32,7 @@ import {
   AssessmentListResponseDto,
   AssessmentDetailResponseDto,
   AssessmentSubmitResponseDto,
-  AssessmentApprovalResponseDto
+  AssessmentApprovalResponseDto,
 } from './dto/assessment-response.dto';
 
 interface CustomRequest extends Request {
@@ -38,12 +47,13 @@ interface CustomRequest extends Request {
 @Controller('assessments')
 @UseGuards(JwtRolesGuard)
 export class AssessmentController {
-  constructor(private readonly assessmentService: AssessmentService) { }
+  constructor(private readonly assessmentService: AssessmentService) {}
 
   @Post()
   @ApiOperation({
     summary: 'Create a new ESG assessment',
-    description: 'Creates a new assessment draft for the authenticated user\'s company. The assessment will be in "in_progress" status and can be filled out step by step.',
+    description:
+      'Creates a new assessment draft for the authenticated user\'s company. The assessment will be in "in_progress" status and can be filled out step by step.',
   })
   @ApiCreatedResponse({
     description: 'Assessment created successfully',
@@ -51,7 +61,8 @@ export class AssessmentController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid input data or assessment period overlaps with existing assessment',
+    description:
+      'Invalid input data or assessment period overlaps with existing assessment',
   })
   @ApiResponse({
     status: 409,
@@ -73,7 +84,8 @@ export class AssessmentController {
   @Post(':id/save')
   @ApiOperation({
     summary: 'Save assessment progress',
-    description: 'Saves partial assessment data at a specific path. Supports auto-save functionality and form validation. Recalculates dependent values automatically.',
+    description:
+      'Saves partial assessment data at a specific path. Supports auto-save functionality and form validation. Recalculates dependent values automatically.',
   })
   @ApiParam({
     name: 'id',
@@ -96,7 +108,8 @@ export class AssessmentController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Assessment is locked (submitted group) or belongs to different company',
+    description:
+      'Assessment is locked (submitted group) or belongs to different company',
   })
   @ApiResponse({
     status: 404,
@@ -124,7 +137,8 @@ export class AssessmentController {
   @Post(':id/submit')
   @ApiOperation({
     summary: 'Submit an assessment group/pillar',
-    description: 'Submits a completed assessment group (pillar section) for review. Triggers report generation and may change assessment status if all pillars are complete.',
+    description:
+      'Submits a completed assessment group (pillar section) for review. Triggers report generation and may change assessment status if all pillars are complete.',
   })
   @ApiParam({
     name: 'id',
@@ -186,7 +200,8 @@ export class AssessmentController {
   @Get()
   @ApiOperation({
     summary: 'Get all assessments for company',
-    description: 'Retrieves all assessments belonging to the authenticated user\'s company, ordered by creation date (newest first).',
+    description:
+      "Retrieves all assessments belonging to the authenticated user's company, ordered by creation date (newest first).",
   })
   @ApiResponse({
     status: 200,
@@ -202,7 +217,8 @@ export class AssessmentController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get specific assessment by ID',
-    description: 'Retrieves detailed assessment data including progress, assessment data, and metadata. Only returns assessments belonging to the authenticated user\'s company.',
+    description:
+      "Retrieves detailed assessment data including progress, assessment data, and metadata. Only returns assessments belonging to the authenticated user's company.",
   })
   @ApiParam({
     name: 'id',
@@ -246,7 +262,8 @@ export class AssessmentController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a draft assessment',
-    description: 'Deletes an assessment that is still in draft status. Only assessments with status "in_progress" can be deleted. Submitted or approved assessments cannot be deleted.',
+    description:
+      'Deletes an assessment that is still in draft status. Only assessments with status "in_progress" can be deleted. Submitted or approved assessments cannot be deleted.',
   })
   @ApiParam({
     name: 'id',
@@ -299,7 +316,8 @@ export class AssessmentController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve an assessment',
-    description: 'Approves an assessment that was submitted for review. Changes status to "approved" and generates final reports.',
+    description:
+      'Approves an assessment that was submitted for review. Changes status to "approved" and generates final reports.',
   })
   @ApiParam({
     name: 'id',
@@ -345,7 +363,8 @@ export class AssessmentController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Decline/reject an assessment',
-    description: 'Rejects an assessment that was submitted for review. Requires a rejection reason and changes status to "declined".',
+    description:
+      'Rejects an assessment that was submitted for review. Requires a rejection reason and changes status to "declined".',
   })
   @ApiParam({
     name: 'id',

@@ -55,7 +55,7 @@ export class TestController {
 @ApiTags('Company')
 @Controller('company/esg')
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) { }
+  constructor(private readonly companyService: CompanyService) {}
 
   @UseGuards(JwtRolesGuard)
   @Roles('super_admin')

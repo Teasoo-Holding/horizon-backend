@@ -27,6 +27,12 @@ import { TargetModule } from './target/target.module';
     TargetModule,
   ],
   controllers: [CompanyController, TestController, CompanySetupController],
-  providers: [CompanyService, PrismaService, EmailService, CompanySetupService, ActivitiesService],
+  providers: [
+    CompanyService,
+    PrismaService,
+    EmailService,
+    CompanySetupService,
+    ActivitiesService,
+  ],
 })
 export class CompanyModule {}

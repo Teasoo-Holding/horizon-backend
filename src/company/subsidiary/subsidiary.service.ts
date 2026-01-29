@@ -20,7 +20,7 @@ export class SubsidiaryService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
     try {
@@ -252,7 +252,7 @@ export class SubsidiaryService {
       },
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
   }
 

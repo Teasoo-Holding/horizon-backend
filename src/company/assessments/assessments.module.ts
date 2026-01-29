@@ -10,9 +10,19 @@ import { TasksModule } from '../tasks/tasks.module';
 import { AssessmentCalculatorService } from './assessment-calculator.service';
 
 @Module({
-  imports: [PrismaModule, ComputationModule, ReportModule, EmailModule, TasksModule],
+  imports: [
+    PrismaModule,
+    ComputationModule,
+    ReportModule,
+    EmailModule,
+    TasksModule,
+  ],
   controllers: [AssessmentController],
-  providers: [AssessmentService, ActivitiesService, AssessmentCalculatorService],
+  providers: [
+    AssessmentService,
+    ActivitiesService,
+    AssessmentCalculatorService,
+  ],
   exports: [AssessmentService],
 })
 export class AssessmentModule {}

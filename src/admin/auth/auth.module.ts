@@ -7,12 +7,17 @@ import { AdminAuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-    imports: [ PrismaModule, EmailModule, OtpModule, JwtModule.register({
-        secret: process.env.JWT_SECRET || 'a-default-secret',
-        signOptions: { expiresIn: '24h' },
-    })],
-    controllers: [ AdminAuthController],
-    exports: [AdminAuthService],
-    providers: [ AdminAuthService],
+  imports: [
+    PrismaModule,
+    EmailModule,
+    OtpModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'a-default-secret',
+      signOptions: { expiresIn: '24h' },
+    }),
+  ],
+  controllers: [AdminAuthController],
+  exports: [AdminAuthService],
+  providers: [AdminAuthService],
 })
 export class AdminAuthModule {}

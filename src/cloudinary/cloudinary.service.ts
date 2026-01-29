@@ -1,10 +1,8 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { UploadApiErrorResponse, UploadApiResponse} from 'cloudinary';
+import { UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
 import * as toStream from 'buffer-to-stream';
 import { CLOUDINARY } from './entities/constants.coudinary';
 import { Express } from 'express';
-
-
 
 @Injectable()
 export class CloudinaryService {
@@ -18,7 +16,13 @@ export class CloudinaryService {
     return new Promise((resolve, reject) => {
       const uploadStream = this.cloudinary.uploader.upload_stream(
         { resource_type: 'auto' },
-        (error: Error, result: UploadApiResponse | UploadApiErrorResponse | PromiseLike<UploadApiResponse | UploadApiErrorResponse>) => {
+        (
+          error: Error,
+          result:
+            | UploadApiResponse
+            | UploadApiErrorResponse
+            | PromiseLike<UploadApiResponse | UploadApiErrorResponse>,
+        ) => {
           if (error) {
             this.logger.error(`Cloudinary upload error: ${error.message}`);
             return reject(error);
@@ -41,12 +45,12 @@ export class CloudinaryService {
   }
 
   async uploadMultipleImages(files: Express.Multer.File[]): Promise<any[]> {
-  try {
-    const uploadPromises = files.map(file => this.uploadImage(file));
-    return await Promise.all(uploadPromises);
-  } catch (error) {
-    this.logger.error(`Multiple upload failed: ${error.message}`);
-    throw new Error('Multiple image upload failed');
+    try {
+      const uploadPromises = files.map((file) => this.uploadImage(file));
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      this.logger.error(`Multiple upload failed: ${error.message}`);
+      throw new Error('Multiple image upload failed');
+    }
   }
-}
 }

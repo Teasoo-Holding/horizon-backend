@@ -4,7 +4,7 @@ import {
   IsOptional,
   ValidateNested,
   IsString,
-  IsEnum
+  IsEnum,
 } from 'class-validator';
 import { File } from '../../common/file.interface';
 import { FuelType } from '@prisma/client';

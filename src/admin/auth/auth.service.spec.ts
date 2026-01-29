@@ -129,7 +129,10 @@ describe('AdminAuthService', () => {
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: mockRegisterDto.email },
       });
-      expect(mockedBcrypt.hash).toHaveBeenCalledWith(mockRegisterDto.password, 10);
+      expect(mockedBcrypt.hash).toHaveBeenCalledWith(
+        mockRegisterDto.password,
+        10,
+      );
       expect(prismaService.user.create).toHaveBeenCalledWith({
         data: {
           email: mockRegisterDto.email,

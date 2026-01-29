@@ -1,6 +1,13 @@
 // dto/update-target.dto.ts
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsObject, IsOptional, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateScopeReductionDto {
@@ -8,7 +15,7 @@ export class UpdateScopeReductionDto {
     description: 'Reduction percentage for the scope',
     example: 45.0,
     minimum: 0,
-    maximum: 100
+    maximum: 100,
   })
   @IsNumber()
   @Min(0)
@@ -40,7 +47,7 @@ export class UpdateScopesDto {
 export class UpdateGeneralTargetData {
   @ApiPropertyOptional({
     description: 'Name of the target',
-    example: 'Updated Target Name'
+    example: 'Updated Target Name',
   })
   @IsString()
   @IsOptional()
@@ -48,7 +55,7 @@ export class UpdateGeneralTargetData {
 
   @ApiPropertyOptional({
     description: 'Description of the target',
-    example: 'Updated description'
+    example: 'Updated description',
   })
   @IsString()
   @IsOptional()
@@ -56,7 +63,7 @@ export class UpdateGeneralTargetData {
 
   @ApiPropertyOptional({
     description: 'Baseline year for emissions calculation',
-    example: 2024
+    example: 2024,
   })
   @IsNumber()
   @Min(2000)
@@ -66,7 +73,7 @@ export class UpdateGeneralTargetData {
 
   @ApiPropertyOptional({
     description: 'Target year for emissions reduction',
-    example: 2035
+    example: 2035,
   })
   @IsNumber()
   @Min(2000)
@@ -76,7 +83,7 @@ export class UpdateGeneralTargetData {
 
   @ApiPropertyOptional({
     description: 'Overall reduction percentage',
-    example: 50.0
+    example: 50.0,
   })
   @IsNumber()
   @Min(0)
@@ -88,7 +95,7 @@ export class UpdateGeneralTargetData {
 export class UpdateScopeTargetData {
   @ApiPropertyOptional({
     description: 'Name of the target',
-    example: 'Updated Scope Target Name'
+    example: 'Updated Scope Target Name',
   })
   @IsString()
   @IsOptional()
@@ -96,7 +103,7 @@ export class UpdateScopeTargetData {
 
   @ApiPropertyOptional({
     description: 'Description of the target',
-    example: 'Updated scope description'
+    example: 'Updated scope description',
   })
   @IsString()
   @IsOptional()
@@ -104,7 +111,7 @@ export class UpdateScopeTargetData {
 
   @ApiPropertyOptional({
     description: 'Baseline year for emissions calculation',
-    example: 2024
+    example: 2024,
   })
   @IsNumber()
   @Min(2000)
@@ -114,7 +121,7 @@ export class UpdateScopeTargetData {
 
   @ApiPropertyOptional({
     description: 'Target year for emissions reduction',
-    example: 2035
+    example: 2035,
   })
   @IsNumber()
   @Min(2000)
@@ -124,7 +131,7 @@ export class UpdateScopeTargetData {
 
   @ApiPropertyOptional({
     description: 'Scope-specific reduction percentages',
-    type: UpdateScopesDto
+    type: UpdateScopesDto,
   })
   @IsObject()
   @IsOptional()

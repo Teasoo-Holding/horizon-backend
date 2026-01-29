@@ -21,7 +21,7 @@ export class CompanySetupService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async bulkCreate(companyId: number, dto: BulkCreateDto, invitedById: number) {
     return this.prisma.$transaction(async (prisma) => {

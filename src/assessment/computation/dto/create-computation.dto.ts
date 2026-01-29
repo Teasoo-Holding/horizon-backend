@@ -1,13 +1,19 @@
-
-
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsArray, ValidateNested, Min, IsPositive } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsArray,
+  ValidateNested,
+  Min,
+  IsPositive,
+} from 'class-validator';
 
 // ✅ Generic DTO for simple computations (most of your methods)
 export class BasicComputationDto {
   @ApiProperty({
-    description: 'Fuel, energy, distance, or expenditure value (depending on computation)',
+    description:
+      'Fuel, energy, distance, or expenditure value (depending on computation)',
     example: 500,
   })
   @IsNumber()
@@ -23,17 +29,15 @@ export class BasicComputationDto {
 }
 
 export class MultipleEnergyComputationDto {
-   @ApiProperty({
+  @ApiProperty({
     description: 'Array of energy types used for computation',
     type: [BasicComputationDto],
   })
   @IsArray()
-  @ValidateNested({ each: true})
-  @Type(()=> BasicComputationDto)
+  @ValidateNested({ each: true })
+  @Type(() => BasicComputationDto)
   energy_types: BasicComputationDto[];
-
 }
-
 
 export class StationarySourcesDto {
   @ApiProperty({
@@ -61,7 +65,8 @@ export class StationarySourcesDto {
   boilers_and_furnance: MultipleEnergyComputationDto;
 
   @ApiProperty({
-    description: 'Heaters and boilers at oil production facilities computations',
+    description:
+      'Heaters and boilers at oil production facilities computations',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
@@ -69,11 +74,10 @@ export class StationarySourcesDto {
   heaters_and_boilers: MultipleEnergyComputationDto;
 }
 
-
-
 export class MobileSourcesDto {
   @ApiProperty({
-    description: 'Fleet of diesel trucks for product distribution and logistics.',
+    description:
+      'Fleet of diesel trucks for product distribution and logistics.',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
@@ -89,7 +93,8 @@ export class MobileSourcesDto {
   cars_and_buses: MultipleEnergyComputationDto;
 
   @ApiProperty({
-    description: 'Forklifts and other machinery used in warehouses and factory floors.',
+    description:
+      'Forklifts and other machinery used in warehouses and factory floors.',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
@@ -97,13 +102,14 @@ export class MobileSourcesDto {
   forklifts_and_other_machinery: MultipleEnergyComputationDto;
 
   @ApiProperty({
-    description: 'Heavy-duty vehicles and equipment used in construction and mining Subsidiaries ',
+    description:
+      'Heavy-duty vehicles and equipment used in construction and mining Subsidiaries ',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
   heavy_duty_vehicles: MultipleEnergyComputationDto;
-  
+
   @ApiProperty({
     description: 'Tractors and other machinery on large commercial farms.',
     type: MultipleEnergyComputationDto,
@@ -111,19 +117,19 @@ export class MobileSourcesDto {
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
   tractor_and_other_machineries: MultipleEnergyComputationDto;
-  
-  
+
   @ApiProperty({
-    description: 'Helicopters used for transporting personnel and equipment to offshore oil platforms.',
+    description:
+      'Helicopters used for transporting personnel and equipment to offshore oil platforms.',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
   @Type(() => MultipleEnergyComputationDto)
   helocopters: MultipleEnergyComputationDto;
-  
-  
+
   @ApiProperty({
-    description: 'Company-owned boats and vessels for transport in the Niger Delta and offshore Subsidiaries .',
+    description:
+      'Company-owned boats and vessels for transport in the Niger Delta and offshore Subsidiaries .',
     type: MultipleEnergyComputationDto,
   })
   @ValidateNested()
@@ -131,19 +137,25 @@ export class MobileSourcesDto {
   boats_and_vessels: MultipleEnergyComputationDto;
 }
 
-
-
 // ✅ DTO for oil & gas venting / leaks
 export class OilGasVentingDto {
   @ApiProperty({ description: 'Gas volume released (in m³)', example: 1000 })
   @IsNumber()
   gas_volume_released: number;
 
-  @ApiProperty({ description: 'Methane density in kg/m³', example: 0.656, required: false })
+  @ApiProperty({
+    description: 'Methane density in kg/m³',
+    example: 0.656,
+    required: false,
+  })
   @IsNumber()
   methane_density?: number;
 
-  @ApiProperty({ description: 'Global warming potential for methane', example: 28, required: false })
+  @ApiProperty({
+    description: 'Global warming potential for methane',
+    example: 28,
+    required: false,
+  })
   @IsNumber()
   global_warming_potential?: number;
 }
@@ -154,11 +166,17 @@ export class EmployeeCommutingDto {
   @IsNumber()
   number_of_employee: number;
 
-  @ApiProperty({ description: 'Average daily commuting distance (km)', example: 15 })
+  @ApiProperty({
+    description: 'Average daily commuting distance (km)',
+    example: 15,
+  })
   @IsNumber()
   average_daily_commuting_distance: number;
 
-  @ApiProperty({ description: 'Emission factor of commuting mode (tCO2e per km)', example: 0.05 })
+  @ApiProperty({
+    description: 'Emission factor of commuting mode (tCO2e per km)',
+    example: 0.05,
+  })
   @IsNumber()
   emission_factor_of_commuting_mode: number;
 }
@@ -169,11 +187,17 @@ export class FranchiseEnergyInputDto {
   @IsString()
   type: string;
 
-  @ApiProperty({ description: 'Energy consumed (litres, kWh, GJ, etc.)', example: 500 })
+  @ApiProperty({
+    description: 'Energy consumed (litres, kWh, GJ, etc.)',
+    example: 500,
+  })
   @IsNumber()
   energy_consumed: number;
 
-  @ApiProperty({ description: 'Emission factor for this energy type (tCO2e per unit)', example: 2.5 })
+  @ApiProperty({
+    description: 'Emission factor for this energy type (tCO2e per unit)',
+    example: 2.5,
+  })
   @IsNumber()
   emission_factor: number;
 }
@@ -186,122 +210,132 @@ export class FranchisesDto {
   energies: FranchiseEnergyInputDto[];
 }
 
-
 export class RefigirantComputationDto {
-  @ApiProperty({ description: 'Total refrigerant leakage (in kg)', example: 200 })
+  @ApiProperty({
+    description: 'Total refrigerant leakage (in kg)',
+    example: 200,
+  })
   @IsNumber()
   refrigerant_mass: number;
 
-  
-  @ApiProperty({ description: 'Global warming potential of the refrigerant', example: 1430 })
+  @ApiProperty({
+    description: 'Global warming potential of the refrigerant',
+    example: 1430,
+  })
   @IsNumber()
   global_warming_potential: number;
 }
 
-
 export class CementComputationDto {
-    @ApiProperty({ description: 'Cement produced (in tonnes)', example: 1000 }) 
-    @IsNumber()
-    cement_produced: number;
-    
-    @ApiProperty({ description: 'Emission factor for cement production (tCO2e per tonne)', example: 0.9 })
-    @IsNumber()
-    emission_factor: number;
+  @ApiProperty({ description: 'Cement produced (in tonnes)', example: 1000 })
+  @IsNumber()
+  cement_produced: number;
+
+  @ApiProperty({
+    description: 'Emission factor for cement production (tCO2e per tonne)',
+    example: 0.9,
+  })
+  @IsNumber()
+  emission_factor: number;
 }
 
 export class AmmoniaUreaComputationDto {
-    @ApiProperty({ description: 'Ammonia produced (in tonnes)', example: 1000 }) 
-    @IsNumber()
-    ammonia_produced: number;
-    
-    @ApiProperty({ description: 'Emission factor for ammonia production (tCO2e per tonne)', example: 1.6 })
-    @IsNumber()
-    emission_factor: number;
+  @ApiProperty({ description: 'Ammonia produced (in tonnes)', example: 1000 })
+  @IsNumber()
+  ammonia_produced: number;
+
+  @ApiProperty({
+    description: 'Emission factor for ammonia production (tCO2e per tonne)',
+    example: 1.6,
+  })
+  @IsNumber()
+  emission_factor: number;
 }
 
 export class NationalGridComputationDto {
-    @ApiProperty({ description: 'Electricity consumed (in kWh)', example: 10000 }) 
-    @IsNumber()
-    electricity_consumed: number;
-    
-    @ApiProperty({ description: 'Emission factor for national grid (tCO2e per kWh)', example: 0.0005 })
-    @IsNumber()
-    emission_factor: number;
-}
+  @ApiProperty({ description: 'Electricity consumed (in kWh)', example: 10000 })
+  @IsNumber()
+  electricity_consumed: number;
 
+  @ApiProperty({
+    description: 'Emission factor for national grid (tCO2e per kWh)',
+    example: 0.0005,
+  })
+  @IsNumber()
+  emission_factor: number;
+}
 
 export class GoodsAndServicesDto {
-    @ApiProperty({ description: 'Expenditure on goods and services (in currency)', example: 5000 }) 
-    @IsNumber()
-    expenditure: number;
-    
-    @ApiProperty({ description: 'Economic emission factor (tCO2e per currency unit)', example: 0.0002 })
-    @IsNumber()
-    economic_emission_factor: number;
-}
+  @ApiProperty({
+    description: 'Expenditure on goods and services (in currency)',
+    example: 5000,
+  })
+  @IsNumber()
+  expenditure: number;
 
+  @ApiProperty({
+    description: 'Economic emission factor (tCO2e per currency unit)',
+    example: 0.0002,
+  })
+  @IsNumber()
+  economic_emission_factor: number;
+}
 
 export class FuelComputationsDto {
-    @ApiProperty({
-        description: "Volume of fuel spent",
-        example: 2.8
-    })
+  @ApiProperty({
+    description: 'Volume of fuel spent',
+    example: 2.8,
+  })
+  @ApiProperty({})
+  @IsNumber()
+  fuel_volume: number;
 
-    @ApiProperty({
-
-    })
-    @IsNumber()
-    fuel_volume: number
-    
-
-    @IsNumber()
-    emission_factor: number
+  @IsNumber()
+  emission_factor: number;
 }
-
 
 export class FlaringComputationDto {
-    @ApiProperty({
-        description: "Volume of gas flared in m3",
-    })
-    @IsNumber()
-    gas_volume_flaring: number;
+  @ApiProperty({
+    description: 'Volume of gas flared in m3',
+  })
+  @IsNumber()
+  gas_volume_flaring: number;
 
-    @ApiProperty({
-        description: "Emission factor for flaring",
-        example: 0.05  
-    })
-    @IsNumber()
-    emission_factor: number;
+  @ApiProperty({
+    description: 'Emission factor for flaring',
+    example: 0.05,
+  })
+  @IsNumber()
+  emission_factor: number;
 }
-
 
 export class EndOfLifeTreatmentSoldProductsDto {
   @ApiProperty({
     description: 'Total mass of products sold in kg',
     example: 1500,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
   total_mass_of_products_sold: number;
 
   @ApiProperty({
-    description: 'Emission factor for end-of-life treatment method (tCO2e per kg)',
+    description:
+      'Emission factor for end-of-life treatment method (tCO2e per kg)',
     example: 0.25,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
   emission_factor_for_end_of_life_treatment_method: number;
 }
 
-
 // Use of Sold Products DTO
 export class UseSoldProductsDto {
   @ApiProperty({
     description: 'Product lifetime energy consumption (kWh or liters)',
     example: 1500,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -310,7 +344,7 @@ export class UseSoldProductsDto {
   @ApiProperty({
     description: 'Number of units sold',
     example: 100,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -319,7 +353,7 @@ export class UseSoldProductsDto {
   @ApiProperty({
     description: 'Regional grid emission factor (tCO2e per unit)',
     example: 0.5,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -328,7 +362,7 @@ export class UseSoldProductsDto {
   @ApiProperty({
     description: 'Estimated average product lifetime (years)',
     example: 5,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -340,7 +374,7 @@ export class BusinessTravelDto {
   @ApiProperty({
     description: 'Distance traveled (km)',
     example: 250,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -349,7 +383,7 @@ export class BusinessTravelDto {
   @ApiProperty({
     description: 'Emission factor (tCO2e per km)',
     example: 0.12,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -361,7 +395,7 @@ export class WasteGeneratedOperationsDto {
   @ApiProperty({
     description: 'Waste mass (tonnes)',
     example: 10,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -370,7 +404,7 @@ export class WasteGeneratedOperationsDto {
   @ApiProperty({
     description: 'Emission factor (tCO2e per tonne)',
     example: 0.8,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -382,7 +416,7 @@ export class FuelEnergyRelatedActivitiesDto {
   @ApiProperty({
     description: 'Total energy spent (liters, GJ, kg, or kWh)',
     example: 5000,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -391,7 +425,7 @@ export class FuelEnergyRelatedActivitiesDto {
   @ApiProperty({
     description: 'Upstream lifecycle emission factor',
     example: 0.25,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -403,7 +437,7 @@ export class UpstreamTransportationDistributionDto {
   @ApiProperty({
     description: 'Distance traveled (km)',
     example: 300,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -412,7 +446,7 @@ export class UpstreamTransportationDistributionDto {
   @ApiProperty({
     description: 'Mass of goods (tonnes)',
     example: 15,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()
@@ -421,7 +455,7 @@ export class UpstreamTransportationDistributionDto {
   @ApiProperty({
     description: 'Emission factor (tCO2e per tonne-km)',
     example: 0.05,
-    minimum: 0
+    minimum: 0,
   })
   @IsNumber()
   @IsPositive()

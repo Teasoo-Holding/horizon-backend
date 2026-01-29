@@ -19,15 +19,14 @@ export interface RequestWithUser extends Request {
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
- 
-
   @Get('dashboard')
   @UseGuards(JwtRolesGuard)
   @Roles('super_admin', 'platform_admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get super admin dashboard data (super_admin-only)' })
+  @ApiOperation({
+    summary: 'Get super admin dashboard data (super_admin-only)',
+  })
   async getSuperAdminDashboard(@Req() req: RequestWithUser) {
     return this.adminService.getSuperAdminDashboard(Number(req.user.id));
   }
- 
 }
