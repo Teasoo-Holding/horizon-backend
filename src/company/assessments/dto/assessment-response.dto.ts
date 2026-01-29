@@ -15,7 +15,13 @@ export class AssessmentResponseDto {
 
   @ApiProperty({
     description: 'Assessment status',
-    enum: ['in_progress', 'awaiting_review', 'submitted_approved', 'approved', 'declined'],
+    enum: [
+      'in_progress',
+      'awaiting_review',
+      'submitted_approved',
+      'approved',
+      'declined',
+    ],
     example: 'in_progress',
   })
   status: string;

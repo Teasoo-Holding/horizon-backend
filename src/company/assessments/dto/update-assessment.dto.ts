@@ -6,7 +6,7 @@ import {
   ValidateNested,
   IsArray,
   IsDate,
-  IsBoolean
+  IsBoolean,
 } from 'class-validator';
 import { AssessmentStatus, DisclosureCategory, FuelType } from '@prisma/client';
 import { File } from '../common/file.interface';

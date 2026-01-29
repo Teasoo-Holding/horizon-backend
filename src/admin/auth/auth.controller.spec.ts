@@ -27,7 +27,10 @@ describe('AdminAuthController', () => {
 
   describe('getUsers', () => {
     it('should call service with query parameters', async () => {
-      const filters: AdminGetusersDto = { status: UserStatus.active, search: 'john' };
+      const filters: AdminGetusersDto = {
+        status: UserStatus.active,
+        search: 'john',
+      };
       const mockResponse = [
         {
           id: 1,

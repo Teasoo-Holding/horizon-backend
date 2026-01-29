@@ -37,7 +37,7 @@ export class AssessmentCalculatorService {
     private water: WaterComputationService,
     private biodiversity: BiodiversityComputationService,
     private activityMetrics: ActivityMetricsComputationService,
-  ) { }
+  ) {}
 
   async recalculate(raw: any): Promise<{
     data: AssessmentData;
@@ -80,13 +80,17 @@ export class AssessmentCalculatorService {
       scope1Total += result.sum;
 
       if (group.electricityHeat) {
-        group.electricityHeat.totalEmission = (result.fuel_powered_generator?.value || 0) + (result.gas_powered_turbine?.value || 0);
+        group.electricityHeat.totalEmission =
+          (result.fuel_powered_generator?.value || 0) +
+          (result.gas_powered_turbine?.value || 0);
       }
       if (group.industrialProcess) {
-        group.industrialProcess.totalEmission = result.boilers_and_furnaces_in_manufacturing?.value || 0;
+        group.industrialProcess.totalEmission =
+          result.boilers_and_furnaces_in_manufacturing?.value || 0;
       }
       if (group.oilGasOperations) {
-        group.oilGasOperations.totalEmission = result.heaters_and_boilers_at_oil_production_facilities?.value || 0;
+        group.oilGasOperations.totalEmission =
+          result.heaters_and_boilers_at_oil_production_facilities?.value || 0;
       }
 
       this.calculateGroupProgress(
@@ -239,7 +243,9 @@ export class AssessmentCalculatorService {
     // Air Quality Calculations
     if (this.hasData(data.environment?.airQuality?.airPollutantEmissions)) {
       const aq = data.environment.airQuality;
-      const result = await this.airQuality.computeAirPollutantEmissions(aq.airPollutantEmissions);
+      const result = await this.airQuality.computeAirPollutantEmissions(
+        aq.airPollutantEmissions,
+      );
       aq.airPollutantEmissions.calculated = result;
       this.calculateFormProgress(aq.airPollutantEmissions, 1);
     }
@@ -250,30 +256,49 @@ export class AssessmentCalculatorService {
       if (this.hasData(wm.waterAndProducedWaterManagement)) {
         const sub = wm.waterAndProducedWaterManagement;
         if (this.hasData(sub.freshwaterWithdrawals)) {
-          sub.freshwaterWithdrawals.calculated = await this.water.computeFreshwaterWithdrawals(sub.freshwaterWithdrawals);
+          sub.freshwaterWithdrawals.calculated =
+            await this.water.computeFreshwaterWithdrawals(
+              sub.freshwaterWithdrawals,
+            );
           this.calculateFormProgress(sub.freshwaterWithdrawals, 4);
         }
         if (this.hasData(sub.producedWaterManagement)) {
-          sub.producedWaterManagement.calculated = await this.water.computeProducedWaterManagement(sub.producedWaterManagement);
+          sub.producedWaterManagement.calculated =
+            await this.water.computeProducedWaterManagement(
+              sub.producedWaterManagement,
+            );
           this.calculateFormProgress(sub.producedWaterManagement, 1);
         }
       }
     }
 
     // Biodiversity Impact Calculations
-    if (this.hasData(data.environment?.biodiversityImpact?.environmentalManagement)) {
+    if (
+      this.hasData(
+        data.environment?.biodiversityImpact?.environmentalManagement,
+      )
+    ) {
       const bio = data.environment.biodiversityImpact;
       const sub = bio.environmentalManagement;
       if (this.hasData(sub.environmentalManagementPolicies)) {
-        sub.environmentalManagementPolicies.calculated = await this.biodiversity.computeEnvironmentalManagementPolicies(sub.environmentalManagementPolicies);
+        sub.environmentalManagementPolicies.calculated =
+          await this.biodiversity.computeEnvironmentalManagementPolicies(
+            sub.environmentalManagementPolicies,
+          );
         this.calculateFormProgress(sub.environmentalManagementPolicies, 1);
       }
       if (this.hasData(sub.hydrocarbonSpills)) {
-        sub.hydrocarbonSpills.calculated = await this.biodiversity.computeHydrocarbonSpills(sub.hydrocarbonSpills);
+        sub.hydrocarbonSpills.calculated =
+          await this.biodiversity.computeHydrocarbonSpills(
+            sub.hydrocarbonSpills,
+          );
         this.calculateFormProgress(sub.hydrocarbonSpills, 1);
       }
       if (this.hasData(sub.reservesInSensitiveAreas)) {
-        sub.reservesInSensitiveAreas.calculated = await this.biodiversity.computeReservesInSensitiveAreas(sub.reservesInSensitiveAreas);
+        sub.reservesInSensitiveAreas.calculated =
+          await this.biodiversity.computeReservesInSensitiveAreas(
+            sub.reservesInSensitiveAreas,
+          );
         this.calculateFormProgress(sub.reservesInSensitiveAreas, 1);
       }
     }
@@ -283,15 +308,22 @@ export class AssessmentCalculatorService {
       const am = data.foundationalData.activityMetrics;
 
       if (this.hasData(am.productionVolumes)) {
-        am.productionVolumes.calculated = await this.activityMetrics.computeProductionVolumes(am.productionVolumes);
+        am.productionVolumes.calculated =
+          await this.activityMetrics.computeProductionVolumes(
+            am.productionVolumes,
+          );
         this.calculateFormProgress(am.productionVolumes, 4);
       }
       if (this.hasData(am.offshoreSites)) {
-        am.offshoreSites.calculated = await this.activityMetrics.computeOffshoreSites(am.offshoreSites);
+        am.offshoreSites.calculated =
+          await this.activityMetrics.computeOffshoreSites(am.offshoreSites);
         this.calculateFormProgress(am.offshoreSites, 3);
       }
       if (this.hasData(am.terrestrialSites)) {
-        am.terrestrialSites.calculated = await this.activityMetrics.computeTerrestrialSites(am.terrestrialSites);
+        am.terrestrialSites.calculated =
+          await this.activityMetrics.computeTerrestrialSites(
+            am.terrestrialSites,
+          );
         this.calculateFormProgress(am.terrestrialSites, 3);
       }
     }
@@ -302,12 +334,16 @@ export class AssessmentCalculatorService {
 
     data.topEmissionSources = this.deriveTop5(breakdown, totalEmissionVal);
 
-    const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
+    const environmentalProgress = this.calculateEnvironmentalProgress(
+      data.environment,
+    );
     data.overallProgress = environmentalProgress;
 
     // Foundational Data Progress
     if (data.foundationalData) {
-      data.foundationalData.progress = this.calculateFoundationalProgress(data.foundationalData);
+      data.foundationalData.progress = this.calculateFoundationalProgress(
+        data.foundationalData,
+      );
     }
 
     // Calculate total completed and expected sections
@@ -406,7 +442,7 @@ export class AssessmentCalculatorService {
     if (loc) {
       const locFields = ['purchasedElectricity', 'cooling', 'steam', 'heating'];
       let count = 0;
-      locFields.forEach(f => {
+      locFields.forEach((f) => {
         if (this.hasData(loc[f])) count++;
       });
       loc.dataCount = { expected: 4, count };
@@ -418,7 +454,7 @@ export class AssessmentCalculatorService {
     if (mar) {
       const marFields = ['ipps', 'eac', 'residual', 'coolingSteam'];
       let count = 0;
-      marFields.forEach(f => {
+      marFields.forEach((f) => {
         if (this.hasData(mar[f])) count++;
       });
       mar.dataCount = { expected: 4, count };
@@ -428,7 +464,7 @@ export class AssessmentCalculatorService {
     let weightedSum = 0;
     let totalWeight = 0;
 
-    ['locationBased', 'marketBased'].forEach(key => {
+    ['locationBased', 'marketBased'].forEach((key) => {
       const weight = weights[key];
       totalWeight += weight;
       if (scope2[key]?.progress != null) {
@@ -468,8 +504,8 @@ export class AssessmentCalculatorService {
       if (val === undefined || val === null) continue;
 
       if (Array.isArray(val)) {
-        const hasValues = val.some((item: any) =>
-          item.volume && parseFloat(item.volume.toString()) > 0,
+        const hasValues = val.some(
+          (item: any) => item.volume && parseFloat(item.volume.toString()) > 0,
         );
         if (hasValues) count += 1;
       } else if (typeof val === 'number' && val > 0) {
@@ -627,13 +663,19 @@ export class AssessmentCalculatorService {
 
   private mapScope2Location(group: any) {
     return {
-      electiricity_consumed: Number(group.purchasedElectricity?.electricityConsumed || 0),
+      electiricity_consumed: Number(
+        group.purchasedElectricity?.electricityConsumed || 0,
+      ),
       electiricity_emission_factor: 0.45,
-      amount_of_cooling_energy_consumed: Number(group.cooling?.coolingConsumed || 0),
+      amount_of_cooling_energy_consumed: Number(
+        group.cooling?.coolingConsumed || 0,
+      ),
       amt_of_c_emission_factor: 0.45,
       total_steam_consumed: Number(group.steam?.volume || 0),
       total_steam_consumed_factor: 0.45,
-      total_heating_energy_consumed: Number(group.heating?.heatingConsumed || 0),
+      total_heating_energy_consumed: Number(
+        group.heating?.heatingConsumed || 0,
+      ),
       total_heating_energy_consumed_EF: 0.45,
     };
   }
@@ -644,10 +686,16 @@ export class AssessmentCalculatorService {
       ipp_emission_factor: Number(group.ipps?.emissionFactor || 0),
       eac_electricity_consumed: Number(group.eac?.gridElectricity || 0),
       eac_emission_factor: Number(group.eac?.emissionFactor || 0),
-      residual_electricity_consumed: Number(group.residual?.electricityConsumed || 0),
+      residual_electricity_consumed: Number(
+        group.residual?.electricityConsumed || 0,
+      ),
       residual_emission_factor: Number(group.residual?.residualMixFactor || 0),
-      coolingsteam_energy_consumed: Number(group.coolingSteam?.energyConsumed || 0),
-      coolingsteam_emission_factor: Number(group.coolingSteam?.emissionFactor || 0),
+      coolingsteam_energy_consumed: Number(
+        group.coolingSteam?.energyConsumed || 0,
+      ),
+      coolingsteam_emission_factor: Number(
+        group.coolingSteam?.emissionFactor || 0,
+      ),
     };
   }
 
@@ -797,17 +845,29 @@ export class AssessmentCalculatorService {
     // Water Management (has 2 subtopics with multiple forms)
     if (environment.waterManagement) {
       const wm = environment.waterManagement;
-      if (wm.waterAndProducedWaterManagement?.freshwaterWithdrawals?.progress != null) {
-        topics.push(wm.waterAndProducedWaterManagement.freshwaterWithdrawals.progress);
+      if (
+        wm.waterAndProducedWaterManagement?.freshwaterWithdrawals?.progress !=
+        null
+      ) {
+        topics.push(
+          wm.waterAndProducedWaterManagement.freshwaterWithdrawals.progress,
+        );
       }
-      if (wm.waterAndProducedWaterManagement?.producedWaterManagement?.progress != null) {
-        topics.push(wm.waterAndProducedWaterManagement.producedWaterManagement.progress);
+      if (
+        wm.waterAndProducedWaterManagement?.producedWaterManagement?.progress !=
+        null
+      ) {
+        topics.push(
+          wm.waterAndProducedWaterManagement.producedWaterManagement.progress,
+        );
       }
       // Hydraulic fracturing forms
       if (wm.hydraulicFracturingImpacts?.chemicalDisclosure?.progress != null) {
         topics.push(wm.hydraulicFracturingImpacts.chemicalDisclosure.progress);
       }
-      if (wm.hydraulicFracturingImpacts?.waterQualityImpacts?.progress != null) {
+      if (
+        wm.hydraulicFracturingImpacts?.waterQualityImpacts?.progress != null
+      ) {
         topics.push(wm.hydraulicFracturingImpacts.waterQualityImpacts.progress);
       }
     }
@@ -871,7 +931,11 @@ export class AssessmentCalculatorService {
       pillars.push(this.calculateLeadershipProgress(data.leadershipGovernance));
     }
 
-    return pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / pillars.length).toFixed(1)) : 0;
+    return pillars.length > 0
+      ? Number(
+          (pillars.reduce((sum, p) => sum + p, 0) / pillars.length).toFixed(1),
+        )
+      : 0;
   }
 
   private calculateSocialProgress(social: any): number {
@@ -882,10 +946,11 @@ export class AssessmentCalculatorService {
       const forms = [
         'operationsInConflictZones',
         'reservesInNearIndigenousLand',
-        'humanRightsEngagementProcesses'
+        'humanRightsEngagementProcesses',
       ];
       this.calculateGroupProgress(social.securityHumanRights, forms, [2, 2, 4]);
-      if (social.securityHumanRights.progress != null) topics.push(social.securityHumanRights.progress);
+      if (social.securityHumanRights.progress != null)
+        topics.push(social.securityHumanRights.progress);
     }
 
     // Community Relations
@@ -894,14 +959,21 @@ export class AssessmentCalculatorService {
         'communityRiskOpportunityManagement',
         'hcdtContribution',
         'communityDisputeResolution',
-        'operationalDelays'
+        'operationalDelays',
       ];
-      this.calculateGroupProgress(social.communityRelations, forms, [4, 3, 3, 2]);
-      if (social.communityRelations.progress != null) topics.push(social.communityRelations.progress);
+      this.calculateGroupProgress(
+        social.communityRelations,
+        forms,
+        [4, 3, 3, 2],
+      );
+      if (social.communityRelations.progress != null)
+        topics.push(social.communityRelations.progress);
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Number(
+          (topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1),
+        )
       : 0;
   }
 
@@ -912,11 +984,14 @@ export class AssessmentCalculatorService {
     if (human.workforceHealthSafety) {
       const forms = ['healthSafetyPerformance', 'safetyManagementSystems'];
       this.calculateGroupProgress(human.workforceHealthSafety, forms, [6, 4]);
-      if (human.workforceHealthSafety.progress != null) topics.push(human.workforceHealthSafety.progress);
+      if (human.workforceHealthSafety.progress != null)
+        topics.push(human.workforceHealthSafety.progress);
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Number(
+          (topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1),
+        )
       : 0;
   }
 
@@ -929,24 +1004,32 @@ export class AssessmentCalculatorService {
         'reservesSensitivity',
         'embeddedCarbon',
         'renewableEnergyInvestment',
-        'capitalExpenditureStrategy'
+        'capitalExpenditureStrategy',
       ];
-      this.calculateGroupProgress(business.reservesValuation, forms, [3, 4, 3, 2]);
-      if (business.reservesValuation.progress != null) topics.push(business.reservesValuation.progress);
+      this.calculateGroupProgress(
+        business.reservesValuation,
+        forms,
+        [3, 4, 3, 2],
+      );
+      if (business.reservesValuation.progress != null)
+        topics.push(business.reservesValuation.progress);
     }
 
     // Business Ethics & Transparency
     if (business.businessEthics) {
       const forms = [
         'reservesCountriesCorruptionRisk',
-        'antiCorruptionManagement'
+        'antiCorruptionManagement',
       ];
       this.calculateGroupProgress(business.businessEthics, forms, [3, 4]);
-      if (business.businessEthics.progress != null) topics.push(business.businessEthics.progress);
+      if (business.businessEthics.progress != null)
+        topics.push(business.businessEthics.progress);
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Number(
+          (topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1),
+        )
       : 0;
   }
 
@@ -957,28 +1040,40 @@ export class AssessmentCalculatorService {
     if (leadership.criticalIncidentRiskManagement) {
       const forms = [
         'processSafetyEvents',
-        'catastrophicRiskManagementSystems'
+        'catastrophicRiskManagementSystems',
       ];
-      this.calculateGroupProgress(leadership.criticalIncidentRiskManagement, forms, [5, 4]);
-      if (leadership.criticalIncidentRiskManagement.progress != null) topics.push(leadership.criticalIncidentRiskManagement.progress);
+      this.calculateGroupProgress(
+        leadership.criticalIncidentRiskManagement,
+        forms,
+        [5, 4],
+      );
+      if (leadership.criticalIncidentRiskManagement.progress != null)
+        topics.push(leadership.criticalIncidentRiskManagement.progress);
     }
 
     // Management of Legal & Regulatory Environment
     if (leadership.legalRegulatoryEnvironment) {
-      const forms = [
-        'boardManagementOversight',
-        'publicPolicyEngagement'
-      ];
-      this.calculateGroupProgress(leadership.legalRegulatoryEnvironment, forms, [4, 4]);
-      if (leadership.legalRegulatoryEnvironment.progress != null) topics.push(leadership.legalRegulatoryEnvironment.progress);
+      const forms = ['boardManagementOversight', 'publicPolicyEngagement'];
+      this.calculateGroupProgress(
+        leadership.legalRegulatoryEnvironment,
+        forms,
+        [4, 4],
+      );
+      if (leadership.legalRegulatoryEnvironment.progress != null)
+        topics.push(leadership.legalRegulatoryEnvironment.progress);
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Number(
+          (topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1),
+        )
       : 0;
   }
 
-  private calculateTotalSectionCounts(data: any): { completed: number; total: number } {
+  private calculateTotalSectionCounts(data: any): {
+    completed: number;
+    total: number;
+  } {
     let completed = 0;
     let total = 0;
 
@@ -996,7 +1091,12 @@ export class AssessmentCalculatorService {
       const g = data.environment.ghg || {};
       // Scope 1
       if (g.scope1) {
-        ['stationarySources', 'mobileSources', 'processEmissions', 'fugitiveEmissions'].forEach(k => {
+        [
+          'stationarySources',
+          'mobileSources',
+          'processEmissions',
+          'fugitiveEmissions',
+        ].forEach((k) => {
           const group = g.scope1[k];
           if (group) {
             let groupCounted = false;
@@ -1009,7 +1109,7 @@ export class AssessmentCalculatorService {
       }
       // Scope 2
       if (g.scope2) {
-        ['locationBased', 'marketBased'].forEach(k => {
+        ['locationBased', 'marketBased'].forEach((k) => {
           const s = g.scope2[k];
           if (s) {
             total += 4;
@@ -1019,7 +1119,7 @@ export class AssessmentCalculatorService {
       }
       // Scope 3
       if (g.scope3) {
-        ['upstream', 'downstream'].forEach(k => {
+        ['upstream', 'downstream'].forEach((k) => {
           const s = g.scope3[k];
           if (s) {
             for (const key in s) {
@@ -1029,9 +1129,11 @@ export class AssessmentCalculatorService {
         });
       }
       // Air, Water, Bio
-      if (data.environment.airQuality?.airPollutantEmissions) extract(data.environment.airQuality.airPollutantEmissions);
+      if (data.environment.airQuality?.airPollutantEmissions)
+        extract(data.environment.airQuality.airPollutantEmissions);
       if (data.environment.waterManagement?.waterAndProducedWaterManagement) {
-        const w = data.environment.waterManagement.waterAndProducedWaterManagement;
+        const w =
+          data.environment.waterManagement.waterAndProducedWaterManagement;
         extract(w.freshwaterWithdrawals);
         extract(w.producedWaterManagement);
       }
@@ -1044,8 +1146,13 @@ export class AssessmentCalculatorService {
     }
 
     // Social, Human, Business, Leadership
-    const pillars = ['socialCapital', 'humanCapital', 'businessModel', 'leadershipGovernance'];
-    pillars.forEach(p => {
+    const pillars = [
+      'socialCapital',
+      'humanCapital',
+      'businessModel',
+      'leadershipGovernance',
+    ];
+    pillars.forEach((p) => {
       if (data[p]) {
         for (const topicKey in data[p]) {
           const topic = data[p][topicKey];

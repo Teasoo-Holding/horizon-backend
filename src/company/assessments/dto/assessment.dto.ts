@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class AssessmentPayloadDto {
   [key: string]: any;
-  
+
   @ApiProperty({
     description: 'The subsidiary for which the assessment is being conducted.',
     example: 'HQ',

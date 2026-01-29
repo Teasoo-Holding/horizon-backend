@@ -2,7 +2,7 @@ import { IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AdminGetusersDto {
-    @ApiPropertyOptional({ description: 'Filter by user status' })
+  @ApiPropertyOptional({ description: 'Filter by user status' })
   @IsString()
   @IsOptional()
   status?: string;
@@ -11,5 +11,4 @@ export class AdminGetusersDto {
   @IsString()
   @IsOptional()
   search?: string;
-
 }

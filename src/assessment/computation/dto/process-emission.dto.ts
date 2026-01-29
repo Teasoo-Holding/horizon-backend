@@ -9,13 +9,12 @@ export class ProcessEmissionDto {
   @IsNumber()
   mass_of_cement: number;
 
-@ApiProperty({
+  @ApiProperty({
     description: 'Emission factor of cement',
     example: 2.5,
   })
   @IsNumber()
   cement_emission_factor: number;
-
 
   @ApiProperty({
     description: 'Volume of flared gas in m3',

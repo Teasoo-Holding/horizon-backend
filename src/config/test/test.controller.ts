@@ -5,9 +5,7 @@ export class TestController {
   constructor(private readonly testService: TestService) {}
 
   @Post()
-  create(@Body("phoneNumber") phoneNumber: string) {
+  create(@Body('phoneNumber') phoneNumber: string) {
     return this.testService.create(phoneNumber);
   }
-
-
 }

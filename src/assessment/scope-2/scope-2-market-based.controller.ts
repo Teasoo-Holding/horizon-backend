@@ -36,7 +36,10 @@ export class MarketBasedS2Controller {
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'electricity_supplier_contract_with_ipps_url', maxCount: 1 },
-      { name: 'supplier_issued_emmission_factor_documentation_url', maxCount: 1 },
+      {
+        name: 'supplier_issued_emmission_factor_documentation_url',
+        maxCount: 1,
+      },
       { name: 'invoices_and_bills_from_ipp_url', maxCount: 1 },
       { name: 'eac_or_rec_certificate_url', maxCount: 1 },
       { name: 'energy_attribute_certificate_url', maxCount: 1 },
@@ -45,7 +48,10 @@ export class MarketBasedS2Controller {
       { name: 'grid_electricity_invoices_url', maxCount: 1 },
       { name: 'nigerian_grid_emmission_factor_documentation_url', maxCount: 1 },
       { name: 'supplier_contacts_url', maxCount: 1 },
-      { name: 'supplier_invoices_for_cooling_or_steam_purchases_url', maxCount: 1 },
+      {
+        name: 'supplier_invoices_for_cooling_or_steam_purchases_url',
+        maxCount: 1,
+      },
       { name: 'supplier_emmission_factor_data_sheet_url', maxCount: 1 },
       { name: 'performance_or_operational_logs_url', maxCount: 1 },
     ]),
@@ -59,18 +65,24 @@ export class MarketBasedS2Controller {
     return this.service.create(dto, files, req.user.id);
   }
 
-
   // Update existing record
 
-    @Patch(':id')
+  @Patch(':id')
   @ApiOperation({ summary: 'Update MarketBasedS2 record' })
-  @ApiParam({ name: 'id', type: Number, description: 'MarketBasedS2 record ID' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'MarketBasedS2 record ID',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: MarketBasedS2Dto })
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'electricity_supplier_contract_with_ipps_url', maxCount: 1 },
-      { name: 'supplier_issued_emmission_factor_documentation_url', maxCount: 1 },
+      {
+        name: 'supplier_issued_emmission_factor_documentation_url',
+        maxCount: 1,
+      },
       { name: 'invoices_and_bills_from_ipp_url', maxCount: 1 },
       { name: 'eac_or_rec_certificate_url', maxCount: 1 },
       { name: 'energy_attribute_certificate_url', maxCount: 1 },
@@ -79,7 +91,10 @@ export class MarketBasedS2Controller {
       { name: 'grid_electricity_invoices_url', maxCount: 1 },
       { name: 'nigerian_grid_emmission_factor_documentation_url', maxCount: 1 },
       { name: 'supplier_contacts_url', maxCount: 1 },
-      { name: 'supplier_invoices_for_cooling_or_steam_purchases_url', maxCount: 1 },
+      {
+        name: 'supplier_invoices_for_cooling_or_steam_purchases_url',
+        maxCount: 1,
+      },
       { name: 'supplier_emmission_factor_data_sheet_url', maxCount: 1 },
       { name: 'performance_or_operational_logs_url', maxCount: 1 },
     ]),

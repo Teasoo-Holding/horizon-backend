@@ -12,7 +12,7 @@ export class InvitationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async create(dto: CreateInvitationDto, invitedById: number) {
     // 1. Check if user already exists
@@ -103,7 +103,8 @@ export class InvitationsService {
 
     if (pendingInvitation) {
       return {
-        message: 'This user invitation already pending. Resending invitation reminder',
+        message:
+          'This user invitation already pending. Resending invitation reminder',
         invitation,
       };
     }

@@ -4,7 +4,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class PartialAssessmentPayloadDto {
   @ApiProperty({
     description: 'JSON path to the assessment data section being updated',
-    example: 'environment.ghg.scope1.stationarySources.electricityHeat.dieselGenerators',
+    example:
+      'environment.ghg.scope1.stationarySources.electricityHeat.dieselGenerators',
     type: String,
   })
   @IsString()
@@ -12,7 +13,11 @@ export class PartialAssessmentPayloadDto {
 
   @ApiProperty({
     description: 'Data payload to save at the specified path',
-    example: { 'dieselGenerators': [{ 'fuelType': 'diesel-ago', 'volume': 100, 'unit': 'litre' }] },
+    example: {
+      dieselGenerators: [
+        { fuelType: 'diesel-ago', volume: 100, unit: 'litre' },
+      ],
+    },
     type: Object,
   })
   @IsObject()

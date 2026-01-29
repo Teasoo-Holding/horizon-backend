@@ -1,5 +1,12 @@
 import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ReportResponseDto } from './dto/report-response.dto';
@@ -8,13 +15,14 @@ import { ReportResponseDto } from './dto/report-response.dto';
 @ApiTags('Reports') // Groups endpoints under "Reports" in Swagger UI :cite[2]:cite[6]:cite[9]
 @Controller('report')
 export class ReportController {
-  constructor(private readonly reportService: ReportService) { }
+  constructor(private readonly reportService: ReportService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get all assessment reports for organization',
-    description: 'Retrieves all assessment reports for the authenticated user\'s company, ordered by creation date. Includes basic report metadata and progress information.'
+    description:
+      "Retrieves all assessment reports for the authenticated user's company, ordered by creation date. Includes basic report metadata and progress information.",
   })
   @ApiOkResponse({
     description: 'Successfully retrieved all organization assessment reports',
@@ -22,7 +30,7 @@ export class ReportController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Unauthorized - invalid or missing JWT token'
+    description: 'Unauthorized - invalid or missing JWT token',
   })
   findAll(
     @Req()
@@ -36,20 +44,23 @@ export class ReportController {
       };
     },
   ) {
-    return this.reportService.findOrganizationAssessmentReport(req.user.companyId);
+    return this.reportService.findOrganizationAssessmentReport(
+      req.user.companyId,
+    );
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get detailed assessment report by ID',
-    description: 'Retrieves comprehensive assessment report data including environmental metrics, social capital, human capital, business model data, targets, and emission summaries. Only returns reports for assessments belonging to the authenticated user\'s company.'
+    description:
+      "Retrieves comprehensive assessment report data including environmental metrics, social capital, human capital, business model data, targets, and emission summaries. Only returns reports for assessments belonging to the authenticated user's company.",
   })
   @ApiParam({
     name: 'id',
     type: Number,
     description: 'The ID of the assessment report to retrieve',
-    example: 123
+    example: 123,
   })
   @ApiOkResponse({
     description: 'Successfully retrieved detailed report data',
@@ -57,11 +68,11 @@ export class ReportController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Unauthorized - invalid or missing JWT token'
+    description: 'Unauthorized - invalid or missing JWT token',
   })
   @ApiResponse({
     status: 404,
-    description: 'Report not found for the given assessment ID and company'
+    description: 'Report not found for the given assessment ID and company',
   })
   findOne(
     @Param('id') id: string,
@@ -76,55 +87,52 @@ export class ReportController {
       };
     },
   ) {
-    return this.reportService.getReport(
-      +id,
-      req.user.companyId
-    );
+    return this.reportService.getReport(+id, req.user.companyId);
   }
 
   @Get('/one/:id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get internal report summary',
-    description: 'Retrieves internal report structure and calculation data for a specific assessment. Used for debugging and internal analysis.'
+    description:
+      'Retrieves internal report structure and calculation data for a specific assessment. Used for debugging and internal analysis.',
   })
   @ApiParam({
     name: 'id',
     type: Number,
     description: 'Assessment ID',
-    example: 123
+    example: 123,
   })
   @ApiResponse({
     status: 200,
-    description: 'Successfully retrieved internal report object with calculation details',
+    description:
+      'Successfully retrieved internal report object with calculation details',
     schema: {
       type: 'object',
-      description: 'Internal assessment data structure with calculated values and progress tracking',
+      description:
+        'Internal assessment data structure with calculated values and progress tracking',
     },
   })
   @ApiResponse({
     status: 404,
-    description: 'Assessment not found'
+    description: 'Assessment not found',
   })
-  getOneAssessmentReport(
-    @Param('id') id: string,
-  ) {
-    return this.reportService.getAssessmentReport(
-      +id
-    );
+  getOneAssessmentReport(@Param('id') id: string) {
+    return this.reportService.getAssessmentReport(+id);
   }
 
   @Post('/generate/:id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Manually generate/refresh report data',
-    description: 'Triggers manual recalculation of all report metrics and persists the data to the database. Useful for updating reports after data changes or fixing calculation errors.'
+    description:
+      'Triggers manual recalculation of all report metrics and persists the data to the database. Useful for updating reports after data changes or fixing calculation errors.',
   })
   @ApiParam({
     name: 'id',
     type: Number,
     description: 'Assessment ID to generate report for',
-    example: 123
+    example: 123,
   })
   @ApiResponse({
     status: 200,
@@ -142,9 +150,7 @@ export class ReportController {
     status: 404,
     description: 'Assessment not found',
   })
-  generateReport(
-    @Param('id') id: string,
-  ) {
+  generateReport(@Param('id') id: string) {
     return this.reportService.saveReportingData(+id);
   }
 }

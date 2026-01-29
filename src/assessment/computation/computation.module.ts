@@ -33,4 +33,4 @@ import { ActivityMetricsComputationService } from './activity-metrics.service';
     ActivityMetricsComputationService,
   ],
 })
-export class ComputationModule { }
+export class ComputationModule {}

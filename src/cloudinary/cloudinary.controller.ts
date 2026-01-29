@@ -34,7 +34,7 @@ export class UploadController {
   ) {
     try {
       const result = await this.cloudinaryService.uploadImage(file);
-      
+
       return {
         success: true,
         message: 'Image uploaded successfully',
@@ -49,9 +49,8 @@ export class UploadController {
       throw new BadRequestException(`Upload failed: ${error.message}`);
     }
   }
-  
 
-   @Post('images')
+  @Post('images')
   @UseInterceptors(FilesInterceptor('files', 10)) // Max 10 files
   async uploadMultipleImages(
     @UploadedFiles(
@@ -66,11 +65,11 @@ export class UploadController {
   ) {
     try {
       const results = await this.cloudinaryService.uploadMultipleImages(files);
-      
+
       return {
         success: true,
         message: `${files.length} images uploaded successfully`,
-        data: results.map(result => ({
+        data: results.map((result) => ({
           url: result.secure_url,
           publicId: result.public_id,
           format: result.format,
@@ -87,7 +86,7 @@ export class UploadController {
   async deleteImage(@Param('publicId') publicId: string) {
     try {
       const result = await this.cloudinaryService.deleteImage(publicId);
-      
+
       return {
         success: true,
         message: 'Image deleted successfully',

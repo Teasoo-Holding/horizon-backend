@@ -14,7 +14,20 @@ export class CreateAssessmentDto {
     description: 'Starting month for the assessment period',
     example: 'January',
     type: String,
-    enum: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    enum: [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ],
   })
   @IsString()
   startMonth: string;
@@ -31,7 +44,20 @@ export class CreateAssessmentDto {
     description: 'Ending month for the assessment period',
     example: 'December',
     type: String,
-    enum: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    enum: [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ],
   })
   @IsString()
   endMonth: string;

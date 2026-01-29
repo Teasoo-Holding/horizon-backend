@@ -33,7 +33,7 @@ interface CustomRequest extends Request {
 @Controller('tasks')
 @UseGuards(JwtRolesGuard)
 export class TaskController {
-  constructor(private taskService: TaskService) { }
+  constructor(private taskService: TaskService) {}
 
   @Get('my-tasks')
   @ApiOperation({ summary: 'Get all tasks assigned to the current user' })

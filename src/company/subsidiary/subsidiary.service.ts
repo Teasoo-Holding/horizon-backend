@@ -233,7 +233,7 @@ export class SubsidiaryService {
       },
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
   }
 

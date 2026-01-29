@@ -22,7 +22,7 @@ export class AuthService {
     private emailService: EmailService,
     private otpService: OtpService,
     private activitiesService: ActivitiesService,
-  ) { }
+  ) {}
 
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({

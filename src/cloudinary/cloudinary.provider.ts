@@ -11,7 +11,7 @@ export const CloudinaryProvider: Provider = {
       api_key: configService.get<string>('CLOUDINARY_API_KEY'),
       api_secret: configService.get<string>('CLOUDINARY_API_SECRET'),
     });
-    return cloudinary; 
+    return cloudinary;
   },
   inject: [ConfigService],
 };

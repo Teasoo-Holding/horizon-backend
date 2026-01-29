@@ -1,5 +1,9 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
-import { ThrottlerException, ThrottlerGuard, ThrottlerLimitDetail } from '@nestjs/throttler';
+import {
+  ThrottlerException,
+  ThrottlerGuard,
+  ThrottlerLimitDetail,
+} from '@nestjs/throttler';
 
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {

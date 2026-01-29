@@ -42,9 +42,7 @@ export class AdminAuthController {
     return this.adminAuthService.verifyEmail(dto.email, dto.otp);
   }
 
-  @ApiResetContentResponse(
-    
-  )
+  @ApiResetContentResponse()
   @Post('complete-registration')
   async completeRegistration(
     @Body() dto: TeasoAdminSendRequest,
@@ -57,10 +55,7 @@ export class AdminAuthController {
       );
     }
 
-    return this.adminAuthService.completeRegistration(
-      token,
-      dto,
-    );
+    return this.adminAuthService.completeRegistration(token, dto);
   }
 
   @Post('verify-invite-token')
@@ -69,9 +64,7 @@ export class AdminAuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @ApiResetContentResponse({
-
-  })
+  @ApiResetContentResponse({})
   @Post('invite-admin')
   async inviteAdmin(
     @Body() dto: TeasoAdminSendRequest,

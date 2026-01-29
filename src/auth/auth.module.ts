@@ -30,9 +30,9 @@ import { ActivitiesService } from 'src/activities/activities.service';
     JwtStrategy,
     EmailService,
     OtpService,
-    ActivitiesService
+    ActivitiesService,
   ],
   controllers: [AuthController],
   exports: [JwtModule],
 })
-export class AuthModule { }
+export class AuthModule {}

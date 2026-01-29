@@ -8,6 +8,6 @@ import { MarketBasedS2Controller } from './scope-2-market-based.controller';
 @Module({
   controllers: [LocationBasedS2Controller, MarketBasedS2Controller],
   providers: [LocationBasedS2Service, MarketBasedS2Service],
-  imports: [ CloudinaryModule ]
+  imports: [CloudinaryModule],
 })
 export class Scope2Module {}

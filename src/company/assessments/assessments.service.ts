@@ -70,7 +70,7 @@ export class AssessmentService {
     private activitiesService: ActivitiesService,
     private reportService: ReportService,
     private emailService: EmailService,
-  ) { }
+  ) {}
 
   async createAssessment(
     companyId: number,
@@ -213,7 +213,6 @@ export class AssessmentService {
     const recalculated = result.data as any; // ← THIS LINE FIXES THE ERROR
     const scopeTotals = result.scopeTotals;
 
-
     const requireReview = assessment.company?.requireAssessmentReview ?? false;
     let newStatus: AssessmentStatus = AssessmentStatus.in_progress;
 
@@ -229,8 +228,10 @@ export class AssessmentService {
         if (path?.startsWith('socialCapital.')) currentPillar = 'socialCapital';
         if (path?.startsWith('humanCapital.')) currentPillar = 'humanCapital';
         if (path?.startsWith('businessModel.')) currentPillar = 'businessModel';
-        if (path?.startsWith('leadershipGovernance.')) currentPillar = 'leadershipGovernance';
-        if (path?.startsWith('foundationalData.')) currentPillar = 'foundationalData';
+        if (path?.startsWith('leadershipGovernance.'))
+          currentPillar = 'leadershipGovernance';
+        if (path?.startsWith('foundationalData.'))
+          currentPillar = 'foundationalData';
       }
 
       // 2. Check if pillar is complete
@@ -291,14 +292,22 @@ export class AssessmentService {
   private getGroupSum(breakdown: any, lastSavedForm?: string): number {
     if (!lastSavedForm) return 0;
 
-    if (lastSavedForm.includes("stationary")) return breakdown.stationarySources?.sum || 0;
-    if (lastSavedForm.includes("mobile")) return breakdown.mobileSources?.sum || 0;
-    if (lastSavedForm.includes("process")) return breakdown.processEmissions?.sum || 0;
-    if (lastSavedForm.includes("fugitive")) return breakdown.fugitiveEmissions?.sum || 0;
-    if (lastSavedForm.includes("location")) return breakdown.scope2Location?.sum || 0;
-    if (lastSavedForm.includes("market")) return breakdown.scope2Market?.sum || 0;
-    if (lastSavedForm.includes("upstream")) return breakdown.upstreamEmissions?.sum || 0;
-    if (lastSavedForm.includes("downstream")) return breakdown.downstreamEmissions?.sum || 0;
+    if (lastSavedForm.includes('stationary'))
+      return breakdown.stationarySources?.sum || 0;
+    if (lastSavedForm.includes('mobile'))
+      return breakdown.mobileSources?.sum || 0;
+    if (lastSavedForm.includes('process'))
+      return breakdown.processEmissions?.sum || 0;
+    if (lastSavedForm.includes('fugitive'))
+      return breakdown.fugitiveEmissions?.sum || 0;
+    if (lastSavedForm.includes('location'))
+      return breakdown.scope2Location?.sum || 0;
+    if (lastSavedForm.includes('market'))
+      return breakdown.scope2Market?.sum || 0;
+    if (lastSavedForm.includes('upstream'))
+      return breakdown.upstreamEmissions?.sum || 0;
+    if (lastSavedForm.includes('downstream'))
+      return breakdown.downstreamEmissions?.sum || 0;
 
     return 0;
   }
@@ -531,10 +540,18 @@ export class AssessmentService {
     }
 
     // Human Capital
-    if (formKey.startsWith('humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems')) {
+    if (
+      formKey.startsWith(
+        'humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems',
+      )
+    ) {
       return 'humanCapital.workforceHealthSafety';
     }
-    if (formKey.startsWith('humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance')) {
+    if (
+      formKey.startsWith(
+        'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance',
+      )
+    ) {
       return 'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance';
     }
 
@@ -545,49 +562,97 @@ export class AssessmentService {
     if (formKey.includes('reserveValuation.climateImpact.embeddedCarbon')) {
       return 'businessModel.reservesValuation.embeddedCarbon';
     }
-    if (formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment')) {
+    if (
+      formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment')
+    ) {
       return 'businessModel.reservesValuation.renewableEnergyInvestment';
     }
-    if (formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy')) {
+    if (
+      formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy')
+    ) {
       return 'businessModel.reservesValuation.capitalExpenditureStrategy';
     }
-    if (formKey.includes('businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+    if (
+      formKey.includes(
+        'businessEthicsAndTransparency.reservesCountriesCorruptionRisk',
+      )
+    ) {
       return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
     }
-    if (formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')) {
+    if (
+      formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')
+    ) {
       return 'businessModel.businessEthics.antiCorruptionManagement';
     }
     // Handle the actual frontend form keys
-    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.reserveSensitivity')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.reserveValuation.climateImpact.reserveSensitivity',
+      )
+    ) {
       return 'businessModel.reservesValuation.reservesSensitivity';
     }
-    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.embeddedCarbon')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.reserveValuation.climateImpact.embeddedCarbon',
+      )
+    ) {
       return 'businessModel.reservesValuation.embeddedCarbon';
     }
-    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.renewableEnergyInvestment')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.renewableEnergyInvestment',
+      )
+    ) {
       return 'businessModel.reservesValuation.renewableEnergyInvestment';
     }
-    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.capitalExpenditureStrategy')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.capitalExpenditureStrategy',
+      )
+    ) {
       return 'businessModel.reservesValuation.capitalExpenditureStrategy';
     }
-    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.businessEthicsAndTransparency.reservesCountriesCorruptionRisk',
+      )
+    ) {
       return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
     }
-    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.antiCorruptionManagement')) {
+    if (
+      formKey.startsWith(
+        'businessModelAndInnovation.businessEthicsAndTransparency.antiCorruptionManagement',
+      )
+    ) {
       return 'businessModel.businessEthics.antiCorruptionManagement';
     }
 
     // Leadership
-    if (formKey.includes('criticalIncidentRiskManagement.processSafetyEvents')) {
+    if (
+      formKey.includes('criticalIncidentRiskManagement.processSafetyEvents')
+    ) {
       return 'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents';
     }
-    if (formKey.includes('criticalIncidentRiskManagement.catastrophicRiskManagementSystems')) {
+    if (
+      formKey.includes(
+        'criticalIncidentRiskManagement.catastrophicRiskManagementSystems',
+      )
+    ) {
       return 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems';
     }
-    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.boardManagementOversight')) {
+    if (
+      formKey.includes(
+        'managementOfLegalAndRegulatoryEnvironment.boardManagementOversight',
+      )
+    ) {
       return 'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight';
     }
-    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement')) {
+    if (
+      formKey.includes(
+        'managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement',
+      )
+    ) {
       return 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement';
     }
 

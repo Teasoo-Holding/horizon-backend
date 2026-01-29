@@ -17,9 +17,17 @@ describe('EsgAuthService', () => {
           provide: PrismaService,
           useValue: {
             user: { findUnique: jest.fn(), create: jest.fn() },
-            company: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+            company: {
+              findFirst: jest.fn(),
+              create: jest.fn(),
+              update: jest.fn(),
+            },
             role: { findUnique: jest.fn() },
-            industry: { findUnique: jest.fn().mockResolvedValue({ id: 1, name: 'Energy' }) },
+            industry: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({ id: 1, name: 'Energy' }),
+            },
           },
         },
         {
@@ -84,9 +92,7 @@ describe('EsgAuthService', () => {
         message:
           'Registration successful. Your ESG company is pending approval by an administrator.',
       });
-    })
-
-      ;
+    });
 
     it('should throw ConflictException if user already exists', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
