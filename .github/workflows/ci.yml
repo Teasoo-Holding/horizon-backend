@@ -37,7 +37,25 @@ jobs:
         run: npm run build
 
       # --- DEPLOYMENT STEPS START HERE ---
-      
+
+      - name: Check Server Connectivity
+        run: |
+          echo "🔍 Checking server connectivity..."
+          ping -c 3 ${{ secrets.SERVER_IP }} || echo "❌ Ping failed - server may be unreachable"
+
+          echo "🔑 Setting up SSH key..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Could not add host key"
+
+          echo "🔗 Testing SSH connection..."
+          ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@${{ secrets.SERVER_IP }} "echo '✅ SSH connection successful'" || echo "❌ SSH connection failed"
+
+          echo "🔧 SSH key format check..."
+          ssh-keygen -l -f ~/.ssh/id_rsa || echo "❌ Invalid SSH key format"
+        continue-on-error: true
+
       - name: Transfer Files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -46,6 +64,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: 60s
           command_timeout: 15m
+          debug: true
           # We send: dist (code), package files, and prisma (for migrations)
           source: "dist,package.json,package-lock.json,prisma"
           target: "/var/www/esghorizon/backend"
@@ -56,15 +75,22 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 15m
           script: |
+            echo "🚀 Starting deployment process..."
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
+
             cd /var/www/esghorizon/backend
+            echo "📦 Installing dependencies..."
             npm install --omit=dev
+            echo "🗄️ Running database migrations..."
             npx prisma migrate deploy
-            
+
+            echo "⚙️ Starting application with PM2..."
             # Use the pre-loader to ensure the .env file is ALWAYS found
             pm2 delete esg-backend || true
             PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
             pm2 save
+            echo "✅ Deployment completed successfully!"
