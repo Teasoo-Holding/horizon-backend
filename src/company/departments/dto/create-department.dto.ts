@@ -52,4 +52,11 @@ export class CreateDepartmentDto {
   @IsString()
   @IsOptional()
   subsidiaryName?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID of the subsidiary this department belongs to',
+    example: 1,
+  })
+  @IsOptional()
+  subsidiaryId?: number;
 }
