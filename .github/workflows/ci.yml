@@ -38,22 +38,36 @@ jobs:
 
       # --- DEPLOYMENT STEPS START HERE ---
 
-      - name: Check Server Connectivity
+      - name: Verify Secrets Match Frontend
         run: |
-          echo "🔍 Checking server connectivity..."
-          ping -c 3 ${{ secrets.SERVER_IP }} || echo "❌ Ping failed - server may be unreachable"
+          echo "🔍 SECRET VERIFICATION"
+          echo "======================"
 
-          echo "🔑 Setting up SSH key..."
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Could not add host key"
+          echo "Checking if backend secrets match frontend repo secrets..."
+          echo "Note: If frontend deploys work but backend fails, the secrets may differ between repositories"
 
-          echo "🔗 Testing SSH connection..."
-          ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@${{ secrets.SERVER_IP }} "echo '✅ SSH connection successful'" || echo "❌ SSH connection failed"
+          SERVER_IP="${{ secrets.SERVER_IP }}"
+          SSH_KEY="${{ secrets.SSH_PRIVATE_KEY }}"
 
-          echo "🔧 SSH key format check..."
-          ssh-keygen -l -f ~/.ssh/id_rsa || echo "❌ Invalid SSH key format"
+          echo "Server IP length: ${#SERVER_IP} characters"
+          echo "SSH Key length: ${#SSH_KEY} characters"
+
+          if [ -z "$SERVER_IP" ]; then
+            echo "❌ SERVER_IP secret is empty or not set"
+            exit 1
+          fi
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "❌ SSH_PRIVATE_KEY secret is empty or not set"
+            exit 1
+          fi
+
+          echo "✅ Both secrets are configured"
+          echo ""
+          echo "🔧 TROUBLESHOOTING STEPS:"
+          echo "1. Go to horizon-frontend repo → Settings → Secrets and variables → Actions"
+          echo "2. Compare SERVER_IP and SSH_PRIVATE_KEY with horizon-backend repo"
+          echo "3. If they differ, copy the working values from frontend to backend repo"
         continue-on-error: true
 
       - name: Transfer Files to VPS
@@ -62,10 +76,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 60s
-          command_timeout: 15m
-          debug: true
-          # We send: dist (code), package files, and prisma (for migrations)
+          timeout: 300s
           source: "dist,package.json,package-lock.json,prisma"
           target: "/var/www/esghorizon/backend"
 
@@ -75,22 +86,14 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 60s
-          command_timeout: 15m
           script: |
-            echo "🚀 Starting deployment process..."
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
             cd /var/www/esghorizon/backend
-            echo "📦 Installing dependencies..."
             npm install --omit=dev
-            echo "🗄️ Running database migrations..."
             npx prisma migrate deploy
 
-            echo "⚙️ Starting application with PM2..."
-            # Use the pre-loader to ensure the .env file is ALWAYS found
             pm2 delete esg-backend || true
             PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
             pm2 save
-            echo "✅ Deployment completed successfully!"

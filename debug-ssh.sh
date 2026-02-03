@@ -40,6 +40,8 @@ echo "4. Server network information:"
 echo "External IP: $(curl -s ifconfig.me || echo 'Unable to determine')"
 echo "Local IPs:"
 ip addr show | grep "inet " | grep -v "127.0.0.1" | awk '{print "  " $2}'
+echo "Default gateway:"
+ip route show | grep default || echo "No default route found"
 
 # Test SSH key (you'll need to provide the public key)
 echo ""
@@ -60,6 +62,8 @@ echo ""
 echo "🔧 Quick fixes to try:"
 echo "1. sudo systemctl start ssh"
 echo "2. sudo ufw allow 22/tcp"
-echo "3. Check if your server IP has changed"
+echo "3. Check if your server IP has changed - update SERVER_IP secret in GitHub"
 echo "4. Verify SSH private key is still valid"
 echo "5. Test manual SSH: ssh -i /path/to/key root@YOUR_SERVER_IP"
+echo "6. Check VPS provider firewall - they often block GitHub Actions IPs"
+echo "7. Try different SSH port or contact your VPS provider about connectivity"
