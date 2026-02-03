@@ -63,6 +63,20 @@ jobs:
           fi
 
           echo "✅ Both secrets are configured"
+
+      - name: Check Network Connectivity
+        run: |
+          echo "🔍 Checking connectivity to ${{ secrets.SERVER_IP }} port 22..."
+          
+          # Test TCP connection to port 22 (SSH) with 5 second timeout
+          if nc -z -v -w 5 ${{ secrets.SERVER_IP }} 22; then
+            echo "✅ Port 22 is OPEN and reachable."
+          else
+            echo "❌ Port 22 is CLOSED or UNREACHABLE (Timeout)."
+            echo "This indicates a firewall issue (host-level or provider-level) blocking GitHub Actions."
+            exit 1
+          fi
+
           echo ""
           echo "🔧 TROUBLESHOOTING STEPS:"
           echo "1. Go to horizon-frontend repo → Settings → Secrets and variables → Actions"
@@ -77,6 +91,7 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: 300s
+          debug: true
           source: "dist,package.json,package-lock.json,prisma"
           target: "/var/www/esghorizon/backend"
 
