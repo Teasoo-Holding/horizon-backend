@@ -118,6 +118,7 @@ export class CompanyService {
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
               AssessmentStatus.awaiting_review,
+              AssessmentStatus.in_progress,
             ],
           },
         },
@@ -150,32 +151,46 @@ export class CompanyService {
         const data = parseAssessmentData(assessment?.assessmentData);
         if (!data) return null;
 
-        const env = data.environment;
+        const env = data; // parseAssessmentData returns the whole object
         const sections = [
-          env?.ghg?.scope1,
-          env?.ghg?.scope2,
-          env?.ghg?.scope3,
-          env?.airQuality?.airPollutantEmissions,
-          env?.waterManagement?.waterAndProducedWaterManagement?.freshwaterWithdrawals,
-          env?.waterManagement?.waterAndProducedWaterManagement?.producedWaterManagement,
-          env?.waterManagement?.hydraulicFracturingImpacts?.chemicalDisclosure,
-          env?.biodiversityImpact?.environmentalManagement?.environmentalManagementPolicies,
+          env?.environment?.ghg?.scope1,
+          env?.environment?.ghg?.scope2,
+          env?.environment?.ghg?.scope3,
+          env?.environment?.airQuality?.airPollutantEmissions,
+          env?.environment?.waterManagement?.waterAndProducedWaterManagement?.freshwaterWithdrawals,
+          env?.environment?.waterManagement?.waterAndProducedWaterManagement?.producedWaterManagement,
+          env?.environment?.waterManagement?.hydraulicFracturingImpacts?.chemicalDisclosure,
+          env?.environment?.biodiversityImpact?.environmentalManagement?.environmentalManagementPolicies,
         ];
 
         const completedSections = sections.filter(s => s?.progress && s.progress > 0).length;
 
+        const socialSections = [
+          env?.socialCapital?.securityHumanRights,
+          env?.socialCapital?.communityRelations,
+        ];
+        const socialCompleted = socialSections.filter(s => s?.progress && s.progress > 0).length;
+
+        const govSections = [
+          env?.businessModel?.reservesValuation,
+          env?.businessModel?.businessEthics,
+          env?.leadershipGovernance?.criticalIncidentRiskManagement,
+          env?.leadershipGovernance?.legalRegulatoryEnvironment,
+        ];
+        const govCompleted = govSections.filter(s => s?.progress && s.progress > 0).length;
+
         return {
           environment: {
-            progress: env?.progress ?? data.overallProgress ?? 0,
+            progress: env?.overallProgress ?? data.environment?.progress ?? data.overallProgress ?? 0,
             completed: `${completedSections} of 8 sections completed`,
           },
           social: {
-            progress: data.social?.progress ?? 0,
-            completed: `0 sections completed`,
+            progress: data.socialCapital?.progress ?? 0,
+            completed: `${socialCompleted} of 2 sections completed`,
           },
           governance: {
-            progress: data.governance?.progress ?? 0,
-            completed: `0 sections completed`,
+            progress: ((data.businessModel?.progress || 0) + (data.leadershipGovernance?.progress || 0)) / 2,
+            completed: `${govCompleted} of 4 sections completed`,
           },
         };
       };
@@ -243,6 +258,7 @@ export class CompanyService {
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
               AssessmentStatus.awaiting_review,
+              AssessmentStatus.in_progress,
             ],
           },
         },
@@ -309,46 +325,21 @@ export class CompanyService {
         { score: number | null; sortDate: Date | null }
       >();
 
-      for (const a of reviewedAssessments) {
-        const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
-        const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
-        const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
+      const esgJourney = reviewedAssessments
+        .map((a) => {
+          const totals = extractTotals(a);
+          const score = totals?.total ?? 0;
+          const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
+          const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
+          const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
 
-        const totals = extractTotals(a);
-        const emissionFromAssessmentData = totals?.total ?? null;
-
-        const periodKey = makePeriodKey(
-          a.startMonth,
-          a.startYear,
-          a.endMonth,
-          a.endYear,
-          a.createdAt as Date,
-        );
-
-        if (!periodMap.has(periodKey)) {
-          periodMap.set(periodKey, {
-            score:
-              typeof emissionFromAssessmentData === 'number'
-                ? emissionFromAssessmentData
-                : null,
-            sortDate,
-          });
-        } else {
-          const existing = periodMap.get(periodKey)!;
-          if (existing.score === null && typeof emissionFromAssessmentData === 'number') {
-            periodMap.set(periodKey, { score: emissionFromAssessmentData, sortDate });
-          }
-        }
-      }
-
-      const esgJourney = Array.from(periodMap.entries())
-        .map(([period, { score, sortDate }]) => ({ period, score, sortDate }))
-        .sort((a, b) => {
-          if (!a.sortDate && !b.sortDate) return 0;
-          if (!a.sortDate) return -1;
-          if (!b.sortDate) return 1;
-          return a.sortDate.getTime() - b.sortDate.getTime();
+          return {
+            period: makePeriodKey(a.startMonth, a.startYear, a.endMonth, a.endYear, a.createdAt as Date),
+            score,
+            sortDate
+          };
         })
+        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime())
         .map((p) => ({ period: p.period, score: p.score }));
 
       const totalAssessmentsCount = await this.prisma.assessment.count({

@@ -328,25 +328,28 @@ export class AssessmentCalculatorService {
     };
   }
 
-  private calculateFormProgress(form: any, expected: number) {
-    const count = this.countFilledFields(form);
+  private calculateFormProgress(form: any, _expected: number = 1) {
+    const filledFields = this.countFilledFields(form);
+    const count = filledFields > 0 ? 1 : 0;
+    const expected = 1;
+
     form.dataCount = { expected, count };
-    form.progress =
-      expected > 0 ? Number(((count / expected) * 100).toFixed(1)) : 0;
+    form.progress = count === 1 ? 100 : 0;
   }
 
   private calculateGroupProgress(
     group: any,
     forms: string[],
-    expectedPerForm?: number[],
+    _expectedPerForm?: number[],
   ) {
     let totalCount = 0;
     let totalExpected = 0;
 
-    forms.forEach((formKey, i) => {
+    forms.forEach((formKey) => {
       const form = group[formKey];
       if (form) {
-        const expected = expectedPerForm?.[i] || 10;
+        // Each form is exactly 1 step
+        const expected = 1;
         this.calculateFormProgress(form, expected);
         totalCount += form.dataCount.count;
         totalExpected += expected;
@@ -410,7 +413,7 @@ export class AssessmentCalculatorService {
         if (this.hasData(loc[f])) count++;
       });
       loc.dataCount = { expected: 4, count };
-      loc.progress = Number(((count / 4) * 100).toFixed(1));
+      loc.progress = count > 0 ? Number(((count / 4) * 100).toFixed(1)) : 0;
     }
 
     // Market Based Progress
@@ -422,7 +425,7 @@ export class AssessmentCalculatorService {
         if (this.hasData(mar[f])) count++;
       });
       mar.dataCount = { expected: 4, count };
-      mar.progress = Number(((count / 4) * 100).toFixed(1));
+      mar.progress = count > 0 ? Number(((count / 4) * 100).toFixed(1)) : 0;
     }
 
     let weightedSum = 0;
@@ -1011,9 +1014,13 @@ export class AssessmentCalculatorService {
       if (g.scope2) {
         ['locationBased', 'marketBased'].forEach(k => {
           const s = g.scope2[k];
-          if (s) {
+          if (s?.dataCount) {
+            completed += s.dataCount.count || 0;
+            total += s.dataCount.expected || 0;
+          } else {
+            // Fallback if dataCount missing (should not happen with new logic)
             total += 4;
-            if (s.progress) completed += Math.round((s.progress / 100) * 4);
+            if (s?.progress) completed += Math.round((s.progress / 100) * 4);
           }
         });
       }
