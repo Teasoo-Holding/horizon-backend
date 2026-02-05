@@ -10,4 +10,4 @@ import { EmailModule } from 'src/email/email.module';
   controllers: [DepartmentsController],
   providers: [DepartmentsService, PrismaService, ActivitiesService],
 })
-export class DepartmentsModule { }
+export class DepartmentsModule {}

@@ -17,7 +17,7 @@ import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
 @ApiBearerAuth()
 @Controller('company/esg/invitations')
 export class InvitationsController {
-  constructor(private readonly invitationsService: InvitationsService) { }
+  constructor(private readonly invitationsService: InvitationsService) {}
 
   @Post()
   @UseGuards(JwtRolesGuard)

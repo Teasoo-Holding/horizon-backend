@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
@@ -11,7 +15,7 @@ export class DepartmentsService {
     private readonly prisma: PrismaService,
     private readonly activitiesService: ActivitiesService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   async create(
     companyId: number,
@@ -74,7 +78,9 @@ export class DepartmentsService {
           {
             firstname: firstName || leadEmailLower,
             link: process.env.FRONTEND_URL + '/register',
-            admin_name: creator ? `${creator.first_name} ${creator.last_name || ''}`.trim() : 'System',
+            admin_name: creator
+              ? `${creator.first_name} ${creator.last_name || ''}`.trim()
+              : 'System',
             esg_name: company?.name || 'the company',
           },
           6,
@@ -110,8 +116,8 @@ export class DepartmentsService {
           },
         },
         subsidiary: {
-          select: { id: true, name: true }
-        }
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -134,8 +140,8 @@ export class DepartmentsService {
           select: { id: true, first_name: true, last_name: true, email: true },
         },
         subsidiary: {
-          select: { id: true, name: true }
-        }
+          select: { id: true, name: true },
+        },
       },
     });
     if (!department) throw new NotFoundException('Department not found');
@@ -153,7 +159,9 @@ export class DepartmentsService {
       let subsidiaryId = dto.subsidiaryId;
 
       if (!subsidiaryId && subsidiaryName) {
-        const current = await this.prisma.department.findUnique({ where: { id } });
+        const current = await this.prisma.department.findUnique({
+          where: { id },
+        });
         if (!current) throw new NotFoundException('Department not found');
         const subsidiary = await this.prisma.subsidiary.findFirst({
           where: { name: subsidiaryName, parentCompanyId: current.companyId },
@@ -183,7 +191,9 @@ export class DepartmentsService {
             );
           }
 
-          const currentDept = await this.prisma.department.findUnique({ where: { id } });
+          const currentDept = await this.prisma.department.findUnique({
+            where: { id },
+          });
           if (!currentDept) throw new NotFoundException('Department not found');
 
           const fullName = dto.leadName || '';
@@ -220,7 +230,9 @@ export class DepartmentsService {
             {
               firstname: firstName || leadEmailLower,
               link: process.env.FRONTEND_URL + '/register',
-              admin_name: updater ? `${updater.first_name} ${updater.last_name || ''}`.trim() : 'System',
+              admin_name: updater
+                ? `${updater.first_name} ${updater.last_name || ''}`.trim()
+                : 'System',
               esg_name: company?.name || 'the company',
             },
             6,
@@ -246,8 +258,8 @@ export class DepartmentsService {
             },
           },
           subsidiary: {
-            select: { id: true, name: true }
-          }
+            select: { id: true, name: true },
+          },
         },
       });
 

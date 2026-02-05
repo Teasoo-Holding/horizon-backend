@@ -204,6 +204,13 @@ export class CompanyService {
           title: true,
           description: true,
           type: true,
+          createdBy: {
+            select: {
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
           status: true,
           createdAt: true,
         },
@@ -215,6 +222,11 @@ export class CompanyService {
         description: a.description ?? '',
         type: a.type ?? null,
         status: a.status ?? null,
+        createdBy: {
+          first_name: a.createdBy.first_name,
+          last_name: a.createdBy.last_name,
+          email: a.createdBy.email,
+        },
         date: a.createdAt,
       }));
 
