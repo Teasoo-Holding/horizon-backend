@@ -197,6 +197,9 @@ export class CompanyService {
           id: true,
           title: true,
           description: true,
+          createdBy: {
+            select: { first_name: true, last_name: true, email: true}
+          },
           type: true,
           status: true,
           createdAt: true,
@@ -210,6 +213,11 @@ export class CompanyService {
         type: a.type ?? null,
         status: a.status ?? null,
         date: a.createdAt,
+        user: {
+          firstName: a.createdBy.first_name,
+          lastName: a.createdBy.last_name,
+          email: a.createdBy.email,
+        }
       }));
 
       const companySub = await this.prisma.companySubscription.findFirst({
