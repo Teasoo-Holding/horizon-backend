@@ -302,13 +302,15 @@ export class AssessmentCalculatorService {
 
     data.topEmissionSources = this.deriveTop5(breakdown, totalEmissionVal);
 
-    const environmentalProgress = this.calculateEnvironmentalProgress(data.environment);
-    data.overallProgress = environmentalProgress;
+
 
     // Foundational Data Progress
     if (data.foundationalData) {
       data.foundationalData.progress = this.calculateFoundationalProgress(data.foundationalData);
     }
+
+    // Correctly calculate overall progress across ALL pillars
+    data.overallProgress = this.calculateOverallProgress(data);
 
     // Calculate total completed and expected sections
     const counts = this.calculateTotalSectionCounts(data);
@@ -328,25 +330,28 @@ export class AssessmentCalculatorService {
     };
   }
 
-  private calculateFormProgress(form: any, expected: number) {
-    const count = this.countFilledFields(form);
+  private calculateFormProgress(form: any, _expected: number = 1) {
+    const filledFields = this.countFilledFields(form);
+    const count = filledFields > 0 ? 1 : 0;
+    const expected = 1;
+
     form.dataCount = { expected, count };
-    form.progress =
-      expected > 0 ? Number(((count / expected) * 100).toFixed(1)) : 0;
+    form.progress = count === 1 ? 100 : 0;
   }
 
   private calculateGroupProgress(
     group: any,
     forms: string[],
-    expectedPerForm?: number[],
+    _expectedPerForm?: number[],
   ) {
     let totalCount = 0;
     let totalExpected = 0;
 
-    forms.forEach((formKey, i) => {
+    forms.forEach((formKey) => {
       const form = group[formKey];
       if (form) {
-        const expected = expectedPerForm?.[i] || 10;
+        // Each form is exactly 1 step
+        const expected = 1;
         this.calculateFormProgress(form, expected);
         totalCount += form.dataCount.count;
         totalExpected += expected;
@@ -410,7 +415,7 @@ export class AssessmentCalculatorService {
         if (this.hasData(loc[f])) count++;
       });
       loc.dataCount = { expected: 4, count };
-      loc.progress = Number(((count / 4) * 100).toFixed(1));
+      loc.progress = count > 0 ? Number(((count / 4) * 100).toFixed(1)) : 0;
     }
 
     // Market Based Progress
@@ -422,7 +427,7 @@ export class AssessmentCalculatorService {
         if (this.hasData(mar[f])) count++;
       });
       mar.dataCount = { expected: 4, count };
-      mar.progress = Number(((count / 4) * 100).toFixed(1));
+      mar.progress = count > 0 ? Number(((count / 4) * 100).toFixed(1)) : 0;
     }
 
     let weightedSum = 0;
@@ -443,39 +448,44 @@ export class AssessmentCalculatorService {
 
   private countFilledFields(obj: any): number {
     let count = 0;
+    const ignoredKeys = new Set([
+      'progress',
+      'dataCount',
+      'calculated',
+      'status',
+      'totalEmission',
+      'totalEmissions',
+      'breakdown'
+    ]);
 
-    const metricKeys = [
-      'dieselGenerators',
-      'gasTurbines',
-      'boilerFurnaces',
-      'onShoreProduction',
-      'vehicleFleet',
-      'carsBuses',
-      'forkliftFuelType',
-      'heavyDutyFuelType',
-      'tractorFuelType',
-      'air',
-      'marine',
-      'cementQuantity',
-      'gasVolume',
-      'volumeOfGasVented',
-      'refrigerant_mass',
-    ];
+    for (const key in obj) {
+      if (ignoredKeys.has(key)) continue;
 
-    for (const key of metricKeys) {
       const val = obj[key];
-
       if (val === undefined || val === null) continue;
 
       if (Array.isArray(val)) {
-        const hasValues = val.some((item: any) =>
-          item.volume && parseFloat(item.volume.toString()) > 0,
-        );
-        if (hasValues) count += 1;
-      } else if (typeof val === 'number' && val > 0) {
+        if (val.length > 0) count += 1;
+      } else if (typeof val === 'number') {
+        // Count 0 as a value? The original code did (val > 0) for numbers, but confusingly allowed 0 in hasValue() helper?
+        // Original: typeof val === 'number' && val > 0
+        // But hasValue says: if (typeof val === 'number') return true; // 0 is a value
+        // Let's stick to val > 0 for consistency with previous logic, OR check if the field implies a zero value is valid.
+        // For most ESG data, 0 is a valid input (e.g. 0 emissions), so we should probably count it.
+        // However, the previous logic explicitly required val > 0 for numbers in countFilledFields.
+        // But hasValue() returns true for 0.
+        // Let's allow 0.
         count += 1;
-      } else if (typeof val === 'string' && val.trim() !== '' && val !== '0') {
+      } else if (typeof val === 'string' && val.trim() !== '') {
         count += 1;
+      } else if (typeof val === 'boolean') {
+        count += 1;
+      } else if (typeof val === 'object') {
+        // Nested objects?
+        // Some forms might have nested structure.
+        // For now, if it's an object and not null, count it?
+        // Better to be shallow for now unless we know structure.
+        if (Object.keys(val).length > 0) count += 1;
       }
     }
 
@@ -858,6 +868,9 @@ export class AssessmentCalculatorService {
     if (data.environment) {
       pillars.push(this.calculateEnvironmentalProgress(data.environment));
     }
+    if (data.foundationalData) {
+      pillars.push(this.calculateFoundationalProgress(data.foundationalData));
+    }
     if (data.socialCapital) {
       pillars.push(this.calculateSocialProgress(data.socialCapital));
     }
@@ -991,6 +1004,16 @@ export class AssessmentCalculatorService {
       return false;
     };
 
+    // Foundational Data
+    if (data.foundationalData) {
+      if (data.foundationalData.activityMetrics) {
+        const am = data.foundationalData.activityMetrics;
+        if (am.productionVolumes) extract(am.productionVolumes);
+        if (am.offshoreSites) extract(am.offshoreSites);
+        if (am.terrestrialSites) extract(am.terrestrialSites);
+      }
+    }
+
     // Environmental
     if (data.environment) {
       const g = data.environment.ghg || {};
@@ -1011,9 +1034,13 @@ export class AssessmentCalculatorService {
       if (g.scope2) {
         ['locationBased', 'marketBased'].forEach(k => {
           const s = g.scope2[k];
-          if (s) {
+          if (s?.dataCount) {
+            completed += s.dataCount.count || 0;
+            total += s.dataCount.expected || 0;
+          } else {
+            // Fallback if dataCount missing (should not happen with new logic)
             total += 4;
-            if (s.progress) completed += Math.round((s.progress / 100) * 4);
+            if (s?.progress) completed += Math.round((s.progress / 100) * 4);
           }
         });
       }
