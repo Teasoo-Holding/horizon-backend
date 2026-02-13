@@ -450,6 +450,7 @@ export class ReportService {
             carbonPriceScenario: getNum(busClimateImpact.reserveSensitivity?.carbonPriceScenario),
             reservesAtRiskPercent: getNum(busClimateImpact.reserveSensitivity?.percentageDecrease),
             totalProvedReserves: getNum(busClimateImpact.reserveSensitivity?.estimatedDecrease),
+            totalProbableReserves: 0,
             embeddedCarbon: getNum(busClimateImpact.embeddedCarbonInReserve?.estimatedEmbeddedEmissions),
           },
           strategicCapitalAllocation: {

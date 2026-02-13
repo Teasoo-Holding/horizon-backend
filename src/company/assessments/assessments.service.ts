@@ -517,17 +517,29 @@ export class AssessmentService {
     if (formKey.startsWith('soc-security-engagement')) {
       return 'socialCapital.securityHumanRights.humanRightsEngagementProcesses';
     }
-    if (formKey.startsWith('soc-community-risk')) {
+    // Social Capital - Community Relations
+    if (formKey.includes('communityRisk') || formKey.startsWith('soc-community-risk')) {
       return 'socialCapital.communityRelations.communityRiskOpportunityManagement';
     }
-    if (formKey.startsWith('soc-community-hcdt')) {
+    if (formKey.includes('hcdtContribution') || formKey.startsWith('soc-community-hcdt')) {
       return 'socialCapital.communityRelations.hcdtContribution';
     }
-    if (formKey.startsWith('soc-community-dispute')) {
+    if (formKey.includes('disputeResolution') || formKey.startsWith('soc-community-dispute')) {
       return 'socialCapital.communityRelations.communityDisputeResolution';
     }
-    if (formKey.startsWith('soc-community-delays')) {
+    if (formKey.includes('operationalDelays') || formKey.startsWith('soc-community-delays')) {
       return 'socialCapital.communityRelations.operationalDelays';
+    }
+
+    // Foundational Data - Activity Metrics
+    if (formKey.includes('foundational-activity-production')) {
+      return 'foundationalData.activityMetrics.productionVolumes';
+    }
+    if (formKey.includes('foundational-activity-offshore')) {
+      return 'foundationalData.activityMetrics.offshoreSites';
+    }
+    if (formKey.includes('foundational-activity-terrestrial')) {
+      return 'foundationalData.activityMetrics.terrestrialSites';
     }
 
     // Human Capital
