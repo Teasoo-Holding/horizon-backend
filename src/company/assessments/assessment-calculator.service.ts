@@ -352,11 +352,11 @@ export class AssessmentCalculatorService {
     let totalCount = 0;
     let totalExpected = 0;
 
-    forms.forEach((formKey) => {
+    forms.forEach((formKey, i) => {
       const form = group[formKey];
       if (form) {
-        // Each form is exactly 1 step
-        const expected = 1;
+        // Use the provided expected count per form (representing steps/pages), default to 1
+        const expected = _expectedPerForm ? _expectedPerForm[i] : 1;
         this.calculateFormProgress(form, expected);
         totalCount += form.dataCount.count;
         totalExpected += expected;
@@ -1049,8 +1049,14 @@ export class AssessmentCalculatorService {
 
     const extract = (obj: any) => {
       if (obj?.dataCount) {
-        completed += obj.dataCount.count || 0;
-        total += obj.dataCount.expected || 0;
+        const expected = obj.dataCount.expected || 1;
+        total += expected;
+
+        // Calculate completed sections based on progress
+        // If progress is 50% and expected is 2, then 1 section is completed
+        if (obj.progress != null) {
+          completed += Math.round((obj.progress / 100) * expected);
+        }
         return true;
       }
       return false;
