@@ -54,6 +54,12 @@ export class AssessmentCalculatorService {
     data.environment ??= {};
     data.environment.ghg ??= { scope1: {} };
 
+    // Activity Metrics Fix: Handle root level activityMetrics
+    if (data.activityMetrics && !data.foundationalData?.activityMetrics) {
+      data.foundationalData ??= {};
+      data.foundationalData.activityMetrics = data.activityMetrics;
+    }
+
     const ghg = data.environment.ghg!;
     ghg.scope1 ??= {
       stationarySources: {},
@@ -302,8 +308,6 @@ export class AssessmentCalculatorService {
 
     data.topEmissionSources = this.deriveTop5(breakdown, totalEmissionVal);
 
-
-
     // Foundational Data Progress
     if (data.foundationalData) {
       data.foundationalData.progress = this.calculateFoundationalProgress(data.foundationalData);
@@ -330,13 +334,14 @@ export class AssessmentCalculatorService {
     };
   }
 
-  private calculateFormProgress(form: any, _expected: number = 1) {
+  private calculateFormProgress(form: any, expected: number = 1) {
     const filledFields = this.countFilledFields(form);
-    const count = filledFields > 0 ? 1 : 0;
-    const expected = 1;
+    const count = filledFields; // Use actual filled count
 
     form.dataCount = { expected, count };
-    form.progress = count === 1 ? 100 : 0;
+    // Calculate percentage based on expected fields, capped at 100%
+    const progress = Math.min((count / expected) * 100, 100);
+    form.progress = Number(progress.toFixed(1));
   }
 
   private calculateGroupProgress(
@@ -347,11 +352,11 @@ export class AssessmentCalculatorService {
     let totalCount = 0;
     let totalExpected = 0;
 
-    forms.forEach((formKey) => {
+    forms.forEach((formKey, i) => {
       const form = group[formKey];
       if (form) {
-        // Each form is exactly 1 step
-        const expected = 1;
+        // Use the provided expected count per form (representing steps/pages), default to 1
+        const expected = _expectedPerForm ? _expectedPerForm[i] : 1;
         this.calculateFormProgress(form, expected);
         totalCount += form.dataCount.count;
         totalExpected += expected;
@@ -903,6 +908,14 @@ export class AssessmentCalculatorService {
 
     // Community Relations
     if (social.communityRelations) {
+      // Normalize keys from frontend to match expected backend keys
+      if (social.communityRelations.communityRisk && !social.communityRelations.communityRiskOpportunityManagement) {
+        social.communityRelations.communityRiskOpportunityManagement = social.communityRelations.communityRisk;
+      }
+      if (social.communityRelations.disputeResolution && !social.communityRelations.communityDisputeResolution) {
+        social.communityRelations.communityDisputeResolution = social.communityRelations.disputeResolution;
+      }
+
       const forms = [
         'communityRiskOpportunityManagement',
         'hcdtContribution',
@@ -920,16 +933,55 @@ export class AssessmentCalculatorService {
 
   private calculateHumanProgress(human: any): number {
     const topics: number[] = [];
+    const weights: number[] = [];
 
-    // Workforce Health & Safety
-    if (human.workforceHealthSafety) {
-      const forms = ['healthSafetyPerformance', 'safetyManagementSystems'];
-      this.calculateGroupProgress(human.workforceHealthSafety, forms, [6, 4]);
-      if (human.workforceHealthSafety.progress != null) topics.push(human.workforceHealthSafety.progress);
+    // Workforce Health & Safety - Safety Management Systems
+    // Frontend saves to 'humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems'
+    // So we need to check 'workforceHealthAndSafety' first.
+    let safetySource = human.workforceHealthSafety;
+    if (!safetySource && human.workforceHealthAndSafety) {
+      // Deep path check
+      safetySource = human.workforceHealthAndSafety;
+      // If it gets mapped by backend service before this, it might be in the short path.
+      // But assuming direct DB object:
+      if (human.workforceHealthAndSafety.riskAndOpportunityManagement?.safetyManagementSystems) {
+        safetySource = human.workforceHealthAndSafety.riskAndOpportunityManagement;
+      }
     }
 
-    return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+    if (safetySource) {
+      if (safetySource.safetyManagementSystems) {
+        this.calculateGroupProgress(safetySource, ['safetyManagementSystems'], [4]);
+        if (safetySource.safetyManagementSystems.progress != null) {
+          topics.push(safetySource.safetyManagementSystems.progress);
+          weights.push(0.4);
+        }
+      } else if (safetySource.progress != null) {
+        // Fallback if it was flattened
+        topics.push(safetySource.progress);
+        weights.push(0.4);
+      }
+    }
+
+    // Risk and Opportunity - Health & Safety Performance
+    if (human.riskAndOpportunityManagement) {
+      if (human.riskAndOpportunityManagement.healthAndSafetyPerformance) {
+        this.calculateFormProgress(human.riskAndOpportunityManagement.healthAndSafetyPerformance, 6);
+        if (human.riskAndOpportunityManagement.healthAndSafetyPerformance.progress != null) {
+          topics.push(human.riskAndOpportunityManagement.healthAndSafetyPerformance.progress);
+          weights.push(0.6);
+        }
+      }
+    }
+
+    if (topics.length === 0) return 0;
+
+    // Weighted average
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const weightedSum = topics.reduce((sum, p, i) => sum + p * weights[i], 0);
+
+    return totalWeight > 0
+      ? Number((weightedSum / totalWeight).toFixed(1))
       : 0;
   }
 
@@ -997,8 +1049,14 @@ export class AssessmentCalculatorService {
 
     const extract = (obj: any) => {
       if (obj?.dataCount) {
-        completed += obj.dataCount.count || 0;
-        total += obj.dataCount.expected || 0;
+        const expected = obj.dataCount.expected || 1;
+        total += expected;
+
+        // Calculate completed sections based on progress
+        // If progress is 50% and expected is 2, then 1 section is completed
+        if (obj.progress != null) {
+          completed += Math.round((obj.progress / 100) * expected);
+        }
         return true;
       }
       return false;
