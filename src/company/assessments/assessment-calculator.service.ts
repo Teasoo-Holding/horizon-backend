@@ -288,9 +288,9 @@ export class AssessmentCalculatorService {
     if (this.hasData(data.foundationalData?.activityMetrics)) {
       const am = data.foundationalData.activityMetrics;
 
-      if (this.hasData(am.productionVolumes)) {
-        am.productionVolumes.calculated = await this.activityMetrics.computeProductionVolumes(am.productionVolumes);
-        this.calculateFormProgress(am.productionVolumes, 4);
+      if (this.hasData(am.productionVolume)) {
+        am.productionVolume.calculated = await this.activityMetrics.computeProductionVolumes(am.productionVolume);
+        this.calculateFormProgress(am.productionVolume, 4);
       }
       if (this.hasData(am.offshoreSites)) {
         am.offshoreSites.calculated = await this.activityMetrics.computeOffshoreSites(am.offshoreSites);
@@ -851,8 +851,8 @@ export class AssessmentCalculatorService {
 
     if (foundational.activityMetrics) {
       const am = foundational.activityMetrics;
-      if (am.productionVolumes?.progress != null) {
-        topics.push(am.productionVolumes.progress);
+      if (am.productionVolume?.progress != null) {
+        topics.push(am.productionVolume.progress);
       }
       if (am.offshoreSites?.progress != null) {
         topics.push(am.offshoreSites.progress);
@@ -1066,7 +1066,7 @@ export class AssessmentCalculatorService {
     if (data.foundationalData) {
       if (data.foundationalData.activityMetrics) {
         const am = data.foundationalData.activityMetrics;
-        if (am.productionVolumes) extract(am.productionVolumes);
+        if (am.productionVolume) extract(am.productionVolume);
         if (am.offshoreSites) extract(am.offshoreSites);
         if (am.terrestrialSites) extract(am.terrestrialSites);
       }
