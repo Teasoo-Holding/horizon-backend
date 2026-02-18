@@ -188,7 +188,8 @@ export class ReportService {
 
     // Helper for change percentage
     const getChange = (current: number, previous: number) => {
-      if (!previous || previous === 0) return 0;
+      // Fix #458: Return null if previous data is missing
+      if (!previous || previous === 0) return null;
       return Number((((current - previous) / previous) * 100).toFixed(1));
     };
 
@@ -433,13 +434,96 @@ export class ReportService {
         },
       },
       humanCapital: {
-        totalRecordableIncidentRatePer200kHours: getNum(humHealthSafety.recordableIncidents),
-        desc: humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems?.safetyDescription || "",
-        changePercentage: getChange(getNum(humHealthSafety.recordableIncidents), getNum(previousData?.humanCapital?.riskAndOpportunityManagement?.healthAndSafetyPerformance?.recordableIncidents)),
-        recordableIncidents: getNum(humHealthSafety.recordableIncidents),
-        fatalities: getNum(humHealthSafety.fatalities),
-        nearMisses: getNum(humHealthSafety.nearMisses),
-        averageSafetyTrainingHoursPerEmployee: getNum(humHealthSafety.safetyTrainingHours),
+        // Fix #459: Aggregate direct/contract data
+        direct: {
+          recordableIncidents: getNum(humHealthSafety.direct?.recordableIncidents),
+          fatalities: getNum(humHealthSafety.direct?.fatalities),
+          nearMisses: getNum(humHealthSafety.direct?.nearMisses),
+          totalHoursWorked: getNum(humHealthSafety.direct?.totalHoursWorked),
+          trir:
+            getNum(humHealthSafety.direct?.totalHoursWorked) > 0
+              ? Number(
+                (
+                  (getNum(humHealthSafety.direct?.recordableIncidents) *
+                    200000) /
+                  getNum(humHealthSafety.direct?.totalHoursWorked)
+                ).toFixed(2),
+              )
+              : 0,
+        },
+        contract: {
+          recordableIncidents: getNum(humHealthSafety.contract?.recordableIncidents),
+          fatalities: getNum(humHealthSafety.contract?.fatalities),
+          nearMisses: getNum(humHealthSafety.contract?.nearMisses),
+          totalHoursWorked: getNum(humHealthSafety.contract?.totalHoursWorked),
+          trir:
+            getNum(humHealthSafety.contract?.totalHoursWorked) > 0
+              ? Number(
+                (
+                  (getNum(humHealthSafety.contract?.recordableIncidents) *
+                    200000) /
+                  getNum(humHealthSafety.contract?.totalHoursWorked)
+                ).toFixed(2),
+              )
+              : 0,
+        },
+        // Fix #457: Calculate TRIR properly
+        totalRecordableIncidentRatePer200kHours: (() => {
+          const totalHours =
+            (getNum(humHealthSafety.direct?.totalHoursWorked) ||
+              getNum(humHealthSafety.totalHoursWorked)) +
+            getNum(humHealthSafety.contract?.totalHoursWorked);
+          const totalIncidents =
+            (getNum(humHealthSafety.direct?.recordableIncidents) ||
+              getNum(humHealthSafety.recordableIncidents)) +
+            getNum(humHealthSafety.contract?.recordableIncidents);
+          return totalHours > 0
+            ? Number(((totalIncidents * 200000) / totalHours).toFixed(2))
+            : 0;
+        })(),
+        desc:
+          humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems
+            ?.safetyDescription || "",
+        changePercentage: (() => {
+          const prevHs =
+            previousData?.humanCapital?.riskAndOpportunityManagement
+              ?.healthAndSafetyPerformance;
+
+          // Helper to calculate TRIR safely
+          const calcTrir = (hs: any) => {
+            if (!hs) return 0;
+            const directHours = getNum(hs.direct?.totalHoursWorked);
+            const flatHours = getNum(hs.totalHoursWorked);
+            const contractHours = getNum(hs.contract?.totalHoursWorked);
+
+            const directIncidents = getNum(hs.direct?.recordableIncidents);
+            const flatIncidents = getNum(hs.recordableIncidents);
+            const contractIncidents = getNum(hs.contract?.recordableIncidents);
+
+            // Use direct if present, else fallback to flat (legacy), plus contract
+            const totalHours = (directHours || flatHours) + contractHours;
+            const totalIncidents = (directIncidents || flatIncidents) + contractIncidents;
+
+            return totalHours > 0 ? (totalIncidents * 200000) / totalHours : 0;
+          };
+
+          const currTrir = calcTrir(humHealthSafety);
+          const prevTrir = calcTrir(prevHs);
+
+          return getChange(currTrir, prevTrir);
+        })(),
+        recordableIncidents:
+          (getNum(humHealthSafety.direct?.recordableIncidents) || getNum(humHealthSafety.recordableIncidents)) +
+          getNum(humHealthSafety.contract?.recordableIncidents),
+        fatalities:
+          (getNum(humHealthSafety.direct?.fatalities) || getNum(humHealthSafety.fatalities)) +
+          getNum(humHealthSafety.contract?.fatalities),
+        nearMisses:
+          (getNum(humHealthSafety.direct?.nearMisses) || getNum(humHealthSafety.nearMisses)) +
+          getNum(humHealthSafety.contract?.nearMisses),
+        averageSafetyTrainingHoursPerEmployee: getNum(
+          humHealthSafety.safetyTrainingHours,
+        ),
       },
       businessModel: {
         totalReservesAmountAtRisk: getNum(bus.totalReservesAmountAtRisk),

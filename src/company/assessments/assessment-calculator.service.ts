@@ -966,10 +966,51 @@ export class AssessmentCalculatorService {
     // Risk and Opportunity - Health & Safety Performance
     if (human.riskAndOpportunityManagement) {
       if (human.riskAndOpportunityManagement.healthAndSafetyPerformance) {
-        this.calculateFormProgress(human.riskAndOpportunityManagement.healthAndSafetyPerformance, 6);
-        if (human.riskAndOpportunityManagement.healthAndSafetyPerformance.progress != null) {
-          topics.push(human.riskAndOpportunityManagement.healthAndSafetyPerformance.progress);
-          weights.push(0.6);
+        const hsp = human.riskAndOpportunityManagement.healthAndSafetyPerformance;
+
+        // Handle new nested structure with direct/contract sub-objects
+        if (hsp.direct || hsp.contract) {
+          let subFilled = 0;
+          let subTotal = 0;
+
+          if (hsp.direct) {
+            this.calculateFormProgress(hsp.direct, 6);
+            subFilled += hsp.direct.dataCount?.count || 0;
+            subTotal += 6;
+          }
+
+          if (hsp.contract) {
+            this.calculateFormProgress(hsp.contract, 6);
+            subFilled += hsp.contract.dataCount?.count || 0;
+            subTotal += 6;
+          }
+
+          hsp.dataCount = { expected: subTotal, count: subFilled };
+          hsp.progress =
+            subTotal > 0
+              ? Number(((subFilled / subTotal) * 100).toFixed(1))
+              : 0;
+
+          if (hsp.progress != null) {
+            topics.push(hsp.progress);
+            weights.push(0.6);
+          }
+        } else {
+          // Legacy flat structure fallback
+          this.calculateFormProgress(
+            human.riskAndOpportunityManagement.healthAndSafetyPerformance,
+            6,
+          );
+          if (
+            human.riskAndOpportunityManagement.healthAndSafetyPerformance
+              .progress != null
+          ) {
+            topics.push(
+              human.riskAndOpportunityManagement.healthAndSafetyPerformance
+                .progress,
+            );
+            weights.push(0.6);
+          }
         }
       }
     }
