@@ -92,7 +92,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: 300s
           debug: true
-          source: "dist,package.json,yarn.lock,.yarn,.yarnrc.yml,prisma"
+          source: "dist,package.json,.yarn,.yarnrc.yml,prisma"
           target: "/var/www/esghorizon/backend"
 
       - name: Start via PM2
