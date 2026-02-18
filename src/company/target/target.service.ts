@@ -449,7 +449,7 @@ export class TargetService {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log('Fetched targets:', targets);
+    // console.log('Fetched targets:', targets);
     return targets.map((target) => this.formatTargetResponse(target));
   }
 
