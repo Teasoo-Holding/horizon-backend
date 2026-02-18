@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Assessment, AssessmentStatus } from '@prisma/client';
+import { Assessment, AssessmentStatus, TaskStatus } from '@prisma/client';
 import { ReportService } from '../report/report.service';
 import { ActivitiesService } from 'src/activities/activities.service';
 import { EmailService } from 'src/email/email.service';
@@ -96,6 +96,29 @@ export class AssessmentService {
           endMonth: dto.endMonth,
           endYear: dto.endYear,
           assessmentData: { lastSavedForm: null },
+        },
+      });
+
+      // Create a corresponding Task so this assessment appears in the Tasks dashboard
+      const dueDate = new Date(
+        `${dto.endYear}-${this.monthToNumber(dto.endMonth)}-28`,
+      );
+      await this.prisma.task.create({
+        data: {
+          taskName: `ESG Assessment – ${dto.subsidiary || 'Self'}`,
+          dueDate,
+          status: TaskStatus.in_progress,
+          createdById: userId,
+          assignments: {
+            create: [
+              {
+                userId,
+                topics: [],
+                assessmentId: assessment.id,
+                startedAt: new Date(),
+              },
+            ],
+          },
         },
       });
 
@@ -336,6 +359,28 @@ export class AssessmentService {
 
     if (assessment.status !== AssessmentStatus.in_progress) {
       throw new Error('AssessmentNotDraft');
+    }
+
+    // Clean up any Task+TaskAssignment linked to this assessment
+    const linkedAssignments = await this.prisma.taskAssignment.findMany({
+      where: { assessmentId },
+      select: { id: true, taskId: true },
+    });
+    if (linkedAssignments.length > 0) {
+      const taskIds = [...new Set(linkedAssignments.map((a) => a.taskId))];
+      await this.prisma.taskAssignment.deleteMany({
+        where: { assessmentId },
+      });
+      // Delete parent tasks that now have no remaining assignments
+      for (const taskId of taskIds) {
+        const remaining = await this.prisma.taskAssignment.count({
+          where: { taskId },
+        });
+        if (remaining === 0) {
+          await this.prisma.taskComment.deleteMany({ where: { taskId } });
+          await this.prisma.task.delete({ where: { id: taskId } });
+        }
+      }
     }
 
     await this.prisma.assessment.delete({
@@ -604,5 +649,14 @@ export class AssessmentService {
     }
 
     return null;
+  }
+
+  private monthToNumber(month: string): string {
+    const months: Record<string, string> = {
+      january: '01', february: '02', march: '03', april: '04',
+      may: '05', june: '06', july: '07', august: '08',
+      september: '09', october: '10', november: '11', december: '12',
+    };
+    return months[month.toLowerCase()] || '12';
   }
 }

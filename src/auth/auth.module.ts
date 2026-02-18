@@ -18,7 +18,7 @@ import { ActivitiesService } from 'src/activities/activities.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRESIN') || '24h',
+          expiresIn: (configService.get<string>('JWT_EXPIRESIN') || '24h') as any,
         },
       }),
       inject: [ConfigService],
