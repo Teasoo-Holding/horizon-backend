@@ -1,17 +1,16 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTargetData } from './dto/create-target.dto';
+import { TargetResponseDto } from './dto/target-response.dto';
 import {
   UpdateGeneralTargetData,
   UpdateScopeTargetData,
   UpdateTargetData,
 } from './dto/update-target.dto';
-import { TargetResponseDto } from './dto/target-response.dto';
-import { EmissionScope } from '@prisma/client';
 
 interface ComputedTotals {
   totals: any; // replace 'any' with more specific type if you want
@@ -21,9 +20,56 @@ interface AssessmentData {
   _computed?: ComputedTotals;
   [key: string]: any; // other dynamic fields
 }
+
+interface BaselineOption {
+  assessmentId: number;
+  startMonth: string;
+  startYear: string;
+  endMonth: string;
+  endYear: string;
+  totalEmission: number;
+  hasReport: boolean;
+  createdAt: Date;
+}
 @Injectable()
 export class TargetService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * When baselineAssessmentId is provided, validate the assessment and return its baseline info.
+   * Otherwise return null (caller will use getBaselineValue).
+   */
+  private async validateBaselineAssessment(
+    companyId: number,
+    assessmentId: number,
+  ): Promise<{ startYear: string; totals: number } | null> {
+    const assessment = await this.prisma.assessment.findFirst({
+      where: { id: assessmentId, companyId },
+      select: {
+        startYear: true,
+        assessmentData: true,
+      },
+    });
+
+    if (!assessment) {
+      return null;
+    }
+
+    const data = assessment.assessmentData as AssessmentData | null;
+    const totalEmission = data?.totalEmission;
+    if (
+      typeof totalEmission !== 'number' ||
+      !isFinite(totalEmission) ||
+      !assessment.startYear
+    ) {
+      return null;
+    }
+
+    return {
+      startYear: String(assessment.startYear),
+      totals: totalEmission,
+    };
+  }
 
   /**
    * Create a new target for a company
@@ -33,7 +79,25 @@ export class TargetService {
     createdById: number,
     data: CreateTargetData,
   ): Promise<TargetResponseDto> {
-    const baselineData = await this.getBaselineValue(companyId);
+    const baselineAssessmentId =
+      'baselineAssessmentId' in data ? data.baselineAssessmentId : undefined;
+
+    let baselineData: { startYear?: string; totals: number | null } | null;
+
+    if (baselineAssessmentId != null) {
+      const validated = await this.validateBaselineAssessment(
+        companyId,
+        baselineAssessmentId,
+      );
+      if (!validated) {
+        throw new BadRequestException(
+          'The selected baseline assessment was not found or does not have valid emissions data for this company.',
+        );
+      }
+      baselineData = validated;
+    } else {
+      baselineData = await this.getBaselineValue(companyId);
+    }
 
     if (!baselineData) {
       throw new BadRequestException(
@@ -389,140 +453,138 @@ export class TargetService {
     return targets.map((target) => this.formatTargetResponse(target));
   }
 
- async getCompanyLatestTarget(companyId: number): Promise<any> {
-  /**
-   * 1. Fetch latest valid assessment
-   */
-  const latestAssessment = await this.prisma.assessment.findFirst({
-    where: {
-      companyId,
-      startYear: { not: '' },
-      endYear: { not: '' },
-      startMonth: { not: '' },
-      endMonth: { not: '' },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!latestAssessment) {
-    throw new Error(`No assessment found for company ID: ${companyId}`);
-  }
-
-  /**
-   * 2. Fetch latest target with relations
-   */
-  const target = await this.prisma.target.findFirst({
-    where: { companyId },
-    include: {
-      generalTarget: true,
-      scopeTargets: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!target) {
-    throw new Error(`No target found for company ID: ${companyId}`);
-  }
-
-  const baselineAssessment = await this.prisma.assessment.findFirst({
-  where: {
-    companyId,
-    // startYear: String(target.baselineYear),
-  },
-  orderBy: { createdAt: 'asc' }, // FIRST assessment of baseline year
-});
-
-const baselineScopeTotals =
-  (baselineAssessment?.assessmentData as AssessmentData)
-    ?.environment?.ghg;
-
-  /**
-   * 3. Extract assessment data safely
-   */
-  const assessmentData = latestAssessment.assessmentData as AssessmentData;
-
-  /**
-   * 4. Update General Target (if present)
-   */
-  if (target.generalTarget) {
-    await this.prisma.generalTarget.update({
-      where: { targetId: target.id },
-      data: {
-        currentEmission: assessmentData?.totalEmission ?? 0,
-      },
-    });
-  }
-
-  /**
-   * 5. Prepare scope emissions from assessment
-   */
-  const scopeTotals = assessmentData?.environment?.ghg;
-
-  const scopeEmissions = [
-  {
-    scope: EmissionScope.SCOPE1,
-    currentEmission: scopeTotals?.scope1?.totalEmission ?? 0,
-    baselineEmission: baselineScopeTotals?.scope1?.totalEmission ?? 0,
-  },
-  {
-    scope: EmissionScope.SCOPE2,
-    currentEmission: scopeTotals?.scope2?.totalEmission ?? 0,
-    baselineEmission: baselineScopeTotals?.scope2?.totalEmission ?? 0,
-  },
-  {
-    scope: EmissionScope.SCOPE3,
-    currentEmission: scopeTotals?.scope3?.totalEmission ?? 0,
-    baselineEmission: baselineScopeTotals?.scope3?.totalEmission ?? 0,
-  },
-];
-
-
-  // console.log('Scope Emissions to update:', scope1EmissionSum);
-  /**
-   * 6. Update or create scope targets (safe + atomic)
-   */
-  if (target.scopeTargets.length > 0) {
-    await Promise.all(
-  scopeEmissions.map(se =>
-    this.prisma.scopeTarget.upsert({
+  async getCompanyLatestTarget(companyId: number): Promise<any> {
+    /**
+     * 1. Fetch latest valid assessment
+     */
+    const latestAssessment = await this.prisma.assessment.findFirst({
       where: {
-        targetId_scope: {
-          targetId: target.id,
-          scope: se.scope,
+        companyId,
+        startYear: { not: '' },
+        endYear: { not: '' },
+        startMonth: { not: '' },
+        endMonth: { not: '' },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latestAssessment) {
+      throw new Error(`No assessment found for company ID: ${companyId}`);
+    }
+
+    /**
+     * 2. Fetch latest target with relations
+     */
+    const target = await this.prisma.target.findFirst({
+      where: { companyId },
+      include: {
+        generalTarget: true,
+        scopeTargets: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!target) {
+      throw new Error(`No target found for company ID: ${companyId}`);
+    }
+
+    const baselineAssessment = await this.prisma.assessment.findFirst({
+      where: {
+        companyId,
+        // startYear: String(target.baselineYear),
+      },
+      orderBy: { createdAt: 'asc' }, // FIRST assessment of baseline year
+    });
+
+    const baselineScopeTotals = (
+      baselineAssessment?.assessmentData as AssessmentData
+    )?.environment?.ghg;
+
+    /**
+     * 3. Extract assessment data safely
+     */
+    const assessmentData = latestAssessment.assessmentData as AssessmentData;
+
+    /**
+     * 4. Update General Target (if present)
+     */
+    if (target.generalTarget) {
+      await this.prisma.generalTarget.update({
+        where: { targetId: target.id },
+        data: {
+          currentEmission: assessmentData?.totalEmission ?? 0,
         },
-      },
-      update: {
-        currentEmission: se.currentEmission,
-        baselineYearEmission: se.baselineEmission,
-      },
-      create: {
-        targetId: target.id,
-        scope: se.scope,
-        currentEmission: se.currentEmission,
-        baselineYearEmission: se.baselineEmission,
-        reductionPercentage: 0,
-        targetEmission: 0,
-      },
-    })
-  )
-);
+      });
+    }
 
+    /**
+     * 5. Prepare scope emissions from assessment
+     */
+    const scopeTotals = assessmentData?.environment?.ghg;
+
+    const scopeEmissions = [
+      {
+        scope: 'SCOPE1',
+        currentEmission: scopeTotals?.scope1?.totalEmission ?? 0,
+        baselineEmission: baselineScopeTotals?.scope1?.totalEmission ?? 0,
+      },
+      {
+        scope: 'SCOPE2',
+        currentEmission: scopeTotals?.scope2?.totalEmission ?? 0,
+        baselineEmission: baselineScopeTotals?.scope2?.totalEmission ?? 0,
+      },
+      {
+        scope: 'SCOPE3',
+        currentEmission: scopeTotals?.scope3?.totalEmission ?? 0,
+        baselineEmission: baselineScopeTotals?.scope3?.totalEmission ?? 0,
+      },
+    ] as const;
+
+    // console.log('Scope Emissions to update:', scope1EmissionSum);
+    /**
+     * 6. Update or create scope targets (safe + atomic)
+     */
+    if (target.scopeTargets.length > 0) {
+      await Promise.all(
+        scopeEmissions.map((se) =>
+          this.prisma.scopeTarget.upsert({
+            where: {
+              targetId_scope: {
+                targetId: target.id,
+                scope: se.scope,
+              },
+            },
+            update: {
+              currentEmission: se.currentEmission,
+              baselineYearEmission: se.baselineEmission,
+            },
+            create: {
+              targetId: target.id,
+              scope: se.scope,
+              currentEmission: se.currentEmission,
+              baselineYearEmission: se.baselineEmission,
+              reductionPercentage: 0,
+              targetEmission: 0,
+            },
+          }),
+        ),
+      );
+    }
+
+    /**
+     * 7. Return updated target
+     */
+    const updatedTarget = await this.prisma.target.findFirst({
+      where: { companyId },
+      include: {
+        generalTarget: true,
+        scopeTargets: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return this.formatTargetResponse(updatedTarget);
   }
-
-  /**
-   * 7. Return updated target
-   */
-  const updatedTarget = await this.prisma.target.findFirst({
-    where: { companyId },
-    include: {
-      generalTarget: true,
-      scopeTargets: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return this.formatTargetResponse(updatedTarget);
-}
   /**
    * Get a single target
    */
@@ -614,8 +676,53 @@ const baselineScopeTotals =
     };
   }
 
-  async getBaselineValueByScope(companyId: number) {
-    const baseline = await this.prisma.assessment.findFirst({
+  async getBaselineValueByScope(companyId: number, assessmentId?: number) {
+    let assessmentIdToUse = assessmentId;
+
+    if (!assessmentIdToUse) {
+      const baseline = await this.prisma.assessment.findFirst({
+        where: {
+          companyId,
+          NOT: [
+            { startYear: { equals: '' } },
+            { startMonth: { equals: '' } },
+            { endYear: { equals: '' } },
+            { endMonth: { equals: '' } },
+          ],
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (!baseline) return null;
+      assessmentIdToUse = (baseline as any).id;
+    }
+
+    const report = await this.prisma.report.findFirst({
+      where: {
+        assessmentId: assessmentIdToUse,
+      },
+      select: {
+        ghg_scope_one: true,
+        ghg_scope_two: true,
+        ghg_scope_three: true,
+        ghg_total_emissions: true,
+        endYear: true,
+        startYear: true,
+      },
+    });
+
+    return report;
+  }
+
+  /**
+   * Return a list of baseline-eligible assessments for a company.
+   * This is used by the KPI flows to allow users to explicitly choose
+   * which assessment period to use as their baseline.
+   */
+  async getBaselineOptions(companyId: number): Promise<BaselineOption[]> {
+    const assessments = await this.prisma.assessment.findMany({
       where: {
         companyId,
         NOT: [
@@ -628,24 +735,52 @@ const baselineScopeTotals =
       orderBy: {
         createdAt: 'desc',
       },
-    });
-
-    if (!baseline) return null;
-
-    const { id } = baseline as any;
-    const report = await this.prisma.report.findFirst({
-      where: {
-        assessmentId: id,
-      },
       select: {
-        ghg_scope_one: true,
-        ghg_scope_two: true,
-        ghg_scope_three: true,
-        ghg_total_emissions: true,
-        endYear: true,
+        id: true,
+        startMonth: true,
         startYear: true,
+        endMonth: true,
+        endYear: true,
+        createdAt: true,
+        assessmentData: true,
       },
     });
-    return report;
+
+    if (!assessments.length) {
+      return [];
+    }
+
+    const assessmentIds = assessments.map((a) => a.id);
+
+    const reports = await this.prisma.report.findMany({
+      where: { assessmentId: { in: assessmentIds } },
+      select: { assessmentId: true },
+    });
+
+    const reportIds = new Set(reports.map((r) => r.assessmentId));
+
+    const options: BaselineOption[] = [];
+
+    for (const a of assessments as any[]) {
+      const totalEmission = a.assessmentData?.totalEmission;
+
+      if (typeof totalEmission !== 'number' || !isFinite(totalEmission)) {
+        // Skip assessments that do not have a valid total emission value
+        continue;
+      }
+
+      options.push({
+        assessmentId: a.id,
+        startMonth: a.startMonth,
+        startYear: String(a.startYear),
+        endMonth: a.endMonth,
+        endYear: String(a.endYear),
+        totalEmission,
+        hasReport: reportIds.has(a.id),
+        createdAt: a.createdAt,
+      });
+    }
+
+    return options;
   }
 }

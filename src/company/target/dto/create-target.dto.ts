@@ -6,7 +6,6 @@ import {
   IsString,
   IsNumber,
   IsEnum,
-  IsObject,
   ValidateNested,
   IsOptional,
   Min,
@@ -188,6 +187,14 @@ export class CreateGeneralTargetDto {
   @IsNumber()
   @IsOptional()
   currentEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Assessment ID to use as baseline (when provided, used for validation)',
+    example: 123,
+  })
+  @IsNumber()
+  @IsOptional()
+  baselineAssessmentId?: number;
 }
 
 export class CreateScopeTargetDto {
@@ -243,6 +250,14 @@ export class CreateScopeTargetDto {
   @ValidateNested()
   @Type(() => ScopesDto)
   scopes: ScopesDto;
+
+  @ApiPropertyOptional({
+    description: 'Assessment ID to use as baseline (when provided, used for validation)',
+    example: 123,
+  })
+  @IsNumber()
+  @IsOptional()
+  baselineAssessmentId?: number;
 }
 
 export type CreateTargetData = CreateGeneralTargetDto | CreateScopeTargetDto;
