@@ -63,5 +63,10 @@ coverage/badge.svg
 
 sasnote.txt
 
-# Yarn
-yarn.lock
+# Yarn Berry
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
