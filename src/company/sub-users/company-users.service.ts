@@ -109,13 +109,15 @@ export class CompanyUsersService {
   }
 
   async getAllUsersOfCompany(
-    requestingUser: { id: number; companyId: number; role: { name: string } },
+    requestingUser: { id: number; companyId: number; role: string | { name: string } },
     companyId: number,
   ) {
-    if (
-      requestingUser.role.name !== 'super_admin' &&
-      requestingUser.companyId !== companyId
-    ) {
+    const roleName =
+      typeof requestingUser.role === 'string'
+        ? requestingUser.role
+        : requestingUser.role?.name;
+
+    if (roleName !== 'super_admin' && requestingUser.companyId !== companyId) {
       throw new ForbiddenException(
         'You are not authorized to view users of this company',
       );
