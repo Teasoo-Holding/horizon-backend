@@ -25,10 +25,10 @@ jobs:
         run: npx prisma generate --schema=./prisma/schema
 
       # - name: Run lint
-        # run: yarn lint
+      # run: yarn lint
 
       # - name: Run tests with coverage
-        # run: yarn test:cov
+      # run: yarn test:cov
 
       # - name: Generate coverage badge  # Optional: Keep if you use it for the README
       #   run: yarn make-badge
@@ -67,7 +67,7 @@ jobs:
       - name: Check Network Connectivity
         run: |
           echo "🔍 Checking connectivity to ${{ secrets.SERVER_IP }} port 22..."
-          
+
           # Test TCP connection to port 22 (SSH) with 5 second timeout
           if nc -z -v -w 5 ${{ secrets.SERVER_IP }} 22; then
             echo "✅ Port 22 is OPEN and reachable."
@@ -92,8 +92,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: 300s
           debug: true
-          source: "dist,package.json,.yarn,.yarnrc.yml,prisma"
-          target: "/var/www/esghorizon/backend"
+          source: 'dist,package.json,.yarn,.yarnrc.yml,prisma'
+          target: '/var/www/esghorizon/backend'
 
       - name: Start via PM2
         uses: appleboy/ssh-action@v1.0.3

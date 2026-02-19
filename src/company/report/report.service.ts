@@ -65,7 +65,7 @@ export class ReportService {
     const ghg = report?.environment?.ghg;
     const socialCapital = report?.socialCapital || {};
     const humanCapital = report?.humanCapital || {};
-    const businessModel = report?.businessModelAndInnovation || report?.businessModel || {};
+    const businessModel = report?.businessInnovation || {};
     const leadershipGovernance = report?.leadershipGovernance || {};
 
     const result = {
@@ -116,7 +116,7 @@ export class ReportService {
       business_scope_one: 0,
       business_scope_two: 0,
       business_scope_three: 0,
-      business_datacount_scope_one: Object.keys(businessModel.reserveValuation || {}).length + Object.keys(businessModel.businessEthicsAndTransparency || {}).length,
+      business_datacount_scope_one: Object.keys(businessModel.reservesValuationAndCapitalExpenditures || {}).length + Object.keys(businessModel.businessEthicsAndTransparency || {}).length,
       business_datacount_scope_two: 0,
       business_datacount_scope_three: 0,
       // Leadership & Governance metrics
@@ -124,7 +124,7 @@ export class ReportService {
       leadership_scope_one: 0,
       leadership_scope_two: 0,
       leadership_scope_three: 0,
-      leadership_datacount_scope_one: Object.keys(leadershipGovernance.criticalIncidentRiskManagement || {}).length + Object.keys(leadershipGovernance.managementOfLegalAndRegulatoryEnvironment || {}).length,
+      leadership_datacount_scope_one: Object.keys(leadershipGovernance.criticalIncidentRiskManagement || {}).length + Object.keys(leadershipGovernance.legalRegulatoryEnvironment || {}).length,
       leadership_datacount_scope_two: 0,
       leadership_datacount_scope_three: 0,
       completed_sections: report?.completedSections ?? 0,
@@ -278,17 +278,21 @@ export class ReportService {
     const humRiskManagement = hum.riskAndOpportunityManagement || {};
     const humHealthSafety = humRiskManagement.healthAndSafetyPerformance || {};
 
-    // Business Model
-    const bus = currentData.businessModelAndInnovation || currentData.businessModel || {};
-    const busReserves = bus.reserveValuation || bus.reservesValuation || {};
-    const busClimateImpact = busReserves.climateImpact || {};
-    const busStrategic = busReserves.strategicCapitalAllocation || {};
-    const busEthics = bus.businessEthicsAndTransparency || bus.businessEthics || {};
+    // Business Model (data stored at assessmentData.businessInnovation.*)
+    const bus = currentData.businessInnovation || {};
+    const busReserves = bus.reservesValuationAndCapitalExpenditures || {};
+    const busClimateImpact = busReserves.reservesSensitivityToCarbonPricing || {};
+    const busEmbedded = busReserves.embeddedCarbonInReserves || {};
+    const busRenewable = busReserves.renewableEnergyInvestment || {};
+    const busCapex = busReserves.capitalExpenditureStrategy || {};
+    const busEthics = bus.businessEthicsAndTransparency || {};
+    const busAntiCorruption = busEthics.antiCorruptionManagementSystem || {};
+    const busCorruptionRisk = busEthics.reservesInCountriesWithHighCorruptionRisk || {};
 
     // Leadership & Governance
     const lead = currentData.leadershipGovernance || {};
     const crit = lead.criticalIncidentRiskManagement || {};
-    const legal = lead.managementOfLegalAndRegulatoryEnvironment || {};
+    const legal = lead.legalRegulatoryEnvironment || {};
 
     // Scope Totals (Prefer calculated data from assessmentData if available)
     const scope1_live = getNum(env.ghg?.scope1?.totalEmission);
@@ -406,7 +410,9 @@ export class ReportService {
             probableReserves: getNum(sec.reservesAreaConflict?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
-            provedReserves: getNum(sec.reservesIndigenousLand?.totalProvedReservesVolume),
+            totalProvedReserves: getNum(sec.reservesIndigenousLand?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.reservesIndigenousLand?.provedIndigenousVolume),
+            totalProbableReserves: getNum(sec.reservesIndigenousLand?.totalProbableReservesVolume),
             probableReserves: getNum(sec.reservesIndigenousLand?.probableIndigenousVolume),
           }
         },
@@ -531,32 +537,32 @@ export class ReportService {
         changePercentage: getChange(getNum(bus.totalReservesAmountAtRisk), getNum(previousData?.businessModel?.totalReservesAmountAtRisk)),
         reservesValuationAndCapitalExpenditure: {
           climateImpactOnReserves: {
-            carbonPriceScenario: getNum(busClimateImpact.reserveSensitivity?.carbonPriceScenario),
-            reservesAtRiskPercent: getNum(busClimateImpact.reserveSensitivity?.percentageDecrease),
-            totalProvedReserves: getNum(busClimateImpact.reserveSensitivity?.estimatedDecrease),
+            carbonPriceScenario: getNum(busClimateImpact.carbonPriceScenario),
+            reservesAtRiskPercent: getNum(busClimateImpact.percentageDecrease),
+            totalProvedReserves: getNum(busEmbedded.totalProvedReserves),
             totalProbableReserves: 0,
-            embeddedCarbon: getNum(busClimateImpact.embeddedCarbonInReserve?.estimatedEmbeddedEmissions),
+            embeddedCarbon: getNum(busEmbedded.estimatedEmbeddedEmissions),
           },
           strategicCapitalAllocation: {
-            renewableInvestmentAmount: getNum(busStrategic.renewableEnergyInvestment?.investmentAmount),
-            renewableRevenueAmount: getNum(busStrategic.renewableEnergyInvestment?.revenueAmount),
-            gasProjectsValueCount: getNum(busStrategic.capitalExpenditureStrategy?.capexPercentage),
-            maintenanceValueCount: 0, // Not mapped in data
-            renewableProjectsValueCount: 0, // Not mapped in data
+            renewableInvestmentAmount: getNum(busRenewable.investmentAmount),
+            renewableRevenueAmount: getNum(busRenewable.revenueAmount),
+            gasProjectsValueCount: getNum(busCapex.capexPercentage),
+            maintenanceValueCount: 0,
+            renewableProjectsValueCount: 0,
           },
         },
         businessEthicsAndTransparency: {
           geopoliticalAndCorruptionRisk: {
             proved: {
-              total: getNum(busEthics.reservesCountriesCorruptionRisk?.totalProvedReservesUnit),
-              risk: getNum(busEthics.reservesCountriesCorruptionRisk?.provedReservesInConflictVolume),
+              total: getNum(busCorruptionRisk.totalProvedReserves),
+              risk: getNum(busCorruptionRisk.provedReservesHighRisk),
             },
             probable: {
-              total: getNum(busEthics.reservesCountriesCorruptionRisk?.totalProbableReservesUnit),
-              risk: getNum(busEthics.reservesCountriesCorruptionRisk?.probableReservesInConflictUnit),
+              total: getNum(busCorruptionRisk.totalProbableReserves),
+              risk: getNum(busCorruptionRisk.probableReservesHighRisk),
             },
           },
-          antiCorruptionManagement: busEthics.antiCorruptionManagement?.discussion || "",
+          antiCorruptionManagement: busAntiCorruption.systemDescription || "",
         },
       },
       leadershipAndGovernance: {
