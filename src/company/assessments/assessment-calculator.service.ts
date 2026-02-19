@@ -52,14 +52,24 @@ export class AssessmentCalculatorService {
   }> {
     const data = structuredClone(raw);
     data.environment ??= {};
-    data.environment.ghg ??= { scope1: {} };
-
-    // Activity Metrics Fix: Handle root level activityMetrics
-    if (data.activityMetrics && !data.foundationalData?.activityMetrics) {
+    if (data.activityMetrics) {
       data.foundationalData ??= {};
-      data.foundationalData.activityMetrics = data.activityMetrics;
+      const rootAm = data.activityMetrics;
+      const flattenedAm = {
+        ...rootAm,
+        ...(rootAm.assetPortfolio?.offshoreSites ? { offshoreSites: rootAm.assetPortfolio.offshoreSites } : {}),
+        ...(rootAm.assetPortfolio?.terrestrialSites ? { terrestrialSites: rootAm.assetPortfolio.terrestrialSites } : {}),
+      };
+
+      data.foundationalData.activityMetrics = {
+        ...(data.foundationalData.activityMetrics || {}),
+        ...flattenedAm,
+      };
     }
 
+
+
+    data.environment.ghg ??= { scope1: {} };
     const ghg = data.environment.ghg!;
     ghg.scope1 ??= {
       stationarySources: {},
@@ -300,6 +310,13 @@ export class AssessmentCalculatorService {
         am.terrestrialSites.calculated = await this.activityMetrics.computeTerrestrialSites(am.terrestrialSites);
         this.calculateFormProgress(am.terrestrialSites, 3);
       }
+
+      // Aggregate Activity Metrics group progress and dataCount
+      this.calculateGroupProgress(
+        am,
+        ['productionVolume', 'offshoreSites', 'terrestrialSites'],
+        [4, 3, 3]
+      );
     }
 
     const totalEmissionVal = scope1Total + scope2Total + scope3Total;
@@ -889,7 +906,10 @@ export class AssessmentCalculatorService {
       pillars.push(this.calculateLeadershipProgress(data.leadershipGovernance));
     }
 
-    return pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / pillars.length).toFixed(1)) : 0;
+    // Use fixed denominator (6 pillars) to avoid skewing progress when starting
+    // (e.g. 100% Foundational / 1 Pillar = 100% Overall, which is wrong)
+    const result = pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / 6).toFixed(1)) : 0;
+    return isNaN(result) ? 0 : result;
   }
 
   private calculateSocialProgress(social: any): number {
@@ -1184,7 +1204,7 @@ export class AssessmentCalculatorService {
       }
     });
 
-    return { completed, total: total || 100 };
+    return { completed, total };
   }
 
   private hasValue(val: any): boolean {

@@ -245,29 +245,28 @@ export class AssessmentService {
     } else {
       // Logic: Only set to submitted_approved if the entire pillar is complete
       // 1. Identify which pillar this submission belongs to
-      let currentPillar: string | null = null;
-      if (lastSavedForm) {
-        const path = this.getGroupPath(lastSavedForm);
-        if (path?.startsWith('environment.')) currentPillar = 'environment';
-        if (path?.startsWith('socialCapital.')) currentPillar = 'socialCapital';
-        if (path?.startsWith('humanCapital.')) currentPillar = 'humanCapital';
-        if (path?.startsWith('businessModel.')) currentPillar = 'businessModel';
-        if (path?.startsWith('leadershipGovernance.')) currentPillar = 'leadershipGovernance';
-        if (path?.startsWith('foundationalData.')) currentPillar = 'foundationalData';
-      }
+      // 2. Check if ALL pillars are complete (excluding Activity Metrics / Foundational Data)
+      const meaningfulPillars = [
+        'environment',
+        'socialCapital',
+        'humanCapital',
+        'businessModel',
+        'leadershipGovernance',
+      ];
 
-      // 2. Check if pillar is complete
-      if (currentPillar && PILLAR_GROUPS[currentPillar]) {
-        const requiredGroups = PILLAR_GROUPS[currentPillar];
-        const submittedSet = new Set(currentData.submittedGroups || []);
-        const isComplete = requiredGroups.every((g) => submittedSet.has(g));
+      const allRequiredGroups = meaningfulPillars.flatMap(
+        (pillar) => PILLAR_GROUPS[pillar] || [],
+      );
 
-        if (isComplete) {
+      const submittedSet = new Set(currentData.submittedGroups || []);
+      const isComplete = allRequiredGroups.every((g) => submittedSet.has(g));
+
+      if (isComplete) {
+        newStatus = AssessmentStatus.submitted_approved;
+      } else {
+        // If already approved, keep it
+        if (assessment.status === AssessmentStatus.submitted_approved) {
           newStatus = AssessmentStatus.submitted_approved;
-        } else {
-          if (assessment.status === AssessmentStatus.submitted_approved) {
-            newStatus = AssessmentStatus.submitted_approved;
-          }
         }
       }
     }
@@ -382,6 +381,10 @@ export class AssessmentService {
         }
       }
     }
+
+    await this.prisma.report.deleteMany({
+      where: { assessmentId },
+    });
 
     await this.prisma.assessment.delete({
       where: { id: assessmentId },
