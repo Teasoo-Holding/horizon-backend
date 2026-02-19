@@ -908,8 +908,8 @@ export class AssessmentCalculatorService {
 
     // Use fixed denominator (6 pillars) to avoid skewing progress when starting
     // (e.g. 100% Foundational / 1 Pillar = 100% Overall, which is wrong)
-    const totalPillars = 6;
-    return Number((pillars.reduce((sum, p) => sum + p, 0) / totalPillars).toFixed(1));
+    const result = pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / 6).toFixed(1)) : 0;
+    return isNaN(result) ? 0 : result;
   }
 
   private calculateSocialProgress(social: any): number {
@@ -1204,7 +1204,7 @@ export class AssessmentCalculatorService {
       }
     });
 
-    return { completed, total: total || 100 };
+    return { completed, total };
   }
 
   private hasValue(val: any): boolean {
