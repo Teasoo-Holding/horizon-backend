@@ -274,13 +274,13 @@ export class ReportService {
 
     // Human Capital
     const hum = currentData.humanCapital || {};
-    const humWorkforce = hum.workforceHealthAndSafety || {};
-    const humRiskManagement = hum.riskAndOpportunityManagement || {};
-    const humHealthSafety = humRiskManagement.healthAndSafetyPerformance || {};
+    // Fix: "workforceHealthAndSafety" is not used in save path, it is "riskAndOpportunityManagement"
+    const humRiskManagement = hum.riskAndOpportunityManagement || hum.workforceHealthAndSafety || {};
+    const humHealthSafety = humRiskManagement.healthAndSafetyPerformance || hum.healthAndSafetyPerformance || {};
 
     // Business Model
     const bus = currentData.businessModelAndInnovation || currentData.businessModel || {};
-    const busReserves = bus.reserveValuation || bus.reservesValuation || {};
+    const busReserves = bus.reservesValuationAndCapitalExpenditures || bus.reserveValuation || bus.reservesValuation || {};
     const busClimateImpact = busReserves.climateImpact || {};
     const busStrategic = busReserves.strategicCapitalAllocation || {};
     const busEthics = bus.businessEthicsAndTransparency || bus.businessEthics || {};
@@ -482,8 +482,7 @@ export class ReportService {
             : 0;
         })(),
         desc:
-          humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems
-            ?.safetyDescription || "",
+          humRiskManagement.safetyManagementSystems?.safetyDescription || "",
         changePercentage: (() => {
           const prevHs =
             previousData?.humanCapital?.riskAndOpportunityManagement
@@ -521,19 +520,23 @@ export class ReportService {
         nearMisses:
           (getNum(humHealthSafety.direct?.nearMisses) || getNum(humHealthSafety.nearMisses)) +
           getNum(humHealthSafety.contract?.nearMisses),
-        averageSafetyTrainingHoursPerEmployee: getNum(
-          humHealthSafety.safetyTrainingHours,
-        ),
+        averageSafetyTrainingHoursPerEmployee: (() => {
+          const directAvg = getNum(humHealthSafety.direct?.safetyTrainingHours);
+          const contractAvg = getNum(humHealthSafety.contract?.safetyTrainingHours);
+          if (directAvg && contractAvg) return (directAvg + contractAvg) / 2;
+          return directAvg || contractAvg || 0;
+        })(),
       },
       businessModel: {
-        totalReservesAmountAtRisk: getNum(bus.totalReservesAmountAtRisk),
+        // Fix: Map estimatedDecrease to totalReservesAmountAtRisk
+        totalReservesAmountAtRisk: getNum(bus.totalReservesAmountAtRisk) || getNum(busReserves.reservesSensitivityToCarbonPricing?.estimatedDecrease),
         desc: bus.desc || "",
         changePercentage: getChange(getNum(bus.totalReservesAmountAtRisk), getNum(previousData?.businessModel?.totalReservesAmountAtRisk)),
         reservesValuationAndCapitalExpenditure: {
           climateImpactOnReserves: {
-            carbonPriceScenario: getNum(busClimateImpact.reserveSensitivity?.carbonPriceScenario),
-            reservesAtRiskPercent: getNum(busClimateImpact.reserveSensitivity?.percentageDecrease),
-            totalProvedReserves: getNum(busClimateImpact.reserveSensitivity?.estimatedDecrease),
+            carbonPriceScenario: getNum(busClimateImpact.reserveSensitivity?.carbonPriceScenario) || getNum(busReserves.reservesSensitivityToCarbonPricing?.carbonPriceScenario),
+            reservesAtRiskPercent: getNum(busClimateImpact.reserveSensitivity?.percentageDecrease) || getNum(busReserves.reservesSensitivityToCarbonPricing?.percentageDecrease),
+            totalProvedReserves: getNum(busClimateImpact.reserveSensitivity?.estimatedDecrease) || getNum(busReserves.reservesSensitivityToCarbonPricing?.estimatedDecrease),
             totalProbableReserves: 0,
             embeddedCarbon: getNum(busClimateImpact.embeddedCarbonInReserve?.estimatedEmbeddedEmissions),
           },

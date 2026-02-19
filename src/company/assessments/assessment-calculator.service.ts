@@ -52,7 +52,9 @@ export class AssessmentCalculatorService {
   }> {
     const data = structuredClone(raw);
     data.environment ??= {};
-    if (data.activityMetrics) {
+    data.environment.ghg ??= { scope1: {} };
+
+    if (data.activityMetrics && !data.foundationalData?.activityMetrics) {
       data.foundationalData ??= {};
       const rootAm = data.activityMetrics;
       const flattenedAm = {
@@ -294,6 +296,29 @@ export class AssessmentCalculatorService {
       }
     }
 
+    // Business Innovation Calculations
+    if (this.hasData(data.environment?.businessInnovation)) {
+      const bi = data.environment.businessInnovation;
+
+      // Reserves Valuation & Capital Expenditures
+      if (this.hasData(bi.reservesValuationAndCapitalExpenditures)) {
+        this.calculateGroupProgress(
+          bi.reservesValuationAndCapitalExpenditures,
+          ['reservesSensitivityToCarbonPricing', 'embeddedCarbonInReserves', 'renewableEnergyInvestment', 'capitalExpenditureStrategy'],
+          [1, 1, 1, 1]
+        );
+      }
+
+      // Business Ethics & Transparency
+      if (this.hasData(bi.businessEthicsAndTransparency)) {
+        this.calculateGroupProgress(
+          bi.businessEthicsAndTransparency,
+          ['reservesInCountriesWithHighCorruptionRisk', 'antiCorruptionManagementSystem'],
+          [1, 1]
+        );
+      }
+    }
+
     // Activity Metrics Calc
     if (this.hasData(data.foundationalData?.activityMetrics)) {
       const am = data.foundationalData.activityMetrics;
@@ -325,15 +350,47 @@ export class AssessmentCalculatorService {
 
     data.topEmissionSources = this.deriveTop5(breakdown, totalEmissionVal);
 
-    // Foundational Data Progress
     if (data.foundationalData) {
       data.foundationalData.progress = this.calculateFoundationalProgress(data.foundationalData);
     }
 
-    // Correctly calculate overall progress across ALL pillars
+    if (data.environment) {
+      data.environment.progress = this.calculateEnvironmentalProgress(data.environment);
+    }
+
+    if (data.socialCapital) {
+      data.socialCapital.progress = this.calculateSocialProgress(data.socialCapital);
+    }
+
+    if (data.humanCapital) {
+      data.humanCapital.progress = this.calculateHumanProgress(data.humanCapital);
+    }
+
+    if (data.leadershipGovernance) {
+      data.leadershipGovernance.progress = this.calculateLeadershipProgress(data.leadershipGovernance);
+    }
+
+    if (data.environment?.businessInnovation) {
+      const bi = data.environment.businessInnovation;
+      const subProgresses: number[] = [];
+
+      if (bi.reservesValuationAndCapitalExpenditures?.progress != null) {
+        subProgresses.push(bi.reservesValuationAndCapitalExpenditures.progress);
+      }
+      if (bi.businessEthicsAndTransparency?.progress != null) {
+        subProgresses.push(bi.businessEthicsAndTransparency.progress);
+      }
+
+      data.businessModel = data.businessModel || {};
+      if (subProgresses.length > 0) {
+        data.businessModel.progress = Number((subProgresses.reduce((a, b) => a + b, 0) / subProgresses.length).toFixed(1));
+      } else {
+        data.businessModel.progress = 0;
+      }
+    }
+
     data.overallProgress = this.calculateOverallProgress(data);
 
-    // Calculate total completed and expected sections
     const counts = this.calculateTotalSectionCounts(data);
     data.completedSections = counts.completed;
     data.totalSections = counts.total;
@@ -353,10 +410,9 @@ export class AssessmentCalculatorService {
 
   private calculateFormProgress(form: any, expected: number = 1) {
     const filledFields = this.countFilledFields(form);
-    const count = filledFields; // Use actual filled count
+    const count = filledFields;
 
     form.dataCount = { expected, count };
-    // Calculate percentage based on expected fields, capped at 100%
     const progress = Math.min((count / expected) * 100, 100);
     form.progress = Number(progress.toFixed(1));
   }
@@ -372,7 +428,6 @@ export class AssessmentCalculatorService {
     forms.forEach((formKey, i) => {
       const form = group[formKey];
       if (form) {
-        // Use the provided expected count per form (representing steps/pages), default to 1
         const expected = _expectedPerForm ? _expectedPerForm[i] : 1;
         this.calculateFormProgress(form, expected);
         totalCount += form.dataCount.count;
@@ -883,35 +938,6 @@ export class AssessmentCalculatorService {
     const sum = topics.reduce((a, b) => a + b, 0);
     return Number((sum / topics.length).toFixed(1));
   }
-
-  private calculateOverallProgress(data: any): number {
-    const pillars: number[] = [];
-
-    if (data.environment) {
-      pillars.push(this.calculateEnvironmentalProgress(data.environment));
-    }
-    if (data.foundationalData) {
-      pillars.push(this.calculateFoundationalProgress(data.foundationalData));
-    }
-    if (data.socialCapital) {
-      pillars.push(this.calculateSocialProgress(data.socialCapital));
-    }
-    if (data.humanCapital) {
-      pillars.push(this.calculateHumanProgress(data.humanCapital));
-    }
-    if (data.businessModel) {
-      pillars.push(this.calculateBusinessProgress(data.businessModel));
-    }
-    if (data.leadershipGovernance) {
-      pillars.push(this.calculateLeadershipProgress(data.leadershipGovernance));
-    }
-
-    // Use fixed denominator (6 pillars) to avoid skewing progress when starting
-    // (e.g. 100% Foundational / 1 Pillar = 100% Overall, which is wrong)
-    const result = pillars.length > 0 ? Number((pillars.reduce((sum, p) => sum + p, 0) / 6).toFixed(1)) : 0;
-    return isNaN(result) ? 0 : result;
-  }
-
   private calculateSocialProgress(social: any): number {
     const topics: number[] = [];
 
@@ -1187,6 +1213,22 @@ export class AssessmentCalculatorService {
         extract(b.hydrocarbonSpills);
         extract(b.reservesInSensitiveAreas);
       }
+      // Business Innovation
+      if (data.environment.businessInnovation) {
+        const bi = data.environment.businessInnovation;
+        if (bi.reservesValuationAndCapitalExpenditures) {
+          const g = bi.reservesValuationAndCapitalExpenditures;
+          extract(g.reservesSensitivityToCarbonPricing);
+          extract(g.embeddedCarbonInReserves);
+          extract(g.renewableEnergyInvestment);
+          extract(g.capitalExpenditureStrategy);
+        }
+        if (bi.businessEthicsAndTransparency) {
+          const g = bi.businessEthicsAndTransparency;
+          extract(g.reservesInCountriesWithHighCorruptionRisk);
+          extract(g.antiCorruptionManagementSystem);
+        }
+      }
     }
 
     // Social, Human, Business, Leadership
@@ -1205,6 +1247,76 @@ export class AssessmentCalculatorService {
     });
 
     return { completed, total };
+  }
+
+  private calculateOverallProgress(data: any): number {
+    // Implement weight based calculation for overall progress
+    // Weights: Env (40%), Social (20%), Human (10%), Business (20%), Leadership (10%)
+
+    // BUT FIRST: Map Business Innovation to Business Model for Reports
+    if (data.environment?.businessInnovation) {
+      const bi = data.environment.businessInnovation;
+      data.businessModel = data.businessModel || {};
+
+      // Map Reserves Valuation
+      if (bi.reservesValuationAndCapitalExpenditures) {
+        const src = bi.reservesValuationAndCapitalExpenditures;
+        // Ensure singular 'Expenditure' to match Report Type
+        data.businessModel.reservesValuationAndCapitalExpenditure = {
+          climateImpactOnReserves: {
+            carbonPriceScenario: src.reservesSensitivityToCarbonPricing?.carbonPriceScenario,
+            reservesAtRiskPercent: src.reservesSensitivityToCarbonPricing?.percentageDecrease,
+            totalProvedReserves: src.embeddedCarbonInReserves?.totalProvedReserves,
+            totalProbableReserves: 0, // Not captured in form yet?
+            embeddedCarbon: src.embeddedCarbonInReserves?.estimatedEmbeddedEmissions
+          },
+          strategicCapitalAllocation: {
+            renewableInvestmentAmount: src.renewableEnergyInvestment?.investmentAmount,
+            renewableRevenueAmount: src.renewableEnergyInvestment?.revenueAmount,
+            gasProjectsValueCount: 0, // Mapped if available
+            maintenanceValueCount: 0,
+            renewableProjectsValueCount: 0
+          }
+        };
+        // Progress for sub-parts is already copied via reference or explicit assignment if needed, 
+        // but here we just ensure the structure is correct for reports.
+        // The overall pillar progress is handled in recalculate()
+        if (bi.reservesValuationAndCapitalExpenditures.progress != null) {
+          data.businessModel.reservesValuationAndCapitalExpenditure.progress = bi.reservesValuationAndCapitalExpenditures.progress;
+        }
+      }
+
+      // Map Business Ethics
+      if (bi.businessEthicsAndTransparency) {
+        const src = bi.businessEthicsAndTransparency;
+        data.businessModel.businessEthicsAndTransparency = {
+          geopoliticalAndCorruptionRisk: {
+            proved: { total: src.reservesInCountriesWithHighCorruptionRisk?.provedReserves || 0, risk: src.reservesInCountriesWithHighCorruptionRisk?.provedReservesAtRisk || 0 },
+            probable: { total: src.reservesInCountriesWithHighCorruptionRisk?.probableReserves || 0, risk: src.reservesInCountriesWithHighCorruptionRisk?.probableReservesAtRisk || 0 }
+          },
+          antiCorruptionManagement: src.antiCorruptionManagementSystem?.systemDescription
+        };
+        if (bi.businessEthicsAndTransparency.progress != null) {
+          data.businessModel.businessEthicsAndTransparency.progress = bi.businessEthicsAndTransparency.progress;
+        }
+      }
+    }
+
+    // Use pre-calculated pillar progress
+    const envProgress = data.environment?.progress || 0;
+    const socialProgress = data.socialCapital?.progress || 0;
+    const humanProgress = data.humanCapital?.progress || 0;
+    const businessProgress = data.businessModel?.progress || 0;
+    const leadershipProgress = data.leadershipGovernance?.progress || 0;
+
+    const weightedSum =
+      (envProgress * 0.4) +
+      (socialProgress * 0.2) +
+      (humanProgress * 0.1) +
+      (businessProgress * 0.2) +
+      (leadershipProgress * 0.1);
+
+    return Number(weightedSum.toFixed(1));
   }
 
   private hasValue(val: any): boolean {
