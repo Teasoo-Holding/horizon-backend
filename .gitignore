@@ -1,3 +1,8 @@
+# Lock files (use one package manager per project; avoid committing)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # compiled output
 /dist
 /node_modules
