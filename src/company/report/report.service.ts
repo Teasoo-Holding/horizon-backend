@@ -218,10 +218,12 @@ export class ReportService {
     });
 
     const formatHistory = (data: any[], key: string) => {
-      return data.map(t => ({
-        score: t.report?.[key] ?? 0,
-        period: `${t.startMonth} ${t.startYear} - ${t.endMonth} ${t.endYear}`
-      })).reverse();
+      return data
+        .filter(t => t.report != null)
+        .map(t => ({
+          score: t.report[key] ?? 0,
+          period: `${t.startMonth} ${t.startYear} - ${t.endMonth} ${t.endYear}`
+        })).reverse();
     };
 
     const targets = await this.prisma.target.findMany({
@@ -308,6 +310,21 @@ export class ReportService {
     const scope2_percentage = getPercentage(scope2, totalEmissions);
     const scope3_percentage = getPercentage(scope3, totalEmissions);
 
+    // Business Model: compute reserves at risk from sub-fields
+    const provedReserves = getNum(busEmbedded.totalProvedReserves);
+    const probableReserves = getNum(busEmbedded.totalProbableReserves);
+    const riskPercent = getNum(busClimateImpact.percentageDecrease);
+    const computedReservesAtRisk = riskPercent > 0
+      ? Math.round((provedReserves + probableReserves) * (riskPercent / 100))
+      : 0;
+
+    // Leadership: compute process safety event rate from actual form data
+    const pseTotalHours = getNum(crit.processSafetyEvents?.totalHoursWorked);
+    const pseEvents = getNum(crit.processSafetyEvents?.numberOfEvents);
+    const computedPSER = pseTotalHours > 0
+      ? Number(((pseEvents / pseTotalHours) * 200000).toFixed(2))
+      : 0;
+
     return {
       activityMetrics: {
         productionData: {
@@ -341,12 +358,16 @@ export class ReportService {
         changePercentage: getChange(totalEmissions, getNum(prevEnv.totalEmission)),
         greenhouseGasEmission: {
           totalEmissions: totalEmissions,
+          totalChange: getChange(totalEmissions, getNum(prevEnv.totalEmission)),
           totalHistory: formatHistory(trendData, 'ghg_total_emissions'),
           scope1Emissions: scope1,
+          scope1Change: getChange(scope1, getNum(prevEnv.ghg?.scope1?.totalEmission)),
           scope1History: formatHistory(trendData, 'ghg_scope_one'),
           scope2Emissions: scope2,
+          scope2Change: getChange(scope2, getNum(prevEnv.ghg?.scope2?.totalEmission)),
           scope2History: formatHistory(trendData, 'ghg_scope_two'),
           scope3Emissions: scope3,
+          scope3Change: getChange(scope3, getNum(prevEnv.ghg?.scope3?.totalEmission)),
           scope3History: formatHistory(trendData, 'ghg_scope_three'),
         },
         airQuality: {
@@ -401,12 +422,17 @@ export class ReportService {
         },
       },
       socialCapital: {
-        operationalDelaysLevel: soc.operationalDelaysLevel || "Low Risk",
+        operationalDelaysLevel: (() => {
+          const total = getNum(com.operationalDelays?.numberOfDelaysCommunityProtests) + getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder);
+          return total === 0 ? "Low Risk" : total <= 3 ? "Medium Risk" : "High Risk";
+        })(),
         desc: soc.desc || "",
-        totalNumberOfIncidents: getNum(soc.totalNumberOfIncidents),
+        totalNumberOfIncidents: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests) + getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder),
         securityHumanRightsAndIndigenousPeople: {
           operationsInConflictZones: {
-            provedReserves: getNum(sec.reservesAreaConflict?.totalProvedReservesVolume),
+            totalProvedReserves: getNum(sec.reservesAreaConflict?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.reservesAreaConflict?.provedReservesInConflictVolume),
+            totalProbableReserves: getNum(sec.reservesAreaConflict?.totalProbableReservesVolume),
             probableReserves: getNum(sec.reservesAreaConflict?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
@@ -423,9 +449,8 @@ export class ReportService {
             percentage: getNum(com.hcdtContribution?.percentage),
           },
           communityDisputeResolution: {
-            resolvedDisputes: getNum(com.disputeResolution?.disputesResolved),
-            pending: getNum(com.disputeResolution?.disputesReferred),
-            total: getNum(com.disputeResolution?.disputesResolved) + getNum(com.disputeResolution?.disputesReferred),
+            disputesReferred: getNum(com.disputeResolution?.disputesReferred ?? com.communityDisputeResolution?.disputesReferred),
+            disputesResolved: getNum(com.disputeResolution?.disputesResolved ?? com.communityDisputeResolution?.disputesResolved),
           },
           operationalDelays: {
             protests: {
@@ -532,9 +557,9 @@ export class ReportService {
         ),
       },
       businessModel: {
-        totalReservesAmountAtRisk: getNum(bus.totalReservesAmountAtRisk),
+        totalReservesAmountAtRisk: computedReservesAtRisk,
         desc: bus.desc || "",
-        changePercentage: getChange(getNum(bus.totalReservesAmountAtRisk), getNum(previousData?.businessModel?.totalReservesAmountAtRisk)),
+        changePercentage: getChange(computedReservesAtRisk, getNum(previousData?.businessModel?.totalReservesAmountAtRisk)),
         reservesValuationAndCapitalExpenditure: {
           climateImpactOnReserves: {
             carbonPriceScenario: getNum(busClimateImpact.carbonPriceScenario),
@@ -566,9 +591,9 @@ export class ReportService {
         },
       },
       leadershipAndGovernance: {
-        processSafetyPercentage: 0,
+        processSafetyPercentage: computedPSER,
         desc: lead.desc || "",
-        numberOfTierEventsAndWhatTier: crit.processSafetyEvents?.tierOneEvents || "",
+        numberOfTierEventsAndWhatTier: String(pseEvents) || "N/A",
         managementOfLegalAndRegulatoryEnvironment: {
           publicPolicyAndLobbying: legal.publicPolicyEngagement?.discussion || "",
           policyPosition: legal.publicPolicyEngagement?.position || "",
@@ -577,7 +602,7 @@ export class ReportService {
         },
         criticalIncidenceRiskManagement: {
           processSafetyEvents: {
-            tierOneEvents: getNum(crit.processSafetyEvents?.tierOneEvents),
+            tierOneEvents: getNum(crit.processSafetyEvents?.numberOfEvents),
             totalHoursWorked: getNum(crit.processSafetyEvents?.totalHoursWorked),
             rate: getNum(crit.processSafetyEvents?.recordableIncidents),
           },

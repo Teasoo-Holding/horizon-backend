@@ -469,7 +469,7 @@ export class TargetService {
     });
 
     if (!latestAssessment) {
-      throw new Error(`No assessment found for company ID: ${companyId}`);
+      return null;
     }
 
     /**
@@ -485,7 +485,7 @@ export class TargetService {
     });
 
     if (!target) {
-      throw new Error(`No target found for company ID: ${companyId}`);
+      return null;
     }
 
     const baselineAssessment = await this.prisma.assessment.findFirst({
@@ -540,36 +540,37 @@ export class TargetService {
       },
     ] as const;
 
-    // console.log('Scope Emissions to update:', scope1EmissionSum);
     /**
      * 6. Update or create scope targets (safe + atomic)
+     *    Always upsert so scope donuts work for both general and scope targets.
      */
-    if (target.scopeTargets.length > 0) {
-      await Promise.all(
-        scopeEmissions.map((se) =>
-          this.prisma.scopeTarget.upsert({
-            where: {
-              targetId_scope: {
-                targetId: target.id,
-                scope: se.scope,
-              },
-            },
-            update: {
-              currentEmission: se.currentEmission,
-              baselineYearEmission: se.baselineEmission,
-            },
-            create: {
+    const generalReduction =
+      target.generalTarget?.reductionPercentage ?? 0;
+
+    await Promise.all(
+      scopeEmissions.map((se) =>
+        this.prisma.scopeTarget.upsert({
+          where: {
+            targetId_scope: {
               targetId: target.id,
               scope: se.scope,
-              currentEmission: se.currentEmission,
-              baselineYearEmission: se.baselineEmission,
-              reductionPercentage: 0,
-              targetEmission: 0,
             },
-          }),
-        ),
-      );
-    }
+          },
+          update: {
+            currentEmission: se.currentEmission,
+            baselineYearEmission: se.baselineEmission,
+          },
+          create: {
+            targetId: target.id,
+            scope: se.scope,
+            currentEmission: se.currentEmission,
+            baselineYearEmission: se.baselineEmission,
+            reductionPercentage: generalReduction,
+            targetEmission: 0,
+          },
+        }),
+      ),
+    );
 
     /**
      * 7. Return updated target
@@ -672,7 +673,7 @@ export class TargetService {
       startYear,
       endYear,
       totals,
-      // baseline,
+      totalSum: totals,
     };
   }
 

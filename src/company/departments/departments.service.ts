@@ -115,6 +115,14 @@ export class DepartmentsService {
       },
     });
 
+    // Assign the lead user to this department so they appear in team members
+    if (department.leadId) {
+      await this.prisma.user.update({
+        where: { id: department.leadId },
+        data: { departmentId: department.id },
+      });
+    }
+
     await this.activitiesService.logActivity({
       companyId,
       createdById: creatorId,
@@ -292,7 +300,7 @@ export class DepartmentsService {
   }
 
   async findAll(companyId: number) {
-    return this.prisma.department.findMany({
+    const departments = await this.prisma.department.findMany({
       where: { companyId },
       include: {
         lead: {
@@ -301,8 +309,16 @@ export class DepartmentsService {
         subsidiary: {
           select: { id: true, name: true },
         },
+        _count: {
+          select: { users: true },
+        },
       },
     });
+
+    return departments.map((dept) => ({
+      ...dept,
+      teamSize: dept._count.users,
+    }));
   }
 
   async getUsers(departmentId: number) {
