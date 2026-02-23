@@ -292,9 +292,9 @@ export class ReportService {
     const busCorruptionRisk = busEthics.reservesInCountriesWithHighCorruptionRisk || {};
 
     // Leadership & Governance
-    const lead = currentData.leadershipGovernance || {};
+    const lead = currentData.leadershipGovernance || currentData.environment?.leadershipGovernance || {};
     const crit = lead.criticalIncidentRiskManagement || {};
-    const legal = lead.legalRegulatoryEnvironment || {};
+    const legal = lead.managementOfTheLegalAndRegulatoryEnvironment || lead.legalRegulatoryEnvironment || {};
 
     // Scope Totals (Prefer calculated data from assessmentData if available)
     const scope1_live = getNum(env.ghg?.scope1?.totalEmission);
@@ -595,20 +595,20 @@ export class ReportService {
         desc: lead.desc || "",
         numberOfTierEventsAndWhatTier: String(pseEvents) || "N/A",
         managementOfLegalAndRegulatoryEnvironment: {
-          publicPolicyAndLobbying: legal.publicPolicyEngagement?.discussion || "",
-          policyPosition: legal.publicPolicyEngagement?.position || "",
-          sustainabilityGovernance: legal.boardManagementOversight?.discussion || "",
-          sustainabilityPosition: legal.boardManagementOversight?.position || "",
+          publicPolicyAndLobbying: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.discussion || "",
+          policyPosition: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.position || "",
+          sustainabilityGovernance: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.discussion || "",
+          sustainabilityPosition: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.position || "",
         },
         criticalIncidenceRiskManagement: {
           processSafetyEvents: {
             tierOneEvents: getNum(crit.processSafetyEvents?.numberOfEvents),
             totalHoursWorked: getNum(crit.processSafetyEvents?.totalHoursWorked),
-            rate: getNum(crit.processSafetyEvents?.recordableIncidents),
+            rate: computedPSER,
           },
           catastrophicEvents: {
-            lastAssetIntegrityAudit: crit.catastrophicRiskManagementSystems?.lastAudit || "",
-            description: crit.catastrophicRiskManagementSystems?.description || "",
+            lastAssetIntegrityAudit: crit.catastrophicRiskManagementSystems?.auditDate || crit.catastrophicRiskManagementSystems?.lastAudit || "",
+            description: crit.catastrophicRiskManagementSystems?.systemDescription || crit.catastrophicRiskManagementSystems?.description || "",
           },
         }
       },

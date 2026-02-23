@@ -228,8 +228,7 @@ export class AssessmentService {
           new Set([...(currentData.submittedGroups || []), groupPath]),
         );
       }
-      // After processing, clear it so next resume goes to hub
-      currentData.lastSavedForm = null;
+      // Keep lastSavedForm so "Continue" resumes at the right place
     }
 
     const result = await this.calculator.recalculate(currentData);
