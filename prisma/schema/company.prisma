@@ -21,7 +21,7 @@ model Company {
   company_logo_url_public_id String?
   company_type               CompanyType?
   staff_strength             String?
-  requireAssessmentReview    Boolean               @default(false)
+  requireAssessmentReview    Boolean               @default(true)
   activities                 Activities[]
   departments                Department[]
   invitations                Invitation[]

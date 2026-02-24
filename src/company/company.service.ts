@@ -197,6 +197,9 @@ export class CompanyService {
 
       const hubStats = getHubStats(latestAssessment);
 
+      // Include the latest assessment ID so the frontend can route "Continue Assessment" correctly
+      const latestAssessmentId = latestAssessment?.id ?? null;
+
       const overallScore = latestTotals?.total ?? null;
 
       const breakdown = {
@@ -366,6 +369,7 @@ export class CompanyService {
         subscription: subscriptionDto,
         esgJourney,
         hubStats,
+        latestAssessmentId,
         stats: {
           totalAssessments: totalAssessmentsCount,
           reviewedAssessments: reviewedCount,

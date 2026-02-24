@@ -297,8 +297,10 @@ export class AssessmentCalculatorService {
     }
 
     // Business Innovation Calculations
-    if (this.hasData(data.environment?.businessInnovation)) {
-      const bi = data.environment.businessInnovation;
+    // Business Innovation Calculations
+    const businessInnovation = data.businessInnovation || data.environment?.businessInnovation;
+    if (this.hasData(businessInnovation)) {
+      const bi = businessInnovation;
 
       // Reserves Valuation & Capital Expenditures
       if (this.hasData(bi.reservesValuationAndCapitalExpenditures)) {
@@ -370,8 +372,8 @@ export class AssessmentCalculatorService {
       data.leadershipGovernance.progress = this.calculateLeadershipProgress(data.leadershipGovernance);
     }
 
-    if (data.environment?.businessInnovation) {
-      const bi = data.environment.businessInnovation;
+    if (data.businessInnovation || data.environment?.businessInnovation) {
+      const bi = data.businessInnovation || data.environment?.businessInnovation;
       const subProgresses: number[] = [];
 
       if (bi.reservesValuationAndCapitalExpenditures?.progress != null) {
