@@ -380,7 +380,11 @@ export class ReportService {
         waterManagement: {
           totalWaterWithdrawal: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume) + getNum(freshwaterCalculated.withdrawals?.groundwater?.volume) + getNum(freshwaterCalculated.withdrawals?.municipal?.volume),
           totalWaterConsumed: getNum(freshwaterCalculated.withdrawals?.totalConsumed?.volume),
-          totalProducedWaterGenerated: getNum(producedWaterCalculated.totalProducedWater?.volume) || getNum(freshwaterCalculated.producedWater?.generated?.volume),
+          totalProducedWaterGenerated: getNum(producedWaterCalculated.totalProducedWater?.volume)
+            || getNum(freshwaterCalculated.producedWater?.generated?.volume)
+            || ((getNum(producedWaterCalculated.recycledReused?.volume) || getNum(freshwaterCalculated.producedWater?.recycled?.volume))
+              + (getNum(producedWaterCalculated.injectedForDisposal?.volume) || getNum(freshwaterCalculated.producedWater?.injected?.volume))
+              + (getNum(producedWaterCalculated.dischargedToSurface?.volume) || getNum(freshwaterCalculated.producedWater?.discharged?.volume))),
           recycledWater: getNum(producedWaterCalculated.recycledReused?.volume) || getNum(freshwaterCalculated.producedWater?.recycled?.volume),
           injectedForDisposal: getNum(producedWaterCalculated.injectedForDisposal?.volume) || getNum(freshwaterCalculated.producedWater?.injected?.volume),
           dischargedToSurface: getNum(producedWaterCalculated.dischargedToSurface?.volume) || getNum(freshwaterCalculated.producedWater?.discharged?.volume),
