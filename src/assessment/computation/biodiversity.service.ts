@@ -5,7 +5,7 @@ export class BiodiversityComputationService {
     async computeEnvironmentalManagementPolicies(data: any) {
         const step1 = data || {};
         return {
-            iso14001Certified: step1.iso14001Certified === 'yes',
+            isISO14001Certified: step1.isISO14001Certified === true || step1.isISO14001Certified === 'yes',
             description: step1.description,
             total: 0
         };
