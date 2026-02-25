@@ -101,13 +101,16 @@ export class EsgAuthService {
       return [createdCompany, createdUser];
     });
 
-    await this.emailService.sendEmail(
-      dto.email,
-      {
-        firstname: first_name,
-      },
-      4,
-    );
+    // Email failures should not crash the signup — the DB transaction already succeeded
+    try {
+      await this.emailService.sendEmail(
+        dto.email,
+        { firstname: first_name },
+        4,
+      );
+    } catch (err) {
+      console.error('Failed to send signup confirmation email:', err);
+    }
 
     const superAdmins = await this.prisma.user.findMany({
       where: {
@@ -121,15 +124,19 @@ export class EsgAuthService {
     const companyDetailsLink = `${process.env.FRONTEND_URL}/admin/companies/${company?.id}`;
 
     for (const admin of superAdmins) {
-      await this.emailService.sendEmail(
-        admin.email,
-        {
-          firstname: admin.first_name,
-          company_name: company?.name ?? 'New Company',
-          link: companyDetailsLink,
-        },
-        7,
-      );
+      try {
+        await this.emailService.sendEmail(
+          admin.email,
+          {
+            firstname: admin.first_name,
+            company_name: company?.name ?? 'New Company',
+            link: companyDetailsLink,
+          },
+          7,
+        );
+      } catch (err) {
+        console.error(`Failed to notify admin ${admin.email}:`, err);
+      }
     }
 
     return {

@@ -158,19 +158,25 @@ export class AssessmentService {
 
     if (!assessment) throw new NotFoundException('Assessment not found');
 
-    const currentData = (assessment.assessmentData || {}) as any;
-    const submittedGroups = currentData.submittedGroups || [];
-
-    // Check if the current path is part of a submitted group
-    const isLocked = submittedGroups.some((groupPath: string) =>
-      payload.path.startsWith(groupPath),
-    );
-
-    if (isLocked) {
+    // Prevent edits on approved assessments
+    if (assessment.status === AssessmentStatus.approved) {
       throw new BadRequestException(
-        'Cannot save to a submitted group. Please continue the assessment or enter new data.',
+        'Cannot edit an assessment that has been approved.',
       );
     }
+
+    // If assessment was declined or awaiting review, reset to in_progress on edit
+    if (
+      assessment.status === AssessmentStatus.declined ||
+      assessment.status === AssessmentStatus.awaiting_review
+    ) {
+      await this.prisma.assessment.update({
+        where: { id: assessmentId },
+        data: { status: AssessmentStatus.in_progress, rejection_reason: null },
+      });
+    }
+
+    const currentData = (assessment.assessmentData || {}) as any;
 
     const merged = this.deepMerge(currentData, payload.path, payload.data);
 
@@ -239,34 +245,31 @@ export class AssessmentService {
     const requireReview = assessment.company?.requireAssessmentReview ?? false;
     let newStatus: AssessmentStatus = AssessmentStatus.in_progress;
 
-    if (requireReview) {
-      newStatus = AssessmentStatus.awaiting_review;
+    // Check if ALL meaningful pillars have been submitted
+    const meaningfulPillars = [
+      'environment',
+      'socialCapital',
+      'humanCapital',
+      'businessModel',
+      'leadershipGovernance',
+    ];
+
+    const allRequiredGroups = meaningfulPillars.flatMap(
+      (pillar) => PILLAR_GROUPS[pillar] || [],
+    );
+
+    const submittedSet = new Set(recalculated.submittedGroups || []);
+    const isComplete = allRequiredGroups.every((g) => submittedSet.has(g));
+
+    if (isComplete) {
+      // All pillars submitted — transition based on company review setting
+      newStatus = requireReview
+        ? AssessmentStatus.awaiting_review
+        : AssessmentStatus.submitted_approved;
     } else {
-      // Logic: Only set to submitted_approved if the entire pillar is complete
-      // 1. Identify which pillar this submission belongs to
-      // 2. Check if ALL pillars are complete (excluding Activity Metrics / Foundational Data)
-      const meaningfulPillars = [
-        'environment',
-        'socialCapital',
-        'humanCapital',
-        'businessModel',
-        'leadershipGovernance',
-      ];
-
-      const allRequiredGroups = meaningfulPillars.flatMap(
-        (pillar) => PILLAR_GROUPS[pillar] || [],
-      );
-
-      const submittedSet = new Set(currentData.submittedGroups || []);
-      const isComplete = allRequiredGroups.every((g) => submittedSet.has(g));
-
-      if (isComplete) {
+      // Not all pillars done yet — keep in progress (or preserve submitted_approved)
+      if (assessment.status === AssessmentStatus.submitted_approved) {
         newStatus = AssessmentStatus.submitted_approved;
-      } else {
-        // If already approved, keep it
-        if (assessment.status === AssessmentStatus.submitted_approved) {
-          newStatus = AssessmentStatus.submitted_approved;
-        }
       }
     }
 
