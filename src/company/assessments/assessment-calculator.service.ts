@@ -534,14 +534,11 @@ export class AssessmentCalculatorService {
       'status',
       'totalEmission',
       'totalEmissions',
-      'breakdown',
-      'totalNumber',
-      'filesAndLinks',
+      'breakdown'
     ]);
 
     for (const key in obj) {
       if (ignoredKeys.has(key)) continue;
-      if (key.endsWith('Unit')) continue; // unit constants like "kbpd", "MMscf/day"
 
       const val = obj[key];
       if (val === undefined || val === null) continue;

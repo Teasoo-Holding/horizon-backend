@@ -452,7 +452,7 @@ export class ReportService {
           hcdtContribution: {
             priorYearOpexAmount: getNum(com.hcdtContribution?.opexAmount),
             annualContribution: getNum(com.hcdtContribution?.hcdtAmount),
-            percentage: 3,
+            percentage: getNum(com.hcdtContribution?.percentage),
           },
           communityDisputeResolution: {
             disputesReferred: getNum(com.disputeResolution?.disputesReferred ?? com.communityDisputeResolution?.disputesReferred),

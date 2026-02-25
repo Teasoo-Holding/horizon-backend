@@ -14,13 +14,13 @@ import {
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CompanyService } from './company.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
-import { UpdateCompanyStatusDto } from './dtos/update-company-status.dto';
 import {
   ApiOperation,
   ApiTags,
   ApiForbiddenResponse,
   ApiResponse,
 } from '@nestjs/swagger';
+import { CompanyStatus } from '@prisma/client';
 import { Request } from 'express';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
 
@@ -154,9 +154,9 @@ export class CompanyController {
   @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   async updateStatus(
     @Param('id') id: number,
-    @Body() dto: UpdateCompanyStatusDto,
+    @Body('status') status: CompanyStatus,
   ) {
-    return this.companyService.updateStatus(id, dto.status);
+    return this.companyService.updateStatus(id, status);
   }
 
   @Patch(':id')
