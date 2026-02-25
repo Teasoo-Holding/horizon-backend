@@ -420,7 +420,9 @@ export class ReportService {
             volumeImpactingSensitiveShorelines: getNum(hydrocarbonSpillsCalculated.volumeImpactingSensitiveShorelines?.volume) || getNum(hydrocarbonSpillsDirect.volumeImpactingSensitiveShorelines) || getNum(hydrocarbonSpillsDirect.volumeImpactingShorelines),
           },
           reservesInSensitiveAreas: {
+            totalProvedReserves: getNum(reservesCalculated.totalProvedReserves?.volume) || getNum(reservesDirect.totalProvedReservesVolume),
             provedReserves: getNum(reservesCalculated.provedReservesInSensitiveAreas?.volume) || getNum(reservesDirect.provedReservesSensitiveVolume),
+            totalProbableReserves: getNum(reservesCalculated.totalProbableReserves?.volume) || getNum(reservesDirect.totalProbableReservesVolume),
             probableReserves: getNum(reservesCalculated.probableReservesInSensitiveAreas?.volume) || getNum(reservesDirect.probableReservesSensitiveVolume),
           }
         },
