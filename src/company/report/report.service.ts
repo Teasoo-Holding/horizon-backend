@@ -453,12 +453,15 @@ export class ReportService {
           hcdtContribution: {
             priorYearOpexAmount: getNum(com.hcdtContribution?.opexAmount),
             annualContribution: getNum(com.hcdtContribution?.hcdtAmount),
-            percentage: getNum(com.hcdtContribution?.percentage),
+            percentage: Math.min(100, Math.round(getPercentage(getNum(com.hcdtContribution?.hcdtAmount), getNum(com.hcdtContribution?.opexAmount)))),
           },
-          communityDisputeResolution: {
-            disputesReferred: getNum(com.disputeResolution?.disputesReferred ?? com.communityDisputeResolution?.disputesReferred),
-            disputesResolved: getNum(com.disputeResolution?.disputesResolved ?? com.communityDisputeResolution?.disputesResolved),
-          },
+          communityDisputeResolution: (() => {
+            const d = com.communityDisputeResolution || com.disputeResolution || {};
+            return {
+              disputesReferred: getNum(d.disputesReferred),
+              disputesResolved: getNum(d.disputesResolved),
+            };
+          })(),
           operationalDelays: {
             protests: {
               count: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests),
