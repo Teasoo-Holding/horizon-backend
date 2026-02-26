@@ -625,20 +625,20 @@ export class TargetService {
       generalTarget: target.generalTarget
         ? {
             id: target.generalTarget.id,
-            reductionPercentage: target.generalTarget.reductionPercentage ?? 0,
-            targetEmission: target.generalTarget.targetEmission ?? 0,
+            reductionPercentage: target.generalTarget.reductionPercentage || 0,
+            targetEmission: target.generalTarget.targetEmission || 0,
             baselineYearEmission:
-              target.generalTarget.baselineYearEmission ?? 0,
-            currentEmission: target.generalTarget.currentEmission ?? null,
+              target.generalTarget.baselineYearEmission || 0,
+            currentEmission: target.generalTarget.currentEmission || null,
           }
         : undefined,
       scopeTargets: target.scopeTargets?.map((scope: any) => ({
         id: scope.id,
         scope: scope.scope,
-        reductionPercentage: scope.reductionPercentage ?? 0,
-        targetEmission: scope.targetEmission ?? 0,
-        baselineYearEmission: scope.baselineYearEmission ?? 0,
-        currentEmission: scope.currentEmission ?? null,
+        reductionPercentage: scope.reductionPercentage || 0,
+        targetEmission: scope.targetEmission || 0,
+        baselineYearEmission: scope.baselineYearEmission || 0,
+        currentEmission: scope.currentEmission || null,
       })),
       createdAt: target.createdAt,
       updatedAt: target.updatedAt,
