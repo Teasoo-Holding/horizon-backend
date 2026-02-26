@@ -388,6 +388,7 @@ export class ReportService {
           recycledWater: getNum(producedWaterCalculated.recycledReused?.volume) || getNum(freshwaterCalculated.producedWater?.recycled?.volume),
           injectedForDisposal: getNum(producedWaterCalculated.injectedForDisposal?.volume) || getNum(freshwaterCalculated.producedWater?.injected?.volume),
           dischargedToSurface: getNum(producedWaterCalculated.dischargedToSurface?.volume) || getNum(freshwaterCalculated.producedWater?.discharged?.volume),
+          averageHydrocarbonContent: producedWaterCalculated.averageHydrocarbonContent ?? waterAndProduced.producedWaterManagement?.averageHydrocarbonContent ?? null,
           freshwaterWithdrawalBySource: {
             surfaceWater: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume),
             groundwater: getNum(freshwaterCalculated.withdrawals?.groundwater?.volume),

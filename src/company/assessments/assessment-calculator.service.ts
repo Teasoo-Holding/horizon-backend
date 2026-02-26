@@ -710,7 +710,7 @@ export class AssessmentCalculatorService {
   private mapFugitiveEmissions(group: any) {
     return {
       volume: Number(group.ventingNaturalGas?.volumeOfGasVented || 0),
-      hfcMass: Number(group.hfcLeaks?.refrigerant_mass || 0),
+      hfcMass: Number(group.hfcLeaks?.refrigerantAdded || group.hfcLeaks?.refrigerant_mass || 0),
     };
   }
 
@@ -806,7 +806,8 @@ export class AssessmentCalculatorService {
   private mapDownstreamEmissions(downstream: any) {
     return {
       mass_of_products_sold: Number(
-        downstream.downstreamTransportationDistribution?.massOfProducts || 0,
+        downstream.downstreamTransportationDistribution?.massOfProductsSold
+        || downstream.downstreamTransportationDistribution?.massOfProducts || 0,
       ),
       mass_of_products_sold_ef: 0.1,
       number_of_unit_products_sold: Number(
@@ -821,7 +822,8 @@ export class AssessmentCalculatorService {
       emission_factor_of_energy: 0.526,
       end_of_life_treatments: downstream.endOfLifeTreatment?.treatments || [],
       total_fuel_consumed_by_tennant: Number(
-        downstream.downstreamLeasedAssets?.fuelConsumed || 0,
+        downstream.downstreamLeasedAssets?.otherEnergyConsumed
+        || downstream.downstreamLeasedAssets?.fuelConsumed || 0,
       ),
       total_fuel_consumed_by_tennant_ef: 2.68,
       total_electiricity_consumed_by_tennant: Number(
@@ -829,14 +831,19 @@ export class AssessmentCalculatorService {
       ),
       total_electiricity_consumed_by_tennant_ef: 0.526,
       total_fuel_consumed_by_franchise: Number(
-        downstream.franchises?.fuelConsumed || 0,
+        downstream.franchises?.fuelConsumption
+        || downstream.franchises?.fuelConsumed || 0,
       ),
       total_fuel_consumed_by_franchise_ef: 2.68,
       total_electiricity_consumed_by_franchise: Number(
-        downstream.franchises?.electricityConsumed || 0,
+        downstream.franchises?.electricityConsumption
+        || downstream.franchises?.electricityConsumed || 0,
       ),
       total_electiricity_consumed_by_franchise_ef: 0.526,
-      investment_equity_share: Number(downstream.investments?.equityShare || 0),
+      investment_equity_share: Number(
+        downstream.investments?.investmentAmount
+        || downstream.investments?.equityShare || 0,
+      ),
       investment_reported_scope_1and2_of_portfolio_company: Number(
         downstream.investments?.portfolioEmissions || 0,
       ),

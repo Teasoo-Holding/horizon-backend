@@ -57,6 +57,8 @@ export class WaterComputationService {
             dischargedToSurface: this.parseValue(step1.volumeDischargedToSurface),
             injectedForDisposal: this.parseValue(step1.volumeInjectedForDisposal),
             recycledReused: this.parseValue(step1.volumeRecycledReused),
+            averageHydrocarbonContent: step1.averageHydrocarbonContent ?? null,
+            averageHydrocarbonContentUnit: step1.averageHydrocarbonContentUnit ?? 'mg/L',
             total: 0
         };
     }
