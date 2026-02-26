@@ -158,18 +158,20 @@ export class AssessmentService {
 
     if (!assessment) throw new NotFoundException('Assessment not found');
 
-    // Prevent edits on approved assessments
-    if (assessment.status === AssessmentStatus.approved) {
+    // Only in_progress and declined assessments are editable
+    const lockedStatuses: AssessmentStatus[] = [
+      AssessmentStatus.awaiting_review,
+      AssessmentStatus.submitted_approved,
+      AssessmentStatus.approved,
+    ];
+    if (lockedStatuses.includes(assessment.status)) {
       throw new BadRequestException(
-        'Cannot edit an assessment that has been approved.',
+        `Cannot edit an assessment with status "${assessment.status}". Only in-progress or declined assessments can be edited.`,
       );
     }
 
-    // If assessment was declined or awaiting review, reset to in_progress on edit
-    if (
-      assessment.status === AssessmentStatus.declined ||
-      assessment.status === AssessmentStatus.awaiting_review
-    ) {
+    // If editing a declined assessment, reset to in_progress
+    if (assessment.status === AssessmentStatus.declined) {
       await this.prisma.assessment.update({
         where: { id: assessmentId },
         data: { status: AssessmentStatus.in_progress, rejection_reason: null },
@@ -242,46 +244,15 @@ export class AssessmentService {
     const scopeTotals = result.scopeTotals;
 
 
-    const requireReview = assessment.company?.requireAssessmentReview ?? false;
-    let newStatus: AssessmentStatus = AssessmentStatus.in_progress;
-
-    // Check if ALL meaningful pillars have been submitted
-    const meaningfulPillars = [
-      'environment',
-      'socialCapital',
-      'humanCapital',
-      'businessModel',
-      'leadershipGovernance',
-    ];
-
-    const allRequiredGroups = meaningfulPillars.flatMap(
-      (pillar) => PILLAR_GROUPS[pillar] || [],
-    );
-
-    const submittedSet = new Set(recalculated.submittedGroups || []);
-    const isComplete = allRequiredGroups.every((g) => submittedSet.has(g));
-
-    if (isComplete) {
-      // All pillars submitted — transition based on company review setting
-      newStatus = requireReview
-        ? AssessmentStatus.awaiting_review
-        : AssessmentStatus.submitted_approved;
-    } else {
-      // Not all pillars done yet — keep in progress (or preserve submitted_approved)
-      if (assessment.status === AssessmentStatus.submitted_approved) {
-        newStatus = AssessmentStatus.submitted_approved;
-      }
-    }
-
-    if (newStatus === AssessmentStatus.submitted_approved) {
-      recalculated.overallProgress = 100;
-    }
+    // Preserve current status — submitGroup no longer transitions status.
+    // Final submission is now an explicit user action via submitForReview().
+    const currentStatus = assessment.status;
 
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
       data: {
         assessmentData: recalculated as any,
-        status: newStatus,
+        status: currentStatus,
         updated_by: userId,
       },
     });
@@ -290,7 +261,7 @@ export class AssessmentService {
       companyId,
       createdById: userId,
       title: 'Assessment group submitted',
-      description: `Group completed. Status: ${newStatus}`,
+      description: `Group submitted: ${lastSavedForm}`,
       type: 'assessment',
       status: 'submitted',
     });
@@ -327,11 +298,79 @@ export class AssessmentService {
     return 0;
   }
 
-  async getAssessments(companyId: number): Promise<Assessment[]> {
+  async submitForReview(
+    companyId: number,
+    userId: number,
+    assessmentId: number,
+    reviewerId?: number,
+  ): Promise<Assessment> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId },
+      include: { company: true },
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+
+    // Only in_progress or declined assessments can be submitted
+    if (
+      assessment.status !== AssessmentStatus.in_progress &&
+      assessment.status !== AssessmentStatus.declined
+    ) {
+      throw new BadRequestException(
+        `Cannot submit: assessment is currently "${assessment.status}".`,
+      );
+    }
+
+    const requireReview =
+      assessment.company?.requireAssessmentReview ?? true;
+
+    let newStatus: AssessmentStatus;
+    let finalReviewerId: number | null = null;
+
+    if (requireReview) {
+      newStatus = AssessmentStatus.awaiting_review;
+      // If no reviewer selected, self-review (assign to submitting user)
+      finalReviewerId = reviewerId || userId;
+    } else {
+      newStatus = AssessmentStatus.submitted_approved;
+    }
+
+    const updated = await this.prisma.assessment.update({
+      where: { id: assessmentId },
+      data: {
+        status: newStatus,
+        updated_by: userId,
+        reviewed_by: finalReviewerId,
+        rejection_reason: null, // clear any previous decline reason
+      },
+    });
+
+    await this.activitiesService.logActivity({
+      companyId,
+      createdById: userId,
+      title: requireReview
+        ? 'Assessment submitted for review'
+        : 'Assessment submitted (auto-approved)',
+      description: `Assessment #${assessmentId} status changed to ${newStatus}`,
+      type: 'assessment',
+      status: 'submitted',
+    });
+
+    await this.reportService.saveReportingData(assessmentId);
+
+    return updated;
+  }
+
+  async getAssessments(companyId: number) {
     return this.prisma.assessment.findMany({
       where: { companyId },
       orderBy: {
         createdAt: 'desc',
+      },
+      include: {
+        company: {
+          select: { requireAssessmentReview: true },
+        },
       },
     });
   }
