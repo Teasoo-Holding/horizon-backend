@@ -83,7 +83,7 @@ export class ReportService {
       environmental_scope_two: ghg?.scope2?.totalEmission ?? 0,
       environmental_scope_three: ghg?.scope3?.totalEmission ?? 0,
       environmental_datacount_scope_one: ghg?.scope1?.dataCount?.count ?? 0,
-      environmental_datacount_scope_two: 0,
+      environmental_datacount_scope_two: ghg?.scope2?.dataCount?.count ?? 0,
       environmental_datacount_scope_three: ghg?.scope3?.dataCount?.count ?? 0,
       startMonth: sumSummary?.startMonth,
       startYear: sumSummary?.startYear,
@@ -161,7 +161,7 @@ export class ReportService {
 
   async getReport(id: number, companyId: number) {
     const record = await this.prisma.assessment.findUnique({
-      where: { id },
+      where: { id, companyId },
     });
 
     if (!record) {
@@ -229,7 +229,8 @@ export class ReportService {
 
     const targets = await this.prisma.target.findMany({
       where: { companyId },
-      include: { scopeTargets: true, generalTarget: true }
+      include: { scopeTargets: true, generalTarget: true },
+      orderBy: { createdAt: 'desc' },
     });
 
     const report = await this.prisma.report.findUnique({
@@ -307,15 +308,41 @@ export class ReportService {
       + getNum(env.ghg?.scope1?.mobileSources?.totalEmission)
       + getNum(env.ghg?.scope1?.processEmissions?.totalEmission)
       + getNum(env.ghg?.scope1?.fugitiveEmissions?.totalEmission);
+    // TODO: GHG Protocol requires reporting EITHER location-based or market-based
+    // as the primary Scope 2 figure, not both summed. Summing both double-counts
+    // when a company fills in both methods. Needs product decision on which to prefer.
     const scope2_groups = getNum(env.ghg?.scope2?.locationBased?.totalEmission)
       + getNum(env.ghg?.scope2?.marketBased?.totalEmission);
     const scope3_groups = getNum(env.ghg?.scope3?.upstream?.totalEmission)
       + getNum(env.ghg?.scope3?.downstream?.totalEmission);
 
-    const scope1 = scope1_live || scope1_groups || report?.ghg_scope_one || 0;
-    const scope2 = scope2_live || scope2_groups || report?.ghg_scope_two || 0;
-    const scope3 = scope3_live || scope3_groups || report?.ghg_scope_three || 0;
-    const totalEmissions = (scope1 + scope2 + scope3) || report?.ghg_total_emissions || getNum(currentData.totalEmission);
+    // Use first non-null/undefined value (|| would skip legitimate 0)
+    const firstDefined = (...vals: number[]) => vals.find(v => v > 0) ?? vals[0] ?? 0;
+    const scope1 = firstDefined(scope1_live, scope1_groups, report?.ghg_scope_one ?? 0);
+    const scope2 = firstDefined(scope2_live, scope2_groups, report?.ghg_scope_two ?? 0);
+    const scope3 = firstDefined(scope3_live, scope3_groups, report?.ghg_scope_three ?? 0);
+    const scopeSum = scope1 + scope2 + scope3;
+    const totalEmissions = scopeSum > 0 ? scopeSum : (report?.ghg_total_emissions ?? getNum(currentData.totalEmission));
+
+    // Derive previous scope totals with the same fallback strategy as current
+    const prevScope1 = firstDefined(
+      getNum(prevEnv.ghg?.scope1?.totalEmission),
+      getNum(prevEnv.ghg?.scope1?.stationarySources?.totalEmission)
+        + getNum(prevEnv.ghg?.scope1?.mobileSources?.totalEmission)
+        + getNum(prevEnv.ghg?.scope1?.processEmissions?.totalEmission)
+        + getNum(prevEnv.ghg?.scope1?.fugitiveEmissions?.totalEmission),
+    );
+    const prevScope2 = firstDefined(
+      getNum(prevEnv.ghg?.scope2?.totalEmission),
+      getNum(prevEnv.ghg?.scope2?.locationBased?.totalEmission)
+        + getNum(prevEnv.ghg?.scope2?.marketBased?.totalEmission),
+    );
+    const prevScope3 = firstDefined(
+      getNum(prevEnv.ghg?.scope3?.totalEmission),
+      getNum(prevEnv.ghg?.scope3?.upstream?.totalEmission)
+        + getNum(prevEnv.ghg?.scope3?.downstream?.totalEmission),
+    );
+    const prevTotal = prevScope1 + prevScope2 + prevScope3 || getNum(prevEnv.totalEmission);
 
     const scope1_percentage = getPercentage(scope1, totalEmissions);
     const scope2_percentage = getPercentage(scope2, totalEmissions);
@@ -366,19 +393,19 @@ export class ReportService {
       environmental: {
         total_emission: totalEmissions,
         desc: env.desc || "",
-        changePercentage: getChange(totalEmissions, getNum(prevEnv.totalEmission)),
+        changePercentage: getChange(totalEmissions, prevTotal),
         greenhouseGasEmission: {
           totalEmissions: totalEmissions,
-          totalChange: getChange(totalEmissions, getNum(prevEnv.totalEmission)),
+          totalChange: getChange(totalEmissions, prevTotal),
           totalHistory: formatHistory(trendData, 'ghg_total_emissions'),
           scope1Emissions: scope1,
-          scope1Change: getChange(scope1, getNum(prevEnv.ghg?.scope1?.totalEmission)),
+          scope1Change: getChange(scope1, prevScope1),
           scope1History: formatHistory(trendData, 'ghg_scope_one'),
           scope2Emissions: scope2,
-          scope2Change: getChange(scope2, getNum(prevEnv.ghg?.scope2?.totalEmission)),
+          scope2Change: getChange(scope2, prevScope2),
           scope2History: formatHistory(trendData, 'ghg_scope_two'),
           scope3Emissions: scope3,
-          scope3Change: getChange(scope3, getNum(prevEnv.ghg?.scope3?.totalEmission)),
+          scope3Change: getChange(scope3, prevScope3),
           scope3History: formatHistory(trendData, 'ghg_scope_three'),
         },
         airQuality: {
