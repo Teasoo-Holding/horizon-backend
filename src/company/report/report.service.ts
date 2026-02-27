@@ -388,6 +388,7 @@ export class ReportService {
           recycledWater: getNum(producedWaterCalculated.recycledReused?.volume) || getNum(freshwaterCalculated.producedWater?.recycled?.volume),
           injectedForDisposal: getNum(producedWaterCalculated.injectedForDisposal?.volume) || getNum(freshwaterCalculated.producedWater?.injected?.volume),
           dischargedToSurface: getNum(producedWaterCalculated.dischargedToSurface?.volume) || getNum(freshwaterCalculated.producedWater?.discharged?.volume),
+          averageHydrocarbonContent: producedWaterCalculated.averageHydrocarbonContent ?? waterAndProduced.producedWaterManagement?.averageHydrocarbonContent ?? null,
           freshwaterWithdrawalBySource: {
             surfaceWater: getNum(freshwaterCalculated.withdrawals?.surfaceWater?.volume),
             groundwater: getNum(freshwaterCalculated.withdrawals?.groundwater?.volume),
@@ -452,12 +453,15 @@ export class ReportService {
           hcdtContribution: {
             priorYearOpexAmount: getNum(com.hcdtContribution?.opexAmount),
             annualContribution: getNum(com.hcdtContribution?.hcdtAmount),
-            percentage: getNum(com.hcdtContribution?.percentage),
+            percentage: Math.min(100, Math.round(getPercentage(getNum(com.hcdtContribution?.hcdtAmount), getNum(com.hcdtContribution?.opexAmount)))),
           },
-          communityDisputeResolution: {
-            disputesReferred: getNum(com.disputeResolution?.disputesReferred ?? com.communityDisputeResolution?.disputesReferred),
-            disputesResolved: getNum(com.disputeResolution?.disputesResolved ?? com.communityDisputeResolution?.disputesResolved),
-          },
+          communityDisputeResolution: (() => {
+            const d = com.communityDisputeResolution || com.disputeResolution || {};
+            return {
+              disputesReferred: getNum(d.disputesReferred),
+              disputesResolved: getNum(d.disputesResolved),
+            };
+          })(),
           operationalDelays: {
             protests: {
               count: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests),
