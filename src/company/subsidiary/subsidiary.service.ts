@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -20,7 +21,7 @@ export class SubsidiaryService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly activitiesService: ActivitiesService,
-  ) {}
+  ) { }
 
   async create(createSubsidiaryDto: CreateSubsidiaryDto, user_id: number) {
     try {
@@ -56,8 +57,26 @@ export class SubsidiaryService {
 
       let teamLead;
 
-      // CASE 1: teamLead_email was provided
-      if (createSubsidiaryDto.teamLead_email) {
+      // CASE 1: leadId was provided (user selected from dropdown)
+      if (createSubsidiaryDto.leadId) {
+        teamLead = await this.prisma.user.findUnique({
+          where: { id: createSubsidiaryDto.leadId },
+        });
+
+        if (!teamLead) {
+          throw new NotFoundException(
+            `User with id ${createSubsidiaryDto.leadId} not found`,
+          );
+        }
+
+        if (teamLead.companyId !== user.companyId) {
+          throw new ForbiddenException(
+            'You can only assign team leads from your own company',
+          );
+        }
+      }
+      // CASE 2: teamLead_email was provided
+      else if (createSubsidiaryDto.teamLead_email) {
         teamLead = await this.prisma.user.findUnique({
           where: { email: createSubsidiaryDto.teamLead_email },
         });
@@ -91,8 +110,9 @@ export class SubsidiaryService {
             'You can only create subsidiaries with your own team lead',
           );
         }
-      } else {
-        // CASE 2: No teamLead provided → use current user as teamLead
+      }
+      // CASE 3: No teamLead provided → use current user as teamLead
+      else {
         teamLead = user;
       }
 
@@ -310,8 +330,15 @@ export class SubsidiaryService {
         );
       }
 
-      const { industryId, parentCompanyId, teamLeadId, ...rest } =
-        updateSubsidiaryDto;
+      const {
+        industryId,
+        parentCompanyId,
+        leadId,
+        teamLead_email,
+        teamLead_name,
+        industry,
+        ...rest
+      } = updateSubsidiaryDto;
 
       const data: any = {
         ...rest,
@@ -330,9 +357,9 @@ export class SubsidiaryService {
         };
       }
 
-      if (teamLeadId) {
+      if (leadId) {
         data.teamLead = {
-          connect: { id: teamLeadId },
+          connect: { id: leadId },
         };
       }
 
@@ -340,15 +367,72 @@ export class SubsidiaryService {
         updateSubsidiaryDto.teamLead_email ||
         updateSubsidiaryDto.teamLead_name
       ) {
-        data.teamLead = {
-          update: {
-            email:
-              updateSubsidiaryDto.teamLead_email ??
-              existingSubsidiary.teamLead?.email,
-            first_name:
-              updateSubsidiaryDto.teamLead_name ??
-              existingSubsidiary.teamLead?.first_name,
+        const leadEmail = updateSubsidiaryDto.teamLead_email?.toLowerCase();
+
+        if (!leadEmail) {
+          throw new BadRequestException(
+            'Team lead email is required to create a new team lead.',
+          );
+        }
+
+        // 1. Check if user already exists
+        const existingUser = await this.prisma.user.findUnique({
+          where: { email: leadEmail },
+        });
+
+        if (existingUser) {
+          throw new BadRequestException(
+            'A user with this email already exists. Please select them from the lead dropdown instead.',
+          );
+        }
+
+        // 2. Check for existing pending invitation
+        const pendingInvitation = await this.prisma.invitation.findFirst({
+          where: { email: leadEmail, status: 'pending' },
+        });
+
+        if (pendingInvitation) {
+          throw new BadRequestException(
+            'A pending invitation already exists for this email.',
+          );
+        }
+
+        const fullName = updateSubsidiaryDto.teamLead_name || '';
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const newTeamLead = await this.prisma.user.create({
+          data: {
+            email: leadEmail,
+            first_name: firstName,
+            last_name: lastName,
+            companyId: user.companyId,
+            subsidiaryId: id, // Associate with the subsidiary
+            password: '',
+            roleId: 2,
+            status: 'pending',
           },
+        });
+
+        const company = await this.prisma.company.findUnique({
+          where: { id: user.companyId ?? 0 },
+          select: { name: true },
+        });
+
+        await this.emailService.sendEmail(
+          newTeamLead.email,
+          {
+            firstname: firstName || leadEmail, // Key must be 'firstname' for the template
+            link: this.configService.get('FRONTEND_URL') + '/register',
+            admin_name: `${user.first_name} ${user.last_name || ''}`.trim(),
+            esg_name: company?.name || 'the company',
+          },
+          6,
+        );
+
+        data.teamLead = {
+          connect: { id: newTeamLead.id },
         };
       }
 

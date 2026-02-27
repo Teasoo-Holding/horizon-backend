@@ -29,12 +29,17 @@ export class CompanyUsersService {
     if (editor.companyId !== target.companyId)
       throw new ForbiddenException('Cannot manage users from other companies');
 
-    if (editor.role.name === 'company_esg_admin') {
-      // Can do anyhow
-    } else if (editor.role.name === 'company_esg_subadmin') {
-      if (target.role.name === 'company_esg_admin')
-        throw new ForbiddenException('Subadmin cannot edit admins');
-    } else {
+    // No one should be able to do any action on Admin (company_esg_admin)
+    if (target.role.name === 'company_esg_admin') {
+      throw new ForbiddenException(
+        'Actions on the Company Admin are not allowed',
+      );
+    }
+
+    if (
+      editor.role.name !== 'company_esg_admin' &&
+      editor.role.name !== 'company_esg_subadmin'
+    ) {
       throw new ForbiddenException('Not authorized to update company users');
     }
 
@@ -48,6 +53,7 @@ export class CompanyUsersService {
       updateData.role = { connect: { id: updateDto.roleId } };
     if (updateDto.departmentId !== undefined)
       updateData.department = { connect: { id: updateDto.departmentId } };
+    if (updateDto.status !== undefined) updateData.status = updateDto.status;
     if (updateDto.phone_number !== undefined)
       updateData.phone_number = updateDto.phone_number;
 
@@ -71,26 +77,47 @@ export class CompanyUsersService {
     if (editor.companyId !== target.companyId)
       throw new ForbiddenException('Cannot delete users from other companies');
 
-    if (editor.role.name === 'company_esg_admin') {
-      // Can delete anyone
-    } else if (editor.role.name === 'company_esg_subadmin') {
-      if (target.role.name === 'company_esg_admin')
-        throw new ForbiddenException('Subadmin cannot delete admins');
-    } else {
+    // No one should be able to do any action on Admin (company_esg_admin)
+    if (target.role.name === 'company_esg_admin') {
+      throw new ForbiddenException(
+        'Actions on the Company Admin are not allowed',
+      );
+    }
+
+    if (
+      editor.role.name !== 'company_esg_admin' &&
+      editor.role.name !== 'company_esg_subadmin'
+    ) {
       throw new ForbiddenException('Not authorized to delete company users');
+    }
+
+    // Check if the user is a lead for any department or subsidiary
+    const isDeptLead = await this.prisma.department.findFirst({
+      where: { leadId: targetUserId },
+    });
+    const isSubLead = await this.prisma.subsidiary.findFirst({
+      where: { teamLeadId: targetUserId },
+    });
+
+    if (isDeptLead || isSubLead) {
+      throw new BadRequestException(
+        'This user is a lead. Change the subsidiary/department lead to a different user before deleting this user',
+      );
     }
 
     return this.prisma.user.delete({ where: { id: targetUserId } });
   }
 
   async getAllUsersOfCompany(
-    requestingUser: { id: number; companyId: number; role: { name: string } },
+    requestingUser: { id: number; companyId: number; role: string | { name: string } },
     companyId: number,
   ) {
-    if (
-      requestingUser.role.name !== 'super_admin' &&
-      requestingUser.companyId !== companyId
-    ) {
+    const roleName =
+      typeof requestingUser.role === 'string'
+        ? requestingUser.role
+        : requestingUser.role?.name;
+
+    if (roleName !== 'super_admin' && requestingUser.companyId !== companyId) {
       throw new ForbiddenException(
         'You are not authorized to view users of this company',
       );
@@ -106,6 +133,7 @@ export class CompanyUsersService {
         phone_number: true,
         role: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
+        subsidiary: { select: { id: true, name: true } },
         status: true,
         profile_photo_url: true,
         last_login: true,
@@ -149,7 +177,7 @@ export class CompanyUsersService {
     const uniqueInvitations = Array.from(invitationsByEmail.values());
 
     const combinedList = [
-      ...users,
+      ...users.map((u) => ({ ...u, is_invitation: false })),
       ...uniqueInvitations.map((inv) => ({
         id: inv.id,
         email: inv.email,
@@ -164,6 +192,7 @@ export class CompanyUsersService {
         status: 'pending',
         created_at: inv.createdAt,
         updated_at: null,
+        is_invitation: true,
       })),
     ];
 

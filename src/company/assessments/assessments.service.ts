@@ -5,11 +5,62 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Assessment, AssessmentStatus } from '@prisma/client';
+import { Assessment, AssessmentStatus, TaskStatus } from '@prisma/client';
 import { ReportService } from '../report/report.service';
 import { ActivitiesService } from 'src/activities/activities.service';
 import { EmailService } from 'src/email/email.service';
 import { AssessmentCalculatorService } from './assessment-calculator.service';
+
+const PILLAR_GROUPS = {
+  environment: [
+    'environment.ghg.scope1.stationarySources',
+    'environment.ghg.scope1.mobileSources',
+    'environment.ghg.scope1.processEmissions',
+    'environment.ghg.scope1.fugitiveEmissions',
+    'environment.ghg.scope2.locationBased',
+    'environment.ghg.scope2.marketBased',
+    'environment.ghg.scope3.upstream',
+    'environment.ghg.scope3.downstream',
+    'environment.airQuality.airPollutantEmissions',
+    'environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals',
+    'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement',
+    'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills',
+    'environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies',
+    'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas',
+  ],
+  foundationalData: [
+    'foundationalData.activityMetrics.productionVolumes',
+    'foundationalData.activityMetrics.offshoreSites',
+    'foundationalData.activityMetrics.terrestrialSites',
+  ],
+  socialCapital: [
+    'socialCapital.securityHumanRights.operationsInConflictZones',
+    'socialCapital.securityHumanRights.reservesInNearIndigenousLand',
+    'socialCapital.securityHumanRights.humanRightsEngagementProcesses',
+    'socialCapital.communityRelations.communityRiskOpportunityManagement',
+    'socialCapital.communityRelations.hcdtContribution',
+    'socialCapital.communityRelations.communityDisputeResolution',
+    'socialCapital.communityRelations.operationalDelays',
+  ],
+  humanCapital: [
+    'humanCapital.workforceHealthSafety',
+    'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance',
+  ],
+  businessModel: [
+    'businessModel.reservesValuation.reservesSensitivity',
+    'businessModel.reservesValuation.embeddedCarbon',
+    'businessModel.reservesValuation.renewableEnergyInvestment',
+    'businessModel.reservesValuation.capitalExpenditureStrategy',
+    'businessModel.businessEthics.reservesCountriesCorruptionRisk',
+    'businessModel.businessEthics.antiCorruptionManagement',
+  ],
+  leadershipGovernance: [
+    'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents',
+    'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems',
+    'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight',
+    'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement',
+  ],
+};
 
 @Injectable()
 export class AssessmentService {
@@ -45,6 +96,29 @@ export class AssessmentService {
           endMonth: dto.endMonth,
           endYear: dto.endYear,
           assessmentData: { lastSavedForm: null },
+        },
+      });
+
+      // Create a corresponding Task so this assessment appears in the Tasks dashboard
+      const dueDate = new Date(
+        `${dto.endYear}-${this.monthToNumber(dto.endMonth)}-28`,
+      );
+      await this.prisma.task.create({
+        data: {
+          taskName: `ESG Assessment – ${dto.subsidiary || 'Self'}`,
+          dueDate,
+          status: TaskStatus.in_progress,
+          createdById: userId,
+          assignments: {
+            create: [
+              {
+                userId,
+                topics: [],
+                assessmentId: assessment.id,
+                startedAt: new Date(),
+              },
+            ],
+          },
         },
       });
 
@@ -84,19 +158,27 @@ export class AssessmentService {
 
     if (!assessment) throw new NotFoundException('Assessment not found');
 
-    const currentData = (assessment.assessmentData || {}) as any;
-    const submittedGroups = currentData.submittedGroups || [];
-
-    // Check if the current path is part of a submitted group
-    const isLocked = submittedGroups.some((groupPath: string) =>
-      payload.path.startsWith(groupPath),
-    );
-
-    if (isLocked) {
+    // Only in_progress and declined assessments are editable
+    const lockedStatuses: AssessmentStatus[] = [
+      AssessmentStatus.awaiting_review,
+      AssessmentStatus.submitted_approved,
+      AssessmentStatus.approved,
+    ];
+    if (lockedStatuses.includes(assessment.status)) {
       throw new BadRequestException(
-        'Cannot save to a submitted group. Please continue the assessment or enter new data.',
+        `Cannot edit an assessment with status "${assessment.status}". Only in-progress or declined assessments can be edited.`,
       );
     }
+
+    // If editing a declined assessment, reset to in_progress
+    if (assessment.status === AssessmentStatus.declined) {
+      await this.prisma.assessment.update({
+        where: { id: assessmentId },
+        data: { status: AssessmentStatus.in_progress, rejection_reason: null },
+      });
+    }
+
+    const currentData = (assessment.assessmentData || {}) as any;
 
     const merged = this.deepMerge(currentData, payload.path, payload.data);
 
@@ -154,24 +236,23 @@ export class AssessmentService {
           new Set([...(currentData.submittedGroups || []), groupPath]),
         );
       }
-      // After processing, clear it so next resume goes to hub
-      currentData.lastSavedForm = null;
+      // Keep lastSavedForm so "Continue" resumes at the right place
     }
 
     const result = await this.calculator.recalculate(currentData);
     const recalculated = result.data as any; // ← THIS LINE FIXES THE ERROR
     const scopeTotals = result.scopeTotals;
 
-    const requireReview = assessment.company?.requireAssessmentReview ?? false;
-    const newStatus = requireReview
-      ? AssessmentStatus.awaiting_review
-      : AssessmentStatus.submitted_approved;
+
+    // Preserve current status — submitGroup no longer transitions status.
+    // Final submission is now an explicit user action via submitForReview().
+    const currentStatus = assessment.status;
 
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
       data: {
         assessmentData: recalculated as any,
-        status: newStatus,
+        status: currentStatus,
         updated_by: userId,
       },
     });
@@ -180,7 +261,7 @@ export class AssessmentService {
       companyId,
       createdById: userId,
       title: 'Assessment group submitted',
-      description: `Group completed. Status: ${newStatus}`,
+      description: `Group submitted: ${lastSavedForm}`,
       type: 'assessment',
       status: 'submitted',
     });
@@ -217,11 +298,79 @@ export class AssessmentService {
     return 0;
   }
 
-  async getAssessments(companyId: number): Promise<Assessment[]> {
+  async submitForReview(
+    companyId: number,
+    userId: number,
+    assessmentId: number,
+    reviewerId?: number,
+  ): Promise<Assessment> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId },
+      include: { company: true },
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+
+    // Only in_progress or declined assessments can be submitted
+    if (
+      assessment.status !== AssessmentStatus.in_progress &&
+      assessment.status !== AssessmentStatus.declined
+    ) {
+      throw new BadRequestException(
+        `Cannot submit: assessment is currently "${assessment.status}".`,
+      );
+    }
+
+    const requireReview =
+      assessment.company?.requireAssessmentReview ?? true;
+
+    let newStatus: AssessmentStatus;
+    let finalReviewerId: number | null = null;
+
+    if (requireReview) {
+      newStatus = AssessmentStatus.awaiting_review;
+      // If no reviewer selected, self-review (assign to submitting user)
+      finalReviewerId = reviewerId || userId;
+    } else {
+      newStatus = AssessmentStatus.submitted_approved;
+    }
+
+    const updated = await this.prisma.assessment.update({
+      where: { id: assessmentId },
+      data: {
+        status: newStatus,
+        updated_by: userId,
+        reviewed_by: finalReviewerId,
+        rejection_reason: null, // clear any previous decline reason
+      },
+    });
+
+    await this.activitiesService.logActivity({
+      companyId,
+      createdById: userId,
+      title: requireReview
+        ? 'Assessment submitted for review'
+        : 'Assessment submitted (auto-approved)',
+      description: `Assessment #${assessmentId} status changed to ${newStatus}`,
+      type: 'assessment',
+      status: 'submitted',
+    });
+
+    await this.reportService.saveReportingData(assessmentId);
+
+    return updated;
+  }
+
+  async getAssessments(companyId: number) {
     return this.prisma.assessment.findMany({
       where: { companyId },
       orderBy: {
         createdAt: 'desc',
+      },
+      include: {
+        company: {
+          select: { requireAssessmentReview: true },
+        },
       },
     });
   }
@@ -252,6 +401,32 @@ export class AssessmentService {
       throw new Error('AssessmentNotDraft');
     }
 
+    // Clean up any Task+TaskAssignment linked to this assessment
+    const linkedAssignments = await this.prisma.taskAssignment.findMany({
+      where: { assessmentId },
+      select: { id: true, taskId: true },
+    });
+    if (linkedAssignments.length > 0) {
+      const taskIds = [...new Set(linkedAssignments.map((a) => a.taskId))];
+      await this.prisma.taskAssignment.deleteMany({
+        where: { assessmentId },
+      });
+      // Delete parent tasks that now have no remaining assignments
+      for (const taskId of taskIds) {
+        const remaining = await this.prisma.taskAssignment.count({
+          where: { taskId },
+        });
+        if (remaining === 0) {
+          await this.prisma.taskComment.deleteMany({ where: { taskId } });
+          await this.prisma.task.delete({ where: { id: taskId } });
+        }
+      }
+    }
+
+    await this.prisma.report.deleteMany({
+      where: { assessmentId },
+    });
+
     await this.prisma.assessment.delete({
       where: { id: assessmentId },
     });
@@ -271,11 +446,30 @@ export class AssessmentService {
     currentUserId: number,
     assessmentId: number,
   ): Promise<Assessment> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId },
+      select: { status: true },
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+
+    const approvableStatuses: AssessmentStatus[] = [
+      AssessmentStatus.awaiting_review,
+      AssessmentStatus.submitted_approved,
+    ];
+    if (!approvableStatuses.includes(assessment.status)) {
+      throw new BadRequestException(
+        `Cannot approve an assessment with status "${assessment.status}". Only assessments awaiting review or submitted can be approved.`,
+      );
+    }
+
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
         status: AssessmentStatus.approved,
         updated_by: currentUserId,
+        reviewed_by: currentUserId,
+        reviewedAt: new Date(),
         rejection_reason: null,
       },
     });
@@ -293,8 +487,9 @@ export class AssessmentService {
     rejectionReason: string,
   ): Promise<Assessment> {
     const assessmentWithCreator = await this.prisma.assessment.findFirst({
-      where: { id: assessmentId },
+      where: { id: assessmentId, companyId },
       select: {
+        status: true,
         company: {
           select: {
             name: true,
@@ -308,11 +503,22 @@ export class AssessmentService {
         },
       },
     });
-    const creatorEmail = assessmentWithCreator?.creator?.email;
-    const first_name = assessmentWithCreator?.creator?.first_name || '';
-    const company_name = assessmentWithCreator?.company?.name || '';
+
+    if (!assessmentWithCreator) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    if (assessmentWithCreator.status !== AssessmentStatus.awaiting_review) {
+      throw new BadRequestException(
+        `Cannot decline an assessment with status "${assessmentWithCreator.status}". Only assessments awaiting review can be declined.`,
+      );
+    }
+
+    const creatorEmail = assessmentWithCreator.creator?.email;
+    const first_name = assessmentWithCreator.creator?.first_name || '';
+    const company_name = assessmentWithCreator.company?.name || '';
     if (!creatorEmail)
-      throw new Error('Creator email not found for this assessment');
+      throw new NotFoundException('Creator email not found for this assessment');
 
     await this.emailService.sendEmail(
       creatorEmail,
@@ -324,6 +530,8 @@ export class AssessmentService {
       data: {
         status: AssessmentStatus.declined,
         updated_by: currentUserId,
+        reviewed_by: currentUserId,
+        reviewedAt: new Date(),
         rejection_reason: rejectionReason,
       },
     });
@@ -382,6 +590,35 @@ export class AssessmentService {
     if (formKey.startsWith('ghg-scope3-downstream')) {
       return 'environment.ghg.scope3.downstream';
     }
+    if (formKey === 'air-pollutant-emissions') {
+      return 'environment.airQuality.airPollutantEmissions';
+    }
+    if (formKey === 'freshwater-withdrawal-consumption') {
+      return 'environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals';
+    }
+    if (formKey === 'produced-water-management') {
+      return 'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement';
+    }
+    if (formKey === 'hydrocarbon-spills') {
+      return 'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills';
+    }
+    if (formKey === 'environmental-management-policies') {
+      return 'environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies';
+    }
+    if (formKey === 'reserves-in-sensitive-areas') {
+      return 'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas';
+    }
+
+    if (formKey === 'foundational-activity-production') {
+      return 'foundationalData.activityMetrics.productionVolumes';
+    }
+    if (formKey === 'foundational-activity-offshore') {
+      return 'foundationalData.activityMetrics.offshoreSites';
+    }
+    if (formKey === 'foundational-activity-terrestrial') {
+      return 'foundationalData.activityMetrics.terrestrialSites';
+    }
+
     if (formKey.startsWith('env-air-quality')) {
       return 'environment.airQuality';
     }
@@ -391,6 +628,101 @@ export class AssessmentService {
     if (formKey.startsWith('env-biodiversity')) {
       return 'environment.biodiversityImpact';
     }
+
+    // Social Capital
+    if (formKey.startsWith('soc-security-conflict')) {
+      return 'socialCapital.securityHumanRights.operationsInConflictZones';
+    }
+    if (formKey.startsWith('soc-security-indigenous')) {
+      return 'socialCapital.securityHumanRights.reservesInNearIndigenousLand';
+    }
+    if (formKey.startsWith('soc-security-engagement')) {
+      return 'socialCapital.securityHumanRights.humanRightsEngagementProcesses';
+    }
+    // Social Capital - Community Relations
+    if (formKey.includes('communityRisk') || formKey.startsWith('soc-community-risk')) {
+      return 'socialCapital.communityRelations.communityRiskOpportunityManagement';
+    }
+    if (formKey.includes('hcdtContribution') || formKey.startsWith('soc-community-hcdt')) {
+      return 'socialCapital.communityRelations.hcdtContribution';
+    }
+    if (formKey.includes('disputeResolution') || formKey.startsWith('soc-community-dispute')) {
+      return 'socialCapital.communityRelations.communityDisputeResolution';
+    }
+    if (formKey.includes('operationalDelays') || formKey.startsWith('soc-community-delays')) {
+      return 'socialCapital.communityRelations.operationalDelays';
+    }
+
+    // Human Capital
+    if (formKey.startsWith('humanCapital.workforceHealthAndSafety.riskAndOpportunityManagement.safetyManagementSystems')) {
+      return 'humanCapital.workforceHealthSafety';
+    }
+    if (formKey.startsWith('humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance')) {
+      return 'humanCapital.riskAndOpportunityManagement.healthAndSafetyPerformance';
+    }
+
+    // Business Model
+    if (formKey.includes('reserveValuation.climateImpact.reserveSensitivity')) {
+      return 'businessModel.reservesValuation.reservesSensitivity';
+    }
+    if (formKey.includes('reserveValuation.climateImpact.embeddedCarbon')) {
+      return 'businessModel.reservesValuation.embeddedCarbon';
+    }
+    if (formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment')) {
+      return 'businessModel.reservesValuation.renewableEnergyInvestment';
+    }
+    if (formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy')) {
+      return 'businessModel.reservesValuation.capitalExpenditureStrategy';
+    }
+    if (formKey.includes('businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+      return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
+    }
+    if (formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')) {
+      return 'businessModel.businessEthics.antiCorruptionManagement';
+    }
+    // Handle the actual frontend form keys
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.reserveSensitivity')) {
+      return 'businessModel.reservesValuation.reservesSensitivity';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.climateImpact.embeddedCarbon')) {
+      return 'businessModel.reservesValuation.embeddedCarbon';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.renewableEnergyInvestment')) {
+      return 'businessModel.reservesValuation.renewableEnergyInvestment';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.reserveValuation.strategicCapitalAllocation.capitalExpenditureStrategy')) {
+      return 'businessModel.reservesValuation.capitalExpenditureStrategy';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+      return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
+    }
+    if (formKey.startsWith('businessModelAndInnovation.businessEthicsAndTransparency.antiCorruptionManagement')) {
+      return 'businessModel.businessEthics.antiCorruptionManagement';
+    }
+
+    // Leadership
+    if (formKey.includes('criticalIncidentRiskManagement.processSafetyEvents')) {
+      return 'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents';
+    }
+    if (formKey.includes('criticalIncidentRiskManagement.catastrophicRiskManagementSystems')) {
+      return 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems';
+    }
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.boardManagementOversight')) {
+      return 'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight';
+    }
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement')) {
+      return 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement';
+    }
+
     return null;
+  }
+
+  private monthToNumber(month: string): string {
+    const months: Record<string, string> = {
+      january: '01', february: '02', march: '03', april: '04',
+      may: '05', june: '06', july: '07', august: '08',
+      september: '09', october: '10', november: '11', december: '12',
+    };
+    return months[month.toLowerCase()] || '12';
   }
 }

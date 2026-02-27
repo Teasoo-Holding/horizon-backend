@@ -34,10 +34,35 @@ npm run build
 
 - Run lint and tests:
 
-```
 npm run lint
 npm run test
 ```
+
+## Database Setup
+
+This project uses Prisma ORM.
+
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Generate Prisma Client:**
+   ```bash
+   npx prisma generate
+   ```
+
+3. **Run Migrations (Development):**
+   ```bash
+   npx prisma migrate dev
+   ```
+
+4. **Seed the Database:**
+   For a fresh setup (especially local development), run the seed command to populate initial data:
+   ```bash
+   npm run db:seed
+   ```
+
 
 ## Branching Strategy
 

@@ -14,11 +14,28 @@ export class CreateDepartmentDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 5,
     description: 'The department lead id on this portal',
   })
-  leadId: number;
+  @IsOptional()
+  leadId?: number;
+
+  @ApiPropertyOptional({
+    example: 'lead@company.com',
+    description: 'Email of the department lead (for new user creation)',
+  })
+  @IsEmail()
+  @IsOptional()
+  leadEmail?: string;
+
+  @ApiPropertyOptional({
+    example: 'Jane Doe',
+    description: 'Name of the department lead (for new user creation)',
+  })
+  @IsString()
+  @IsOptional()
+  leadName?: string;
 
   @ApiPropertyOptional({
     example: 'contact@company.com',
@@ -35,4 +52,11 @@ export class CreateDepartmentDto {
   @IsString()
   @IsOptional()
   subsidiaryName?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID of the subsidiary this department belongs to',
+    example: 1,
+  })
+  @IsOptional()
+  subsidiaryId?: number;
 }

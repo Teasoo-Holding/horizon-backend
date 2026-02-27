@@ -1,3 +1,8 @@
+# Lock files (use one package manager per project; avoid committing)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # compiled output
 /dist
 /node_modules
@@ -62,3 +67,11 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 coverage/badge.svg
 
 sasnote.txt
+
+# Yarn Berry
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

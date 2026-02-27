@@ -19,36 +19,81 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install
 
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
 
       # - name: Run lint
-        # run: npm run lint
+      # run: yarn lint
 
       # - name: Run tests with coverage
-        # run: npm run test:cov
+      # run: yarn test:cov
 
       # - name: Generate coverage badge  # Optional: Keep if you use it for the README
-      #   run: npm run make-badge
+      #   run: yarn make-badge
 
       - name: Build project
-        run: npm run build
+        run: yarn build
 
       # --- DEPLOYMENT STEPS START HERE ---
-      
+
+      - name: Verify Secrets Match Frontend
+        run: |
+          echo "🔍 SECRET VERIFICATION"
+          echo "======================"
+
+          echo "Checking if backend secrets match frontend repo secrets..."
+          echo "Note: If frontend deploys work but backend fails, the secrets may differ between repositories"
+
+          SERVER_IP="${{ secrets.SERVER_IP }}"
+          SSH_KEY="${{ secrets.SSH_PRIVATE_KEY }}"
+
+          echo "Server IP length: ${#SERVER_IP} characters"
+          echo "SSH Key length: ${#SSH_KEY} characters"
+
+          if [ -z "$SERVER_IP" ]; then
+            echo "❌ SERVER_IP secret is empty or not set"
+            exit 1
+          fi
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "❌ SSH_PRIVATE_KEY secret is empty or not set"
+            exit 1
+          fi
+
+          echo "✅ Both secrets are configured"
+
+      - name: Check Network Connectivity
+        run: |
+          echo "🔍 Checking connectivity to ${{ secrets.SERVER_IP }} port 22..."
+
+          # Test TCP connection to port 22 (SSH) with 5 second timeout
+          if nc -z -v -w 5 ${{ secrets.SERVER_IP }} 22; then
+            echo "✅ Port 22 is OPEN and reachable."
+          else
+            echo "❌ Port 22 is CLOSED or UNREACHABLE (Timeout)."
+            echo "This indicates a firewall issue (host-level or provider-level) blocking GitHub Actions."
+            exit 1
+          fi
+
+          echo ""
+          echo "🔧 TROUBLESHOOTING STEPS:"
+          echo "1. Go to horizon-frontend repo → Settings → Secrets and variables → Actions"
+          echo "2. Compare SERVER_IP and SSH_PRIVATE_KEY with horizon-backend repo"
+          echo "3. If they differ, copy the working values from frontend to backend repo"
+        continue-on-error: true
+
       - name: Transfer Files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 60s
-          command_timeout: 15m
-          # We send: dist (code), package files, and prisma (for migrations)
-          source: "dist,package.json,package-lock.json,prisma"
-          target: "/var/www/esghorizon/backend"
+          timeout: 300s
+          debug: true
+          source: 'dist,package.json,.yarn,.yarnrc.yml,prisma'
+          target: '/var/www/esghorizon/backend'
 
       - name: Start via PM2
         uses: appleboy/ssh-action@v1.0.3
@@ -59,12 +104,11 @@ jobs:
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
+
             cd /var/www/esghorizon/backend
-            npm install --omit=dev
-            npx prisma migrate deploy
-            
-            # Use the pre-loader to ensure the .env file is ALWAYS found
+            yarn install
+            yarn prisma migrate deploy
+
             pm2 delete esg-backend || true
             PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
             pm2 save

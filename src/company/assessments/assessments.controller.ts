@@ -15,9 +15,16 @@ import {
 import { AssessmentService } from './assessments.service';
 import { Request } from 'express';
 import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiNoContentResponse } from '@nestjs/swagger';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { PartialAssessmentPayloadDto } from './dto/partial-assessment-payload.dto';
+import {
+  AssessmentResponseDto,
+  AssessmentListResponseDto,
+  AssessmentDetailResponseDto,
+  AssessmentSubmitResponseDto,
+  AssessmentApprovalResponseDto
+} from './dto/assessment-response.dto';
 
 interface CustomRequest extends Request {
   user: {
@@ -34,9 +41,22 @@ export class AssessmentController {
   constructor(private readonly assessmentService: AssessmentService) { }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new assessment' })
-  @ApiResponse({ status: 201, description: 'Assessment created successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiOperation({
+    summary: 'Create a new ESG assessment',
+    description: 'Creates a new assessment draft for the authenticated user\'s company. The assessment will be in "in_progress" status and can be filled out step by step.',
+  })
+  @ApiCreatedResponse({
+    description: 'Assessment created successfully',
+    type: AssessmentDetailResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input data or assessment period overlaps with existing assessment',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Assessment for this period already exists',
+  })
   async createAssessment(
     @Req() req: CustomRequest,
     @Body() dto: CreateAssessmentDto,
@@ -51,10 +71,37 @@ export class AssessmentController {
   }
 
   @Post(':id/save')
-  @ApiOperation({ summary: 'Save assessment progress' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiResponse({ status: 200, description: 'Progress saved successfully' })
-  @ApiResponse({ status: 404, description: 'Assessment not found' })
+  @ApiOperation({
+    summary: 'Save assessment progress',
+    description: 'Saves partial assessment data at a specific path. Supports auto-save functionality and form validation. Recalculates dependent values automatically.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+    example: 123,
+  })
+  @ApiBody({
+    type: PartialAssessmentPayloadDto,
+    description: 'Assessment data to save',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Progress saved successfully',
+    type: AssessmentDetailResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid assessment ID or data format',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Assessment is locked (submitted group) or belongs to different company',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found',
+  })
   async saveProgress(
     @Req() req: CustomRequest,
     @Param('id') idStr: string,
@@ -75,10 +122,42 @@ export class AssessmentController {
   }
 
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Submit an assessment group' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiBody({ schema: { properties: { lastSavedForm: { type: 'string' } } } })
-  @ApiResponse({ status: 200, description: 'Group submitted successfully' })
+  @ApiOperation({
+    summary: 'Submit an assessment group/pillar',
+    description: 'Submits a completed assessment group (pillar section) for review. Triggers report generation and may change assessment status if all pillars are complete.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+    example: 123,
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        lastSavedForm: {
+          type: 'string',
+          description: 'Name of the form/section that was submitted',
+          example: 'environment.ghg.scope1.stationarySources',
+        },
+      },
+      required: ['lastSavedForm'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Group submitted successfully',
+    type: AssessmentSubmitResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid assessment ID',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found or belongs to different company',
+  })
   async submitGroup(
     @Req() req: CustomRequest,
     @Param('id') idStr: string,
@@ -104,9 +183,75 @@ export class AssessmentController {
     };
   }
 
+  @Post(':id/submit-for-review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Submit assessment for review or direct approval',
+    description:
+      'Explicitly submits an assessment. If the company requires review, status becomes awaiting_review with an optional reviewer assignment. If review is not required, status becomes submitted_approved.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reviewerId: {
+          type: 'number',
+          description:
+            'Optional reviewer user ID. If omitted and review is required, self-review is assumed.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment submitted successfully',
+    type: AssessmentApprovalResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Assessment cannot be submitted in its current status',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found',
+  })
+  async submitForReview(
+    @Req() req: CustomRequest,
+    @Param('id') idStr: string,
+    @Body() body: { reviewerId?: number },
+  ) {
+    const companyId = req.user.companyId;
+    const userId = req.user.id;
+    const assessmentId = this.parseId(idStr);
+
+    const assessment = await this.assessmentService.submitForReview(
+      companyId,
+      userId,
+      assessmentId,
+      body.reviewerId,
+    );
+
+    return {
+      message: 'Assessment submitted successfully.',
+      data: assessment,
+    };
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Get all assessments for company' })
-  @ApiResponse({ status: 200, description: 'Returns all assessments' })
+  @ApiOperation({
+    summary: 'Get all assessments for company',
+    description: 'Retrieves all assessments belonging to the authenticated user\'s company, ordered by creation date (newest first).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved all assessments',
+    type: AssessmentListResponseDto,
+  })
   async getAssessments(@Req() req: CustomRequest) {
     const companyId = req.user.companyId;
     const assessments = await this.assessmentService.getAssessments(companyId);
@@ -114,10 +259,29 @@ export class AssessmentController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get specific assessment by ID' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiResponse({ status: 200, description: 'Returns the assessment' })
-  @ApiResponse({ status: 404, description: 'Assessment not found' })
+  @ApiOperation({
+    summary: 'Get specific assessment by ID',
+    description: 'Retrieves detailed assessment data including progress, assessment data, and metadata. Only returns assessments belonging to the authenticated user\'s company.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+    example: 123,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved assessment',
+    type: AssessmentDetailResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid assessment ID format',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found or belongs to different company',
+  })
   async getAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -139,11 +303,27 @@ export class AssessmentController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a draft assessment' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiResponse({ status: 204, description: 'Assessment deleted' })
-  @ApiResponse({ status: 400, description: 'Assessment is not a draft' })
-  @ApiResponse({ status: 404, description: 'Assessment not found' })
+  @ApiOperation({
+    summary: 'Delete a draft assessment',
+    description: 'Deletes an assessment that is still in draft status. Only assessments with status "in_progress" can be deleted. Submitted or approved assessments cannot be deleted.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID to delete',
+    example: 123,
+  })
+  @ApiNoContentResponse({
+    description: 'Assessment deleted successfully (no content returned)',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Assessment is not in draft status (cannot be deleted)',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found or belongs to different company',
+  })
   async deleteDraftAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -176,9 +356,29 @@ export class AssessmentController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Approve an assessment' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiResponse({ status: 200, description: 'Assessment approved' })
+  @ApiOperation({
+    summary: 'Approve an assessment',
+    description: 'Approves an assessment that was submitted for review. Changes status to "approved" and generates final reports.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID to approve',
+    example: 123,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment approved successfully',
+    type: AssessmentApprovalResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'User does not have permission to approve assessments',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found or belongs to different company',
+  })
   async approveAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,
@@ -202,10 +402,47 @@ export class AssessmentController {
 
   @Post(':id/decline')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Decline an assessment' })
-  @ApiParam({ name: 'id', description: 'Assessment ID' })
-  @ApiBody({ schema: { properties: { reason: { type: 'string' } } } })
-  @ApiResponse({ status: 200, description: 'Assessment declined' })
+  @ApiOperation({
+    summary: 'Decline/reject an assessment',
+    description: 'Rejects an assessment that was submitted for review. Requires a rejection reason and changes status to "declined".',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID to decline',
+    example: 123,
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          description: 'Reason for declining the assessment',
+          example: 'Incomplete data in environmental section',
+          minLength: 1,
+        },
+      },
+      required: ['reason'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment declined successfully',
+    type: AssessmentApprovalResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Rejection reason is required and cannot be empty',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'User does not have permission to decline assessments',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found or belongs to different company',
+  })
   async rejectAssessment(
     @Req() req: CustomRequest,
     @Param('id') assessmentId: string,

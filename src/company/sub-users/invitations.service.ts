@@ -18,9 +18,22 @@ export class InvitationsService {
     // 1. Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: { id: true, companyId: true },
     });
     if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
+      // Get inviting user's company
+      const invitingUser = await this.prisma.user.findUnique({
+        where: { id: invitedById },
+        select: { companyId: true },
+      });
+      if (!invitingUser) {
+        throw new BadRequestException('Inviting user not found');
+      }
+      if (existingUser.companyId !== invitingUser.companyId) {
+        throw new BadRequestException('User already belongs to a different company.');
+      } else {
+        throw new BadRequestException('User with this email already exists in your company.');
+      }
     }
 
     // 2. Check for existing pending invitation
@@ -119,5 +132,42 @@ export class InvitationsService {
     if (invitation.expiresAt < new Date())
       throw new BadRequestException('Invitation token expired');
     return invitation;
+  }
+
+  async delete(id: number, requestingUserId: number) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { id },
+      include: {
+        company: true,
+      },
+    });
+
+    if (!invitation) throw new BadRequestException('Invitation not found');
+
+    const requestingUser = await this.prisma.user.findUnique({
+      where: { id: requestingUserId },
+      select: { companyId: true, role: { select: { name: true } } },
+    });
+
+    if (!requestingUser) throw new BadRequestException('User not found');
+
+    if (
+      requestingUser.role.name !== 'company_esg_admin' &&
+      requestingUser.role.name !== 'company_esg_subadmin'
+    ) {
+      throw new BadRequestException(
+        'You are not authorized to delete invitations',
+      );
+    }
+
+    if (invitation.companyId !== requestingUser.companyId) {
+      throw new BadRequestException(
+        'You cannot delete invitations from another company',
+      );
+    }
+
+    return this.prisma.invitation.delete({
+      where: { id },
+    });
   }
 }
