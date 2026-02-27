@@ -197,9 +197,9 @@ export class ReportService {
     // Helper for safe number access
     const getNum = (val: any) => (val && !isNaN(Number(val)) ? Number(val) : 0);
 
-    // Fetch trend data
+    // Fetch trend data (only assessments up to and including the current one)
     const trendData = await this.prisma.assessment.findMany({
-      where: { companyId },
+      where: { companyId, createdAt: { lte: record.createdAt } },
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
@@ -302,9 +302,19 @@ export class ReportService {
     const scope2_live = getNum(env.ghg?.scope2?.totalEmission);
     const scope3_live = getNum(env.ghg?.scope3?.totalEmission);
 
-    const scope1 = scope1_live || report?.ghg_scope_one || 0;
-    const scope2 = scope2_live || report?.ghg_scope_two || 0;
-    const scope3 = scope3_live || report?.ghg_scope_three || 0;
+    // Defensive fallback: sum sub-group totals when scope-level total is missing
+    const scope1_groups = getNum(env.ghg?.scope1?.stationarySources?.totalEmission)
+      + getNum(env.ghg?.scope1?.mobileSources?.totalEmission)
+      + getNum(env.ghg?.scope1?.processEmissions?.totalEmission)
+      + getNum(env.ghg?.scope1?.fugitiveEmissions?.totalEmission);
+    const scope2_groups = getNum(env.ghg?.scope2?.locationBased?.totalEmission)
+      + getNum(env.ghg?.scope2?.marketBased?.totalEmission);
+    const scope3_groups = getNum(env.ghg?.scope3?.upstream?.totalEmission)
+      + getNum(env.ghg?.scope3?.downstream?.totalEmission);
+
+    const scope1 = scope1_live || scope1_groups || report?.ghg_scope_one || 0;
+    const scope2 = scope2_live || scope2_groups || report?.ghg_scope_two || 0;
+    const scope3 = scope3_live || scope3_groups || report?.ghg_scope_three || 0;
     const totalEmissions = (scope1 + scope2 + scope3) || report?.ghg_total_emissions || getNum(currentData.totalEmission);
 
     const scope1_percentage = getPercentage(scope1, totalEmissions);
