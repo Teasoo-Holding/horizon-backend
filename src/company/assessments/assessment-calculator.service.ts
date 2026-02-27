@@ -175,6 +175,9 @@ export class AssessmentCalculatorService {
     ghg.scope1.progress = this.calculateScope1Progress(ghg.scope1);
 
     // GHG Scope 2 Calculations
+    // TODO: GHG Protocol requires reporting EITHER location-based or market-based
+    // as the primary Scope 2 figure. Currently both are summed, which double-counts
+    // when a company fills in both methods. Needs product decision on which to prefer.
     // Location Based
     if (this.hasData(ghg.scope2.locationBased)) {
       const group = ghg.scope2.locationBased;
