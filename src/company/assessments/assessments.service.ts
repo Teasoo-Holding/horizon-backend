@@ -446,11 +446,30 @@ export class AssessmentService {
     currentUserId: number,
     assessmentId: number,
   ): Promise<Assessment> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId, companyId },
+      select: { status: true },
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+
+    const approvableStatuses: AssessmentStatus[] = [
+      AssessmentStatus.awaiting_review,
+      AssessmentStatus.submitted_approved,
+    ];
+    if (!approvableStatuses.includes(assessment.status)) {
+      throw new BadRequestException(
+        `Cannot approve an assessment with status "${assessment.status}". Only assessments awaiting review or submitted can be approved.`,
+      );
+    }
+
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
         status: AssessmentStatus.approved,
         updated_by: currentUserId,
+        reviewed_by: currentUserId,
+        reviewedAt: new Date(),
         rejection_reason: null,
       },
     });
@@ -468,8 +487,9 @@ export class AssessmentService {
     rejectionReason: string,
   ): Promise<Assessment> {
     const assessmentWithCreator = await this.prisma.assessment.findFirst({
-      where: { id: assessmentId },
+      where: { id: assessmentId, companyId },
       select: {
+        status: true,
         company: {
           select: {
             name: true,
@@ -483,11 +503,22 @@ export class AssessmentService {
         },
       },
     });
-    const creatorEmail = assessmentWithCreator?.creator?.email;
-    const first_name = assessmentWithCreator?.creator?.first_name || '';
-    const company_name = assessmentWithCreator?.company?.name || '';
+
+    if (!assessmentWithCreator) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    if (assessmentWithCreator.status !== AssessmentStatus.awaiting_review) {
+      throw new BadRequestException(
+        `Cannot decline an assessment with status "${assessmentWithCreator.status}". Only assessments awaiting review can be declined.`,
+      );
+    }
+
+    const creatorEmail = assessmentWithCreator.creator?.email;
+    const first_name = assessmentWithCreator.creator?.first_name || '';
+    const company_name = assessmentWithCreator.company?.name || '';
     if (!creatorEmail)
-      throw new Error('Creator email not found for this assessment');
+      throw new NotFoundException('Creator email not found for this assessment');
 
     await this.emailService.sendEmail(
       creatorEmail,
@@ -499,6 +530,8 @@ export class AssessmentService {
       data: {
         status: AssessmentStatus.declined,
         updated_by: currentUserId,
+        reviewed_by: currentUserId,
+        reviewedAt: new Date(),
         rejection_reason: rejectionReason,
       },
     });
@@ -618,17 +651,6 @@ export class AssessmentService {
     }
     if (formKey.includes('operationalDelays') || formKey.startsWith('soc-community-delays')) {
       return 'socialCapital.communityRelations.operationalDelays';
-    }
-
-    // Foundational Data - Activity Metrics
-    if (formKey.includes('foundational-activity-production')) {
-      return 'foundationalData.activityMetrics.productionVolumes';
-    }
-    if (formKey.includes('foundational-activity-offshore')) {
-      return 'foundationalData.activityMetrics.offshoreSites';
-    }
-    if (formKey.includes('foundational-activity-terrestrial')) {
-      return 'foundationalData.activityMetrics.terrestrialSites';
     }
 
     // Human Capital
