@@ -183,6 +183,65 @@ export class AssessmentController {
     };
   }
 
+  @Post(':id/submit-for-review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Submit assessment for review or direct approval',
+    description:
+      'Explicitly submits an assessment. If the company requires review, status becomes awaiting_review with an optional reviewer assignment. If review is not required, status becomes submitted_approved.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Assessment ID',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reviewerId: {
+          type: 'number',
+          description:
+            'Optional reviewer user ID. If omitted and review is required, self-review is assumed.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment submitted successfully',
+    type: AssessmentApprovalResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Assessment cannot be submitted in its current status',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Assessment not found',
+  })
+  async submitForReview(
+    @Req() req: CustomRequest,
+    @Param('id') idStr: string,
+    @Body() body: { reviewerId?: number },
+  ) {
+    const companyId = req.user.companyId;
+    const userId = req.user.id;
+    const assessmentId = this.parseId(idStr);
+
+    const assessment = await this.assessmentService.submitForReview(
+      companyId,
+      userId,
+      assessmentId,
+      body.reviewerId,
+    );
+
+    return {
+      message: 'Assessment submitted successfully.',
+      data: assessment,
+    };
+  }
+
   @Get()
   @ApiOperation({
     summary: 'Get all assessments for company',
