@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   getPercentage,
@@ -9,6 +9,7 @@ import {
 
 @Injectable()
 export class ReportService {
+  private readonly logger = new Logger(ReportService.name);
   constructor(private prisma: PrismaService) { }
 
   async findOrganizationAssessmentReport(id: number) {
@@ -137,7 +138,7 @@ export class ReportService {
       create: { assessmentId: id, ...result },
     });
 
-    console.log(`Report saved: ${saved.id}`);
+    this.logger.log(`Report saved: ${saved.id}`);
 
     const nestedResult = {
       ghg: {
@@ -163,8 +164,8 @@ export class ReportService {
       where: { id },
     });
 
-    if (!record || !record.assessmentData) {
-      return {}; // Return empty object if no data
+    if (!record) {
+      throw new NotFoundException(`Assessment with ID ${id} not found.`);
     }
 
     // Fetch previous assessment for change percentage calculations
@@ -178,7 +179,7 @@ export class ReportService {
 
     const currentData = (typeof record.assessmentData === 'string'
       ? JSON.parse(record.assessmentData)
-      : record.assessmentData) as any;
+      : record.assessmentData || {}) as any;
 
     const previousData = previousRecord?.assessmentData
       ? (typeof previousRecord.assessmentData === 'string'
