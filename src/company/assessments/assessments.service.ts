@@ -158,15 +158,14 @@ export class AssessmentService {
 
     if (!assessment) throw new NotFoundException('Assessment not found');
 
-    // Only in_progress and declined assessments are editable
+    // Only in_progress, awaiting_review, and declined assessments are editable
     const lockedStatuses: AssessmentStatus[] = [
-      AssessmentStatus.awaiting_review,
       AssessmentStatus.submitted_approved,
       AssessmentStatus.approved,
     ];
     if (lockedStatuses.includes(assessment.status)) {
       throw new BadRequestException(
-        `Cannot edit an assessment with status "${assessment.status}". Only in-progress or declined assessments can be edited.`,
+        `Cannot edit an assessment with status "${assessment.status}". Only in-progress, awaiting-review, or declined assessments can be edited.`,
       );
     }
 
