@@ -156,12 +156,12 @@ describe('AdminAuthService', () => {
 
   describe('verifyEmail', () => {
     it('should verify email successfully', async () => {
-      const updatedUser = { ...mockUser, status: 'APPROVED' };
+      const updatedUser = { ...mockUser, status: UserStatus.approved };
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (otpService.verifyOtp as jest.Mock).mockResolvedValue(true);
       (prismaService.user.update as jest.Mock).mockResolvedValue({
         ...mockUser,
-        status: 'APPROVED',
+        status: UserStatus.approved,
       });
 
       const result = await service.verifyEmail('test@example.com', '123456');
@@ -172,7 +172,7 @@ describe('AdminAuthService', () => {
       expect(otpService.verifyOtp).toHaveBeenCalledWith(mockUser.id, '123456');
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: mockUser.id },
-        data: { status: 'APPROVED' },
+        data: { status: UserStatus.approved },
       });
       expect(result).toEqual(updatedUser);
     });
@@ -279,7 +279,7 @@ describe('AdminAuthService', () => {
     });
 
     it('should throw BadRequestException if user status is not PENDING', async () => {
-      const approvedUser = { ...mockUser, status: 'APPROVED' };
+      const approvedUser = { ...mockUser, status: UserStatus.approved };
       jwtService.verify.mockReturnValue(mockPayload);
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(
         approvedUser,
@@ -299,7 +299,7 @@ describe('AdminAuthService', () => {
     });
 
     it('should complete registration successfully', async () => {
-      const updatedUser = { ...mockUser, status: 'APPROVED' };
+      const updatedUser = { ...mockUser, status: UserStatus.approved };
       jwtService.verify.mockReturnValue(mockPayload);
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prismaService.user.update as jest.Mock).mockResolvedValue(updatedUser);
@@ -325,7 +325,7 @@ describe('AdminAuthService', () => {
           last_name: mockTeasoAdminSendRequest.last_name,
           phone_number: mockTeasoAdminSendRequest.phone_number,
           password: 'hashedPassword',
-          status: 'APPROVED',
+          status: UserStatus.approved,
         },
       });
       expect(result).toEqual(updatedUser);
@@ -354,7 +354,7 @@ describe('AdminAuthService', () => {
     });
 
     it('should throw BadRequestException if user status is not PENDING', async () => {
-      const approvedUser = { ...mockUser, status: 'APPROVED' };
+      const approvedUser = { ...mockUser, status: UserStatus.approved };
       jwtService.verify.mockReturnValue(mockPayload);
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(
         approvedUser,

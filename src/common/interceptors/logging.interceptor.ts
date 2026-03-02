@@ -15,10 +15,15 @@ export class ResponseLoggerInterceptor implements NestInterceptor {
     const now = Date.now();
     return next.handle().pipe(
       tap((data) => {
-        const responseSize = data ? JSON.stringify(data).length : 0;
-        console.log(
-          `[${method}] ${originalUrl} took ${Date.now() - now}ms, size: ${responseSize} bytes`,
-        );
+        const elapsed = Date.now() - now;
+        if (process.env.NODE_ENV !== 'production') {
+          const responseSize = data ? JSON.stringify(data).length : 0;
+          console.log(
+            `[${method}] ${originalUrl} took ${elapsed}ms, size: ${responseSize} bytes`,
+          );
+        } else {
+          console.log(`[${method}] ${originalUrl} took ${elapsed}ms`);
+        }
       }),
     );
   }
