@@ -26,6 +26,7 @@ model Assessment {
   @@index([companyId])
   @@index([created_by])
   @@index([updated_by])
+  @@index([companyId, status, createdAt])
   @@map("assessments")
 }
 
