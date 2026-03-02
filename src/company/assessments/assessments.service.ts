@@ -411,14 +411,24 @@ export class AssessmentService {
         where: { assessmentId },
       });
       // Delete parent tasks that now have no remaining assignments
-      for (const taskId of taskIds) {
-        const remaining = await this.prisma.taskAssignment.count({
-          where: { taskId },
+      const tasksWithOtherAssignments = await this.prisma.taskAssignment.groupBy(
+        {
+          by: ['taskId'],
+          where: { taskId: { in: taskIds } },
+        },
+      );
+      const tasksStillInUse = new Set(
+        tasksWithOtherAssignments.map((t) => t.taskId),
+      );
+      const orphanedTaskIds = taskIds.filter((id) => !tasksStillInUse.has(id));
+
+      if (orphanedTaskIds.length > 0) {
+        await this.prisma.taskComment.deleteMany({
+          where: { taskId: { in: orphanedTaskIds } },
         });
-        if (remaining === 0) {
-          await this.prisma.taskComment.deleteMany({ where: { taskId } });
-          await this.prisma.task.delete({ where: { id: taskId } });
-        }
+        await this.prisma.task.deleteMany({
+          where: { id: { in: orphanedTaskIds } },
+        });
       }
     }
 

@@ -15,19 +15,16 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   const configService = app.get(ConfigService);
-  const allowedOrigins =
-    configService.get<string>('ALLOWED_ORIGINS')?.split(',') || [];
+  const allowedOrigins = new Set(
+    configService.get<string>('ALLOWED_ORIGINS')?.split(',') || [],
+  );
 
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      if (
-        !origin ||
-        allowedOrigins.includes('*') ||
-        allowedOrigins.includes(origin)
-      ) {
+      if (!origin || allowedOrigins.has('*') || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

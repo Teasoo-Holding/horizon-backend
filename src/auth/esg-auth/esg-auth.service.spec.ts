@@ -3,6 +3,8 @@ import { EsgAuthService } from './esg-auth.service';
 import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { EmailService } from 'src/email/email.service';
+import { PhoneValidationService } from 'src/config/phone-validation.service';
 import { CompanyStatus, RoleName } from '@prisma/client';
 
 describe('EsgAuthService', () => {
@@ -16,20 +18,24 @@ describe('EsgAuthService', () => {
         {
           provide: PrismaService,
           useValue: {
-            user: { findUnique: jest.fn(), create: jest.fn() },
-            company: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+            user: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
+            company: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
             role: { findUnique: jest.fn() },
             industry: { findUnique: jest.fn().mockResolvedValue({ id: 1, name: 'Energy' }) },
+            $transaction: jest.fn((cb) => cb({
+              user: { create: jest.fn().mockResolvedValue({ id: 1, email: 'sadiq@btech.com' }), update: jest.fn() },
+              company: { create: jest.fn().mockResolvedValue({ id: 1, name: 'BeelahTech Ltd.' }) },
+            })),
           },
         },
         {
-          provide: 'EmailService',
+          provide: EmailService,
           useValue: {
             sendEmail: jest.fn(),
           },
         },
         {
-          provide: 'PhoneValidationService',
+          provide: PhoneValidationService,
           useValue: {
             validatePhone: jest.fn().mockReturnValue(true),
           },
@@ -63,6 +69,7 @@ describe('EsgAuthService', () => {
 
     it('should register a new ESG user and company successfully', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.company.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.role.findUnique as jest.Mock).mockResolvedValue({
         id: 1,
@@ -80,7 +87,7 @@ describe('EsgAuthService', () => {
 
       const result = await service.signup(baseDto);
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         message:
           'Registration successful. Your ESG company is pending approval by an administrator.',
       });
@@ -97,11 +104,11 @@ describe('EsgAuthService', () => {
       await expect(service.signup(baseDto)).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException if company with registration number already exists', async () => {
+    it('should throw ConflictException if company with same name already exists', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.company.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.company.findUnique as jest.Mock).mockResolvedValue({
         id: 1,
-        registration_number: baseDto.registration_number,
+        name: baseDto.name,
       });
 
       await expect(service.signup(baseDto)).rejects.toThrow(ConflictException);
@@ -109,7 +116,7 @@ describe('EsgAuthService', () => {
 
     it('should throw ConflictException if ESG Admin role is not found', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.company.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.company.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.role.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(service.signup(baseDto)).rejects.toThrow(ConflictException);
