@@ -83,6 +83,30 @@ export class UpdateGeneralTargetData {
   @Max(100)
   @IsOptional()
   reductionPercentage?: number;
+
+  @ApiPropertyOptional({
+    description: 'Baseline year total emission (tCO₂e)',
+    example: 100000,
+  })
+  @IsNumber()
+  @IsOptional()
+  baselineYearEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Target year total emission (tCO₂e)',
+    example: 77000,
+  })
+  @IsNumber()
+  @IsOptional()
+  targetEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Current total emission (tCO₂e)',
+    example: 90000,
+  })
+  @IsNumber()
+  @IsOptional()
+  currentEmission?: number;
 }
 
 export class UpdateScopeTargetData {

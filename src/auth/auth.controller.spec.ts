@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto';
 
 describe('AuthController', () => {
@@ -12,7 +14,17 @@ describe('AuthController', () => {
       register: jest
         .fn()
         .mockResolvedValue({ id: 1, email: 'test@example.com' }),
-      login: jest.fn().mockResolvedValue({ access_token: 'mock-token' }),
+      validateUser: jest.fn().mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        role: { name: 'USER' },
+        companyId: 1,
+      }),
+      login: jest.fn().mockResolvedValue({
+        accessToken: 'mock-access-token',
+        refreshToken: 'mock-refresh-token',
+        user: { id: 1, email: 'test@example.com', role: 'USER' },
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -21,6 +33,14 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: JwtService,
+          useValue: { sign: jest.fn(), verify: jest.fn() },
+        },
+        {
+          provide: PrismaService,
+          useValue: {},
         },
       ],
     }).compile();
@@ -60,7 +80,13 @@ describe('AuthController', () => {
     } as any;
 
     const result = await controller.login(dto, mockRes);
-    expect(mockAuthService.login).toHaveBeenCalledWith(dto);
-    expect(result).toEqual({ access_token: 'mock-token' });
+    expect(mockAuthService.validateUser).toHaveBeenCalledWith(dto.email, dto.password);
+    expect(mockAuthService.login).toHaveBeenCalledWith({
+      id: 1,
+      email: 'test@example.com',
+      role: 'USER',
+      companyId: 1,
+    });
+    expect(result).toHaveProperty('user');
   });
 });

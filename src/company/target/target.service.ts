@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AssessmentStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTargetData } from './dto/create-target.dto';
 import { TargetResponseDto } from './dto/target-response.dto';
@@ -31,6 +32,12 @@ interface BaselineOption {
   hasReport: boolean;
   createdAt: Date;
 }
+/** Assessments eligible as baselines: approved or auto-approved (pass-through). */
+const BASELINE_ELIGIBLE_STATUSES: AssessmentStatus[] = [
+  AssessmentStatus.approved,
+  AssessmentStatus.submitted_approved,
+];
+
 @Injectable()
 export class TargetService {
   constructor(private prisma: PrismaService) {}
@@ -44,7 +51,11 @@ export class TargetService {
     assessmentId: number,
   ): Promise<{ startYear: string; totals: number } | null> {
     const assessment = await this.prisma.assessment.findFirst({
-      where: { id: assessmentId, companyId },
+      where: {
+        id: assessmentId,
+        companyId,
+        status: { in: BASELINE_ELIGIBLE_STATUSES },
+      },
       select: {
         startYear: true,
         assessmentData: true,
@@ -101,7 +112,7 @@ export class TargetService {
 
     if (!baselineData) {
       throw new BadRequestException(
-        'You must complete at least one assessment before setting a target',
+        'You must have at least one approved assessment before setting a target. Submit your GHG assessment for review first.',
       );
     }
 
@@ -165,7 +176,12 @@ export class TargetService {
     }
 
     // ✅ Create target if all checks pass
+    //    Use server-validated baseline to ensure emission values are authoritative
     if (data.type === 'GENERAL') {
+      const serverBaseline = baselineData.totals!;
+      data.baselineYearEmission = serverBaseline;
+      data.currentEmission = serverBaseline;
+      data.targetEmission = serverBaseline * (1 - (data.reductionPercentage ?? 0) / 100);
       return this.createGeneralTarget(companyId, createdById, data);
     } else {
       return this.createScopeTarget(companyId, createdById, data);
@@ -335,6 +351,15 @@ export class TargetService {
           generalTarget: {
             update: {
               reductionPercentage: data.reductionPercentage,
+              ...(data.baselineYearEmission !== undefined && {
+                baselineYearEmission: data.baselineYearEmission,
+              }),
+              ...(data.targetEmission !== undefined && {
+                targetEmission: data.targetEmission,
+              }),
+              ...(data.currentEmission !== undefined && {
+                currentEmission: data.currentEmission,
+              }),
             },
           },
         }),
@@ -460,6 +485,7 @@ export class TargetService {
     const latestAssessment = await this.prisma.assessment.findFirst({
       where: {
         companyId,
+        status: { in: BASELINE_ELIGIBLE_STATUSES },
         startYear: { not: '' },
         endYear: { not: '' },
         startMonth: { not: '' },
@@ -491,9 +517,10 @@ export class TargetService {
     const baselineAssessment = await this.prisma.assessment.findFirst({
       where: {
         companyId,
-        // startYear: String(target.baselineYear),
+        status: { in: BASELINE_ELIGIBLE_STATUSES },
+        startYear: String(target.baselineYear),
       },
-      orderBy: { createdAt: 'asc' }, // FIRST assessment of baseline year
+      orderBy: { createdAt: 'asc' }, // FIRST approved assessment of baseline year
     });
 
     const baselineScopeTotals = (
@@ -507,12 +534,21 @@ export class TargetService {
 
     /**
      * 4. Update General Target (if present)
+     *    Refresh baseline, current, and target emissions from live assessment data
+     *    so the gauge always reflects the actual computed values.
      */
     if (target.generalTarget) {
+      const baselineData = baselineAssessment?.assessmentData as AssessmentData;
+      const baselineEmission = baselineData?.totalEmission ?? target.generalTarget.baselineYearEmission ?? 0;
+      const reductionPct = target.generalTarget.reductionPercentage ?? 0;
+      const targetEmission = baselineEmission * (1 - reductionPct / 100);
+
       await this.prisma.generalTarget.update({
         where: { targetId: target.id },
         data: {
           currentEmission: assessmentData?.totalEmission ?? 0,
+          baselineYearEmission: baselineEmission,
+          targetEmission: targetEmission,
         },
       });
     }
@@ -649,6 +685,7 @@ export class TargetService {
     const baseline = await this.prisma.assessment.findFirst({
       where: {
         companyId,
+        status: { in: BASELINE_ELIGIBLE_STATUSES },
         NOT: [
           { startYear: { equals: '' } },
           { startMonth: { equals: '' } },
@@ -684,6 +721,7 @@ export class TargetService {
       const baseline = await this.prisma.assessment.findFirst({
         where: {
           companyId,
+          status: { in: BASELINE_ELIGIBLE_STATUSES },
           NOT: [
             { startYear: { equals: '' } },
             { startMonth: { equals: '' } },
@@ -726,6 +764,7 @@ export class TargetService {
     const assessments = await this.prisma.assessment.findMany({
       where: {
         companyId,
+        status: { in: BASELINE_ELIGIBLE_STATUSES },
         NOT: [
           { startYear: { equals: '' } },
           { startMonth: { equals: '' } },

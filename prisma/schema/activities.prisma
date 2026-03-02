@@ -10,4 +10,7 @@ model Activities {
   type        String?
   company     Company? @relation(fields: [companyId], references: [id])
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([createdById, createdAt])
 }
