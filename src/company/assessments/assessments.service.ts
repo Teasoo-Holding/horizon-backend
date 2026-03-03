@@ -364,7 +364,7 @@ export class AssessmentService {
     return this.prisma.assessment.findMany({
       where: { companyId },
       orderBy: {
-        createdAt: 'desc',
+        updatedAt: 'desc',
       },
       include: {
         company: {
@@ -596,7 +596,14 @@ export class AssessmentService {
     if (formKey.startsWith('ghg-scope3-upstream')) {
       return 'environment.ghg.scope3.upstream';
     }
-    if (formKey.startsWith('ghg-scope3-downstream')) {
+    if (
+      formKey.startsWith('ghg-scope3-downstream') ||
+      formKey === 'ghg-scope3-document-upload' ||
+      formKey === 'ghg-scope3-use-of-sold-products' ||
+      formKey === 'ghg-scope3-end-of-life-treatment' ||
+      formKey === 'ghg-scope3-investments' ||
+      formKey === 'ghg-scope3-franchises'
+    ) {
       return 'environment.ghg.scope3.downstream';
     }
     if (formKey === 'air-pollutant-emissions') {
@@ -608,6 +615,12 @@ export class AssessmentService {
     if (formKey === 'produced-water-management') {
       return 'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement';
     }
+    if (formKey === 'water-quality-impacts') {
+      return 'environment.waterManagement.hydraulicFracturingImpacts.waterQualityImpacts';
+    }
+    if (formKey === 'chemical-disclosure') {
+      return 'environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure';
+    }
     if (formKey === 'hydrocarbon-spills') {
       return 'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills';
     }
@@ -618,13 +631,13 @@ export class AssessmentService {
       return 'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas';
     }
 
-    if (formKey === 'foundational-activity-production') {
+    if (formKey === 'foundational-activity-production' || formKey === 'activityMetrics.productionVolume') {
       return 'foundationalData.activityMetrics.productionVolumes';
     }
-    if (formKey === 'foundational-activity-offshore') {
+    if (formKey === 'foundational-activity-offshore' || formKey === 'activityMetrics.assetPortfolio.offshoreSites') {
       return 'foundationalData.activityMetrics.offshoreSites';
     }
-    if (formKey === 'foundational-activity-terrestrial') {
+    if (formKey === 'foundational-activity-terrestrial' || formKey === 'activityMetrics.assetPortfolio.terrestrialSites') {
       return 'foundationalData.activityMetrics.terrestrialSites';
     }
 
@@ -639,13 +652,13 @@ export class AssessmentService {
     }
 
     // Social Capital
-    if (formKey.startsWith('soc-security-conflict')) {
+    if (formKey.startsWith('soc-security-conflict') || formKey.includes('securityRights.reservesAreaConflict')) {
       return 'socialCapital.securityHumanRights.operationsInConflictZones';
     }
-    if (formKey.startsWith('soc-security-indigenous')) {
+    if (formKey.startsWith('soc-security-indigenous') || formKey.includes('securityRights.reservesIndigenousLand')) {
       return 'socialCapital.securityHumanRights.reservesInNearIndigenousLand';
     }
-    if (formKey.startsWith('soc-security-engagement')) {
+    if (formKey.startsWith('soc-security-engagement') || formKey.includes('securityRights.humanRightEngagement')) {
       return 'socialCapital.securityHumanRights.humanRightsEngagementProcesses';
     }
     // Social Capital - Community Relations
@@ -671,19 +684,25 @@ export class AssessmentService {
     }
 
     // Business Model
-    if (formKey.includes('reserveValuation.climateImpact.reserveSensitivity')) {
+    if (formKey.includes('reserveValuation.climateImpact.reserveSensitivity') || formKey.includes('reservesSensitivityToCarbonPricing')) {
       return 'businessModel.reservesValuation.reservesSensitivity';
     }
-    if (formKey.includes('reserveValuation.climateImpact.embeddedCarbon')) {
+    if (formKey.includes('reserveValuation.climateImpact.embeddedCarbon') || formKey.includes('embeddedCarbonInReserves')) {
       return 'businessModel.reservesValuation.embeddedCarbon';
     }
-    if (formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment')) {
+    if (
+      formKey.includes('strategicCapitalAllocation.renewableEnergyInvestment') ||
+      formKey === 'businessInnovation.reservesValuationAndCapitalExpenditures.renewableEnergyInvestment'
+    ) {
       return 'businessModel.reservesValuation.renewableEnergyInvestment';
     }
-    if (formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy')) {
+    if (
+      formKey.includes('strategicCapitalAllocation.capitalExpenditureStrategy') ||
+      formKey === 'businessInnovation.reservesValuationAndCapitalExpenditures.capitalExpenditureStrategy'
+    ) {
       return 'businessModel.reservesValuation.capitalExpenditureStrategy';
     }
-    if (formKey.includes('businessEthicsAndTransparency.reservesCountriesCorruptionRisk')) {
+    if (formKey.includes('businessEthicsAndTransparency.reservesCountriesCorruptionRisk') || formKey.includes('reservesInCountriesWithHighCorruptionRisk')) {
       return 'businessModel.businessEthics.reservesCountriesCorruptionRisk';
     }
     if (formKey.includes('businessEthicsAndTransparency.antiCorruptionManagement')) {
@@ -716,10 +735,10 @@ export class AssessmentService {
     if (formKey.includes('criticalIncidentRiskManagement.catastrophicRiskManagementSystems')) {
       return 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems';
     }
-    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.boardManagementOversight')) {
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.boardManagementOversight') || formKey.includes('boardAndManagementOversight')) {
       return 'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight';
     }
-    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement')) {
+    if (formKey.includes('managementOfLegalAndRegulatoryEnvironment.publicPolicyEngagement') || formKey.includes('managementOfTheLegalAndRegulatoryEnvironment.publicPolicyEngagement')) {
       return 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement';
     }
 
