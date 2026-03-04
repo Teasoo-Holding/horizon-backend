@@ -152,6 +152,8 @@ export class CompanyService {
         if (!data) return null;
 
         const env = data; // parseAssessmentData returns the whole object
+        const submittedGroups: string[] = data?.submittedGroups || [];
+
         const sections = [
           env?.environment?.ghg?.scope1,
           env?.environment?.ghg?.scope2,
@@ -179,18 +181,73 @@ export class CompanyService {
         ];
         const govCompleted = govSections.filter(s => s?.progress && s.progress > 0).length;
 
+        // Per-pillar group keys for status computation
+        const envGroups = [
+          'environment.ghg.scope1.stationarySources',
+          'environment.ghg.scope1.mobileSources',
+          'environment.ghg.scope1.processEmissions',
+          'environment.ghg.scope1.fugitiveEmissions',
+          'environment.ghg.scope2.locationBased',
+          'environment.ghg.scope2.marketBased',
+          'environment.ghg.scope3.upstream',
+          'environment.ghg.scope3.downstream',
+          'environment.airQuality.airPollutantEmissions',
+          'environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals',
+          'environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement',
+          'environment.waterManagement.hydraulicFracturingImpacts.waterQualityImpacts',
+          'environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure',
+          'environment.biodiversityImpact.environmentalManagement.hydrocarbonSpills',
+          'environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies',
+          'environment.biodiversityImpact.environmentalManagement.reservesInSensitiveAreas',
+        ];
+        const socialGroups = [
+          'socialCapital.securityHumanRights.operationsInConflictZones',
+          'socialCapital.securityHumanRights.reservesInNearIndigenousLand',
+          'socialCapital.securityHumanRights.humanRightsEngagementProcesses',
+          'socialCapital.communityRelations.communityRiskOpportunityManagement',
+          'socialCapital.communityRelations.hcdtContribution',
+          'socialCapital.communityRelations.communityDisputeResolution',
+          'socialCapital.communityRelations.operationalDelays',
+        ];
+        const govGroups = [
+          'businessModel.reservesValuation.reservesSensitivity',
+          'businessModel.reservesValuation.embeddedCarbon',
+          'businessModel.reservesValuation.renewableEnergyInvestment',
+          'businessModel.reservesValuation.capitalExpenditureStrategy',
+          'businessModel.businessEthics.reservesCountriesCorruptionRisk',
+          'businessModel.businessEthics.antiCorruptionManagement',
+          'leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents',
+          'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems',
+          'leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight',
+          'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement',
+        ];
+
+        const getPillarStatus = (groups: string[], pillarProgress: number): string => {
+          const submitted = groups.filter(g => submittedGroups.includes(g)).length;
+          if (submitted === groups.length) return 'completed';
+          if (submitted > 0 || pillarProgress > 0) return 'in-progress';
+          return 'not-started';
+        };
+
+        const envProgress = env?.overallProgress ?? data.environment?.progress ?? data.overallProgress ?? 0;
+        const socialProgress = data.socialCapital?.progress ?? 0;
+        const govProgress = ((data.businessModel?.progress || 0) + (data.leadershipGovernance?.progress || 0)) / 2;
+
         return {
           environment: {
-            progress: env?.overallProgress ?? data.environment?.progress ?? data.overallProgress ?? 0,
+            progress: envProgress,
             completed: `${completedSections} of 8 sections completed`,
+            status: getPillarStatus(envGroups, envProgress),
           },
           social: {
-            progress: data.socialCapital?.progress ?? 0,
+            progress: socialProgress,
             completed: `${socialCompleted} of 2 sections completed`,
+            status: getPillarStatus(socialGroups, socialProgress),
           },
           governance: {
-            progress: ((data.businessModel?.progress || 0) + (data.leadershipGovernance?.progress || 0)) / 2,
+            progress: govProgress,
             completed: `${govCompleted} of 4 sections completed`,
+            status: getPillarStatus(govGroups, govProgress),
           },
         };
       };
@@ -370,6 +427,7 @@ export class CompanyService {
         esgJourney,
         hubStats,
         latestAssessmentId,
+        latestAssessmentStatus: latestAssessment?.status ?? null,
         stats: {
           totalAssessments: totalAssessmentsCount,
           reviewedAssessments: reviewedCount,
