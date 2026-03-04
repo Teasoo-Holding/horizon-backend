@@ -443,7 +443,7 @@ export class AssessmentCalculatorService {
     group.dataCount = { expected: totalExpected, count: totalCount };
     group.progress =
       totalExpected > 0
-        ? Number(((totalCount / totalExpected) * 100).toFixed(1))
+        ? Number(Math.min((totalCount / totalExpected) * 100, 100).toFixed(1))
         : 0;
   }
 
@@ -594,7 +594,7 @@ export class AssessmentCalculatorService {
     group.dataCount = { expected: totalExpected, count: totalCount };
     group.progress =
       totalExpected > 0
-        ? Number(((totalCount / totalExpected) * 100).toFixed(1))
+        ? Number(Math.min((totalCount / totalExpected) * 100, 100).toFixed(1))
         : 0;
   }
 
