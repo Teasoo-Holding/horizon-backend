@@ -35,7 +35,7 @@ export class Scope1ComputationService {
   private readonly EF_VENTING = 0.656; // this is kgCO2/m³
   private readonly EF_HFC = 1300; // kgCO2e/kg
   private readonly EF_CEMENT = 0.4985; // tCO2/t cement
-  private readonly EF_FLARING = 2.89; // kgCO2/m³ gas
+  private readonly EF_FLARING = 2.6; // kgCO2e/m³ gas // Updated from 2.89 based on GHG guide
   constructor() { }
 
   //  Diesel Generators, Diesel Vehicles, Fuel Oil (LPFO/HPFO)
@@ -406,7 +406,8 @@ export class Scope1ComputationService {
   }
 
   async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
-    const venting = ((dto.volume || 0) * this.EF_VENTING) / 1000;
+    // GHG Guide: Volume * Methane Density (0.656) * GWP (28) = kgCO2e. Then divide by 1000 for tonnes.
+    const venting = ((dto.volume || 0) * this.EF_VENTING * 28) / 1000;
     const hfc = (dto as any).hfcMass
       ? ((dto as any).hfcMass * this.EF_HFC) / 1000
       : 0;

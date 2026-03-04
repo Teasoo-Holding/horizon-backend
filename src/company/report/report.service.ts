@@ -328,19 +328,19 @@ export class ReportService {
     const prevScope1 = firstDefined(
       getNum(prevEnv.ghg?.scope1?.totalEmission),
       getNum(prevEnv.ghg?.scope1?.stationarySources?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.mobileSources?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.processEmissions?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.fugitiveEmissions?.totalEmission),
+      + getNum(prevEnv.ghg?.scope1?.mobileSources?.totalEmission)
+      + getNum(prevEnv.ghg?.scope1?.processEmissions?.totalEmission)
+      + getNum(prevEnv.ghg?.scope1?.fugitiveEmissions?.totalEmission),
     );
     const prevScope2 = firstDefined(
       getNum(prevEnv.ghg?.scope2?.totalEmission),
       getNum(prevEnv.ghg?.scope2?.locationBased?.totalEmission)
-        + getNum(prevEnv.ghg?.scope2?.marketBased?.totalEmission),
+      + getNum(prevEnv.ghg?.scope2?.marketBased?.totalEmission),
     );
     const prevScope3 = firstDefined(
       getNum(prevEnv.ghg?.scope3?.totalEmission),
       getNum(prevEnv.ghg?.scope3?.upstream?.totalEmission)
-        + getNum(prevEnv.ghg?.scope3?.downstream?.totalEmission),
+      + getNum(prevEnv.ghg?.scope3?.downstream?.totalEmission),
     );
     const prevTotal = prevScope1 + prevScope2 + prevScope3 || getNum(prevEnv.totalEmission);
 
@@ -475,16 +475,16 @@ export class ReportService {
         totalNumberOfIncidents: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests) + getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder),
         securityHumanRightsAndIndigenousPeople: {
           operationsInConflictZones: {
-            totalProvedReserves: getNum(sec.reservesAreaConflict?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.reservesAreaConflict?.provedReservesInConflictVolume),
-            totalProbableReserves: getNum(sec.reservesAreaConflict?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.reservesAreaConflict?.probableReservesInConflictVolume),
+            totalProvedReserves: getNum(sec.operationsInConflictZones?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.operationsInConflictZones?.provedReservesInConflictVolume),
+            totalProbableReserves: getNum(sec.operationsInConflictZones?.totalProbableReservesVolume),
+            probableReserves: getNum(sec.operationsInConflictZones?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
-            totalProvedReserves: getNum(sec.reservesIndigenousLand?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.reservesIndigenousLand?.provedIndigenousVolume),
-            totalProbableReserves: getNum(sec.reservesIndigenousLand?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.reservesIndigenousLand?.probableIndigenousVolume),
+            totalProvedReserves: getNum(sec.reservesInNearIndigenousLand?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.reservesInNearIndigenousLand?.provedIndigenousVolume),
+            totalProbableReserves: getNum(sec.reservesInNearIndigenousLand?.totalProbableReservesVolume),
+            probableReserves: getNum(sec.reservesInNearIndigenousLand?.probableIndigenousVolume),
           }
         },
         communityRelations: {
@@ -600,9 +600,20 @@ export class ReportService {
         nearMisses:
           (getNum(humHealthSafety.direct?.nearMisses) || getNum(humHealthSafety.nearMisses)) +
           getNum(humHealthSafety.contract?.nearMisses),
-        averageSafetyTrainingHoursPerEmployee: getNum(
-          humHealthSafety.safetyTrainingHours,
-        ),
+        averageSafetyTrainingHoursPerEmployee: (() => {
+          const directTraining = getNum(humHealthSafety.direct?.safetyTrainingHours);
+          const contractTraining = getNum(humHealthSafety.contract?.safetyTrainingHours);
+          if (directTraining > 0 && contractTraining > 0) return Number(((directTraining + contractTraining) / 2).toFixed(2));
+          return Number((directTraining || contractTraining || 0).toFixed(2));
+        })(),
+        safetyManagementSystems: (() => {
+          const sms = humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems || {};
+          return [{
+            title: "Safety Management Systems",
+            tag: sms.executiveRemunerationLinked === 'yes' ? "Executive Pay Linked to Safety" : "Safety Management",
+            description: sms.safetyDescription || ""
+          }];
+        })(),
       },
       businessModel: {
         totalReservesAmountAtRisk: computedReservesAtRisk,
@@ -643,10 +654,11 @@ export class ReportService {
         desc: lead.desc || "",
         numberOfTierEventsAndWhatTier: String(pseEvents) || "N/A",
         managementOfLegalAndRegulatoryEnvironment: {
-          publicPolicyAndLobbying: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.discussion || "",
-          policyPosition: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.position || "",
-          sustainabilityGovernance: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.discussion || "",
-          sustainabilityPosition: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.position || "",
+          publicPolicyAndLobbying: legal.publicPolicyEngagement?.disclosesContributions || "",
+          policyPosition: legal.publicPolicyEngagement?.policyPositions || "",
+          sustainabilityGovernance: legal.boardAndManagementOversight?.oversightDiscussion || "",
+          sustainabilityPosition: legal.boardAndManagementOversight?.oversightDiscussion || "",
+          hasBoardCommittee: legal.boardAndManagementOversight?.hasBoardCommittee || "",
         },
         criticalIncidenceRiskManagement: {
           processSafetyEvents: {
