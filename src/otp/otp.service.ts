@@ -1,12 +1,15 @@
 import { ConfigService } from '@nestjs/config';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class OtpService {
+  private readonly logger = new Logger(OtpService.name);
+
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
@@ -15,7 +18,7 @@ export class OtpService {
   ) {}
 
   generateOtp(): string {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    return randomInt(1000, 10000).toString();
   }
 
   async storeOtp(
@@ -56,15 +59,23 @@ export class OtpService {
   }
 
  async sendOtp(email: string, otp: string): Promise<void> {
-  // mini function to get future date
   const hoursFromNow = (hours: number): Date => {
     return new Date(Date.now() + hours * 60 * 60 * 1000);
   };
-  const user = await this.prisma.user.findUnique({
-    where: { email}
-  })
 
-  await this.emailService.sendEmail(email, { otp, first_name:  user?.first_name }, 3);
+  const user = await this.prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  try {
+    await this.emailService.sendEmail(email, { otp, first_name: user.first_name }, 3);
+  } catch (error) {
+    this.logger.error(`Failed to send OTP email to ${email}`, error instanceof Error ? error.stack : error);
+  }
 
   await this.prisma.user.update({
     where: { email },

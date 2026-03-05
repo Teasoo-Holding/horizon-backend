@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Scope1ComputationService,
   Scope2Computation,
@@ -29,6 +29,8 @@ interface AssessmentData {
 
 @Injectable()
 export class AssessmentCalculatorService {
+  private readonly logger = new Logger(AssessmentCalculatorService.name);
+
   constructor(
     private scope1: Scope1ComputationService,
     private scope2: Scope2Computation,
@@ -50,6 +52,7 @@ export class AssessmentCalculatorService {
     topEmissionSources: any[];
     breakdown?: any;
   }> {
+   try {
     const data = structuredClone(raw);
     data.environment ??= {};
     data.environment.ghg ??= { scope1: {} };
@@ -411,6 +414,10 @@ export class AssessmentCalculatorService {
       topEmissionSources: data.topEmissionSources,
       breakdown,
     };
+   } catch (error) {
+    this.logger.error('Assessment recalculation failed', error instanceof Error ? error.stack : error);
+    throw new Error(`Assessment recalculation failed: ${error instanceof Error ? error.message : 'Unknown computation error'}`);
+   }
   }
 
   private calculateFormProgress(form: any, expected: number = 1) {

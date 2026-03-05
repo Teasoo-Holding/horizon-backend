@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -64,6 +66,8 @@ const PILLAR_GROUPS = {
 
 @Injectable()
 export class AssessmentService {
+  private readonly logger = new Logger(AssessmentService.name);
+
   constructor(
     private prisma: PrismaService,
     private calculator: AssessmentCalculatorService,
@@ -185,7 +189,14 @@ export class AssessmentService {
       merged.lastSavedForm = payload.lastSavedForm;
     }
 
-    const { data: recalculated } = await this.calculator.recalculate(merged);
+    let recalculated: any;
+    try {
+      const result = await this.calculator.recalculate(merged);
+      recalculated = result.data;
+    } catch (error) {
+      this.logger.error(`Recalculation failed for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+      throw new InternalServerErrorException('Failed to recalculate assessment data. Please try again.');
+    }
 
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
@@ -238,10 +249,16 @@ export class AssessmentService {
       // Keep lastSavedForm so "Continue" resumes at the right place
     }
 
-    const result = await this.calculator.recalculate(currentData);
-    const recalculated = result.data as any; // ← THIS LINE FIXES THE ERROR
-    const scopeTotals = result.scopeTotals;
+    let result: Awaited<ReturnType<AssessmentCalculatorService['recalculate']>>;
+    try {
+      result = await this.calculator.recalculate(currentData);
+    } catch (error) {
+      this.logger.error(`Recalculation failed for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+      throw new InternalServerErrorException('Failed to recalculate assessment data. Please try again.');
+    }
 
+    const recalculated = result.data as any;
+    const scopeTotals = result.scopeTotals;
 
     // Preserve current status — submitGroup no longer transitions status.
     // Final submission is now an explicit user action via submitForReview().
@@ -265,7 +282,11 @@ export class AssessmentService {
       status: 'submitted',
     });
 
-    await this.reportService.saveReportingData(assessmentId);
+    try {
+      await this.reportService.saveReportingData(assessmentId);
+    } catch (error) {
+      this.logger.error(`Report generation failed for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+    }
 
     return {
       assessment: updated,
@@ -355,7 +376,11 @@ export class AssessmentService {
       status: 'submitted',
     });
 
-    await this.reportService.saveReportingData(assessmentId);
+    try {
+      await this.reportService.saveReportingData(assessmentId);
+    } catch (error) {
+      this.logger.error(`Report generation failed after submit for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+    }
 
     return updated;
   }
@@ -377,10 +402,14 @@ export class AssessmentService {
   async getAssessment(
     companyId: number,
     assessmentId: number,
-  ): Promise<Assessment | null> {
-    return this.prisma.assessment.findUnique({
+  ): Promise<Assessment> {
+    const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId, companyId },
     });
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+    return assessment;
   }
 
   async deleteAssessment(
@@ -393,51 +422,54 @@ export class AssessmentService {
     });
 
     if (!assessment) {
-      throw new Error('AssessmentNotFound');
+      throw new NotFoundException('Assessment not found');
     }
 
     if (assessment.status !== AssessmentStatus.in_progress) {
-      throw new Error('AssessmentNotDraft');
+      throw new BadRequestException(
+        'Only draft (in-progress) assessments can be deleted.',
+      );
     }
 
-    // Clean up any Task+TaskAssignment linked to this assessment
-    const linkedAssignments = await this.prisma.taskAssignment.findMany({
-      where: { assessmentId },
-      select: { id: true, taskId: true },
-    });
-    if (linkedAssignments.length > 0) {
-      const taskIds = [...new Set(linkedAssignments.map((a) => a.taskId))];
-      await this.prisma.taskAssignment.deleteMany({
+    // Wrap the entire delete chain in a transaction so partial deletes cannot occur
+    await this.prisma.$transaction(async (tx) => {
+      // Clean up any Task+TaskAssignment linked to this assessment
+      const linkedAssignments = await tx.taskAssignment.findMany({
         where: { assessmentId },
+        select: { id: true, taskId: true },
       });
-      // Delete parent tasks that now have no remaining assignments
-      const tasksWithOtherAssignments = await this.prisma.taskAssignment.groupBy(
-        {
+      if (linkedAssignments.length > 0) {
+        const taskIds = [...new Set(linkedAssignments.map((a) => a.taskId))];
+        await tx.taskAssignment.deleteMany({
+          where: { assessmentId },
+        });
+        // Delete parent tasks that now have no remaining assignments
+        const tasksWithOtherAssignments = await tx.taskAssignment.groupBy({
           by: ['taskId'],
           where: { taskId: { in: taskIds } },
-        },
-      );
-      const tasksStillInUse = new Set(
-        tasksWithOtherAssignments.map((t) => t.taskId),
-      );
-      const orphanedTaskIds = taskIds.filter((id) => !tasksStillInUse.has(id));
+        });
+        const tasksStillInUse = new Set(
+          tasksWithOtherAssignments.map((t) => t.taskId),
+        );
+        const orphanedTaskIds = taskIds.filter((id) => !tasksStillInUse.has(id));
 
-      if (orphanedTaskIds.length > 0) {
-        await this.prisma.taskComment.deleteMany({
-          where: { taskId: { in: orphanedTaskIds } },
-        });
-        await this.prisma.task.deleteMany({
-          where: { id: { in: orphanedTaskIds } },
-        });
+        if (orphanedTaskIds.length > 0) {
+          await tx.taskComment.deleteMany({
+            where: { taskId: { in: orphanedTaskIds } },
+          });
+          await tx.task.deleteMany({
+            where: { id: { in: orphanedTaskIds } },
+          });
+        }
       }
-    }
 
-    await this.prisma.report.deleteMany({
-      where: { assessmentId },
-    });
+      await tx.report.deleteMany({
+        where: { assessmentId },
+      });
 
-    await this.prisma.assessment.delete({
-      where: { id: assessmentId },
+      await tx.assessment.delete({
+        where: { id: assessmentId },
+      });
     });
 
     await this.activitiesService.logActivity({
@@ -483,8 +515,12 @@ export class AssessmentService {
       },
     });
 
-    // Trigger report generation upon approval
-    await this.reportService.saveReportingData(assessmentId);
+    // Trigger report generation upon approval (non-blocking — approval itself must succeed)
+    try {
+      await this.reportService.saveReportingData(assessmentId);
+    } catch (error) {
+      this.logger.error(`Report generation failed after approval for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+    }
 
     return updated;
   }
@@ -529,11 +565,16 @@ export class AssessmentService {
     if (!creatorEmail)
       throw new NotFoundException('Creator email not found for this assessment');
 
-    await this.emailService.sendEmail(
-      creatorEmail,
-      { first_name, company_name, reason: rejectionReason },
-      17,
-    );
+    try {
+      await this.emailService.sendEmail(
+        creatorEmail,
+        { first_name, company_name, reason: rejectionReason },
+        17,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to send decline email for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+    }
+
     return this.prisma.assessment.update({
       where: { id: assessmentId, companyId },
       data: {
