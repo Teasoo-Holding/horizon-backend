@@ -40,11 +40,15 @@ export class ReportService {
     });
     return report.map((r: any) => {
       const data = (r.assessmentData || {}) as any;
+      const rawProgress = Number(data.overallProgress ?? r.report?.progress ?? 0);
+      const progress = Math.min(Math.round(rawProgress), 100);
+      const totalSections = Number(data.totalSections ?? r.report?.total_sections ?? 142);
+      const completedSections = Math.round((progress / 100) * totalSections);
       return {
         ...r,
-        progress: data.overallProgress ?? r.report?.progress ?? 0,
-        completed_sections: data.completedSections ?? r.report?.completed_sections ?? 0,
-        total_sections: data.totalSections ?? r.report?.total_sections ?? 100,
+        progress,
+        completed_sections: completedSections,
+        total_sections: totalSections,
         report: undefined,
         assessmentData: undefined
       };
