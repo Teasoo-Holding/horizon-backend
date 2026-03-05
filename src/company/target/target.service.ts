@@ -620,7 +620,13 @@ export class TargetService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return this.formatTargetResponse(updatedTarget);
+    const formatted = this.formatTargetResponse(updatedTarget);
+    return {
+      ...formatted,
+      currentAssessmentYear: latestAssessment.startYear
+        ? Number(latestAssessment.startYear)
+        : null,
+    };
   }
   /**
    * Get a single target
