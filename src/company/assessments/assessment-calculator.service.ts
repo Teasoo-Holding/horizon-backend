@@ -391,7 +391,7 @@ export class AssessmentCalculatorService {
 
       data.businessModel = data.businessModel || {};
       if (subProgresses.length > 0) {
-        data.businessModel.progress = Number((subProgresses.reduce((a, b) => a + b, 0) / subProgresses.length).toFixed(1));
+        data.businessModel.progress = Math.min(Number((subProgresses.reduce((a, b) => a + b, 0) / subProgresses.length).toFixed(1)), 100);
       } else {
         data.businessModel.progress = 0;
       }
@@ -544,7 +544,9 @@ export class AssessmentCalculatorService {
       'status',
       'totalEmission',
       'totalEmissions',
-      'breakdown'
+      'breakdown',
+      'files',
+      'additionalFields',
     ]);
 
     for (const key in obj) {
@@ -934,7 +936,7 @@ export class AssessmentCalculatorService {
 
     if (topics.length === 0) return 0;
     const sum = topics.reduce((a, b) => a + b, 0);
-    return Number((sum / topics.length).toFixed(1));
+    return Math.min(Number((sum / topics.length).toFixed(1)), 100);
   }
 
   private calculateFoundationalProgress(foundational: any): number {
@@ -955,7 +957,7 @@ export class AssessmentCalculatorService {
 
     if (topics.length === 0) return 0;
     const sum = topics.reduce((a, b) => a + b, 0);
-    return Number((sum / topics.length).toFixed(1));
+    return Math.min(Number((sum / topics.length).toFixed(1)), 100);
   }
   private calculateSocialProgress(social: any): number {
     const topics: number[] = [];
@@ -992,7 +994,7 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
@@ -1053,7 +1055,7 @@ export class AssessmentCalculatorService {
           hsp.dataCount = { expected: subTotal, count: subFilled };
           hsp.progress =
             subTotal > 0
-              ? Number(((subFilled / subTotal) * 100).toFixed(1))
+              ? Number(Math.min((subFilled / subTotal) * 100, 100).toFixed(1))
               : 0;
 
           if (hsp.progress != null) {
@@ -1087,7 +1089,7 @@ export class AssessmentCalculatorService {
     const weightedSum = topics.reduce((sum, p, i) => sum + p * weights[i], 0);
 
     return totalWeight > 0
-      ? Number((weightedSum / totalWeight).toFixed(1))
+      ? Math.min(Number((weightedSum / totalWeight).toFixed(1)), 100)
       : 0;
   }
 
@@ -1117,7 +1119,7 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
@@ -1145,7 +1147,7 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
@@ -1228,7 +1230,7 @@ export class AssessmentCalculatorService {
       (businessProgress * 0.2) +
       (leadershipProgress * 0.1);
 
-    return Number(weightedSum.toFixed(1));
+    return Math.min(Number(weightedSum.toFixed(1)), 100);
   }
 
   private hasValue(val: any): boolean {
