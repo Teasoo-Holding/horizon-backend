@@ -66,7 +66,11 @@ export class ReportService {
       where: { id },
     });
 
-    const report = sumSummary?.assessmentData as any;
+    if (!sumSummary) {
+      throw new NotFoundException(`Assessment with ID ${id} not found for report generation.`);
+    }
+
+    const report = (sumSummary.assessmentData || {}) as any;
     const ghg = report?.environment?.ghg;
     const socialCapital = report?.socialCapital || {};
     const humanCapital = report?.humanCapital || {};
@@ -181,15 +185,25 @@ export class ReportService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const currentData = (typeof record.assessmentData === 'string'
-      ? JSON.parse(record.assessmentData)
-      : record.assessmentData || {}) as any;
+    let currentData: any = {};
+    try {
+      currentData = (typeof record.assessmentData === 'string'
+        ? JSON.parse(record.assessmentData)
+        : record.assessmentData || {}) as any;
+    } catch {
+      this.logger.warn(`Malformed assessmentData JSON for assessment ${id}`);
+    }
 
-    const previousData = previousRecord?.assessmentData
-      ? (typeof previousRecord.assessmentData === 'string'
-        ? JSON.parse(previousRecord.assessmentData)
-        : previousRecord.assessmentData) as any
-      : null;
+    let previousData: any = null;
+    if (previousRecord?.assessmentData) {
+      try {
+        previousData = (typeof previousRecord.assessmentData === 'string'
+          ? JSON.parse(previousRecord.assessmentData)
+          : previousRecord.assessmentData) as any;
+      } catch {
+        this.logger.warn(`Malformed assessmentData JSON for previous assessment`);
+      }
+    }
 
     // Helper for change percentage
     const getChange = (current: number, previous: number) => {

@@ -4,12 +4,17 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
+import * as express from 'express';
 import { ResponseLoggerInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/interceptors/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
+  app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
+  app.enableShutdownHooks();
 
   app.useGlobalInterceptors(new ResponseLoggerInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -57,4 +62,7 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
-bootstrap().catch((error) => console.error(error));
+bootstrap().catch((error) => {
+  console.error('Failed to start application:', error);
+  process.exit(1);
+});

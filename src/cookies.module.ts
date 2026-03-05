@@ -1,18 +1,10 @@
-import { Inject, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
-import { ConfigModule, ConfigType } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import cookiesConfig from './cookies.config';
 
+// Cookie parsing is handled globally in main.ts via app.use(cookieParser()).
+// This module only exports the cookies config for injection elsewhere.
 @Module({
   imports: [ConfigModule.forFeature(cookiesConfig)],
 })
-export class CookiesModule implements NestModule {
-  constructor(
-    @Inject(cookiesConfig.KEY)
-    private readonly config: ConfigType<typeof cookiesConfig>,
-  ) {}
-
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(cookieParser(this.config.secret)).forRoutes('*');
-  }
-}
+export class CookiesModule {}
