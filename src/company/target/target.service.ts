@@ -583,7 +583,7 @@ export class TargetService {
     const generalReduction =
       target.generalTarget?.reductionPercentage ?? 0;
 
-    await Promise.all(
+    await this.prisma.$transaction(
       scopeEmissions.map((se) =>
         this.prisma.scopeTarget.upsert({
           where: {
@@ -619,6 +619,10 @@ export class TargetService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!updatedTarget) {
+      throw new NotFoundException('Target not found after update');
+    }
 
     const formatted = this.formatTargetResponse(updatedTarget);
     return {
