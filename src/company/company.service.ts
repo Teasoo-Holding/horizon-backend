@@ -138,10 +138,10 @@ export class CompanyService {
         const data = parseAssessmentData(assessment?.assessmentData);
         if (!data) return null;
         return {
-          total: data.totalEmission ?? 0,
-          environment: data.environment?.totalEmission ?? data.totalEmission ?? 0,
-          social: data.social?.totalEmission ?? 0,
-          governance: data.governance?.totalEmission ?? 0,
+          total: Math.round(data.overallProgress ?? 0),
+          environment: Math.round(data.environment?.progress ?? 0),
+          social: Math.round(data.socialCapital?.progress ?? 0),
+          governance: Math.round(data.leadershipGovernance?.progress ?? 0),
         };
       };
 
@@ -151,46 +151,69 @@ export class CompanyService {
         const data = parseAssessmentData(assessment?.assessmentData);
         if (!data) return null;
 
-        const env = data; // parseAssessmentData returns the whole object
-        const sections = [
-          env?.environment?.ghg?.scope1,
-          env?.environment?.ghg?.scope2,
-          env?.environment?.ghg?.scope3,
-          env?.environment?.airQuality?.airPollutantEmissions,
-          env?.environment?.waterManagement?.waterAndProducedWaterManagement?.freshwaterWithdrawals,
-          env?.environment?.waterManagement?.waterAndProducedWaterManagement?.producedWaterManagement,
-          env?.environment?.waterManagement?.hydraulicFracturingImpacts?.chemicalDisclosure,
-          env?.environment?.biodiversityImpact?.environmentalManagement?.environmentalManagementPolicies,
+        const submittedGroups: string[] = data?.submittedGroups || [];
+
+        // Each entry is the group keys that constitute one "section" on the dashboard card.
+        // A section is considered done when at least one of its sub-groups is submitted.
+        const envSectionGroups = [
+          ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
+          ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
+          ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
+          ['environment.airQuality.airPollutantEmissions'],
+          ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
+          ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
+          ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
+          ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
+        ];
+        const socialSectionGroups = [
+          ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
+          ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
+        ];
+        const govSectionGroups = [
+          ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
+          ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
+          ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
+          ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
         ];
 
-        const completedSections = sections.filter(s => s?.progress && s.progress > 0).length;
+        const countSubmitted = (sectionGroups: string[][]): number =>
+          sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
 
-        const socialSections = [
-          env?.socialCapital?.securityHumanRights,
-          env?.socialCapital?.communityRelations,
-        ];
-        const socialCompleted = socialSections.filter(s => s?.progress && s.progress > 0).length;
+        const completedSections = countSubmitted(envSectionGroups);
+        const socialCompleted = countSubmitted(socialSectionGroups);
+        const govCompleted = countSubmitted(govSectionGroups);
 
-        const govSections = [
-          env?.businessModel?.reservesValuation,
-          env?.businessModel?.businessEthics,
-          env?.leadershipGovernance?.criticalIncidentRiskManagement,
-          env?.leadershipGovernance?.legalRegulatoryEnvironment,
-        ];
-        const govCompleted = govSections.filter(s => s?.progress && s.progress > 0).length;
+        const envProgress = Math.round((completedSections / envSectionGroups.length) * 100);
+        const socialProgress = Math.round((socialCompleted / socialSectionGroups.length) * 100);
+        const govProgress = Math.round((govCompleted / govSectionGroups.length) * 100);
+
+        // All sub-group keys per pillar for status determination
+        const envGroups = envSectionGroups.flat();
+        const socialGroups = socialSectionGroups.flat();
+        const govGroups = govSectionGroups.flat();
+
+        const getPillarStatus = (groups: string[], progress: number): string => {
+          const submitted = groups.filter(g => submittedGroups.includes(g)).length;
+          if (submitted === groups.length) return 'completed';
+          if (submitted > 0 || progress > 0) return 'in-progress';
+          return 'not-started';
+        };
 
         return {
           environment: {
-            progress: env?.overallProgress ?? data.environment?.progress ?? data.overallProgress ?? 0,
-            completed: `${completedSections} of 8 sections completed`,
+            progress: envProgress,
+            completed: `${completedSections} of ${envSectionGroups.length} sections completed`,
+            status: getPillarStatus(envGroups, envProgress),
           },
           social: {
-            progress: data.socialCapital?.progress ?? 0,
-            completed: `${socialCompleted} of 2 sections completed`,
+            progress: socialProgress,
+            completed: `${socialCompleted} of ${socialSectionGroups.length} sections completed`,
+            status: getPillarStatus(socialGroups, socialProgress),
           },
           governance: {
-            progress: ((data.businessModel?.progress || 0) + (data.leadershipGovernance?.progress || 0)) / 2,
-            completed: `${govCompleted} of 4 sections completed`,
+            progress: govProgress,
+            completed: `${govCompleted} of ${govSectionGroups.length} sections completed`,
+            status: getPillarStatus(govGroups, govProgress),
           },
         };
       };
@@ -260,8 +283,6 @@ export class CompanyService {
             in: [
               AssessmentStatus.approved,
               AssessmentStatus.submitted_approved,
-              AssessmentStatus.awaiting_review,
-              AssessmentStatus.in_progress,
             ],
           },
         },
@@ -323,11 +344,6 @@ export class CompanyService {
         return `${pad(startMM)}/${startYY} - ${pad(endMM)}/${endYY}`;
       };
 
-      const periodMap = new Map<
-        string,
-        { score: number | null; sortDate: Date | null }
-      >();
-
       const esgJourney = reviewedAssessments
         .map((a) => {
           const totals = extractTotals(a);
@@ -370,6 +386,7 @@ export class CompanyService {
         esgJourney,
         hubStats,
         latestAssessmentId,
+        latestAssessmentStatus: latestAssessment?.status ?? null,
         stats: {
           totalAssessments: totalAssessmentsCount,
           reviewedAssessments: reviewedCount,

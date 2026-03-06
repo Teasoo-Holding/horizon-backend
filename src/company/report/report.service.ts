@@ -40,11 +40,15 @@ export class ReportService {
     });
     return report.map((r: any) => {
       const data = (r.assessmentData || {}) as any;
+      const rawProgress = Number(data.overallProgress ?? r.report?.progress ?? 0);
+      const progress = Math.min(Math.round(rawProgress), 100);
+      const totalSections = Number(data.totalSections ?? r.report?.total_sections ?? 142);
+      const completedSections = Math.round((progress / 100) * totalSections);
       return {
         ...r,
-        progress: data.overallProgress ?? r.report?.progress ?? 0,
-        completed_sections: data.completedSections ?? r.report?.completed_sections ?? 0,
-        total_sections: data.totalSections ?? r.report?.total_sections ?? 100,
+        progress,
+        completed_sections: completedSections,
+        total_sections: totalSections,
         report: undefined,
         assessmentData: undefined
       };
@@ -62,7 +66,11 @@ export class ReportService {
       where: { id },
     });
 
-    const report = sumSummary?.assessmentData as any;
+    if (!sumSummary) {
+      throw new NotFoundException(`Assessment with ID ${id} not found for report generation.`);
+    }
+
+    const report = (sumSummary.assessmentData || {}) as any;
     const ghg = report?.environment?.ghg;
     const socialCapital = report?.socialCapital || {};
     const humanCapital = report?.humanCapital || {};
@@ -177,15 +185,25 @@ export class ReportService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const currentData = (typeof record.assessmentData === 'string'
-      ? JSON.parse(record.assessmentData)
-      : record.assessmentData || {}) as any;
+    let currentData: any = {};
+    try {
+      currentData = (typeof record.assessmentData === 'string'
+        ? JSON.parse(record.assessmentData)
+        : record.assessmentData || {}) as any;
+    } catch {
+      this.logger.warn(`Malformed assessmentData JSON for assessment ${id}`);
+    }
 
-    const previousData = previousRecord?.assessmentData
-      ? (typeof previousRecord.assessmentData === 'string'
-        ? JSON.parse(previousRecord.assessmentData)
-        : previousRecord.assessmentData) as any
-      : null;
+    let previousData: any = null;
+    if (previousRecord?.assessmentData) {
+      try {
+        previousData = (typeof previousRecord.assessmentData === 'string'
+          ? JSON.parse(previousRecord.assessmentData)
+          : previousRecord.assessmentData) as any;
+      } catch {
+        this.logger.warn(`Malformed assessmentData JSON for previous assessment`);
+      }
+    }
 
     // Helper for change percentage
     const getChange = (current: number, previous: number) => {
@@ -328,19 +346,19 @@ export class ReportService {
     const prevScope1 = firstDefined(
       getNum(prevEnv.ghg?.scope1?.totalEmission),
       getNum(prevEnv.ghg?.scope1?.stationarySources?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.mobileSources?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.processEmissions?.totalEmission)
-        + getNum(prevEnv.ghg?.scope1?.fugitiveEmissions?.totalEmission),
+      + getNum(prevEnv.ghg?.scope1?.mobileSources?.totalEmission)
+      + getNum(prevEnv.ghg?.scope1?.processEmissions?.totalEmission)
+      + getNum(prevEnv.ghg?.scope1?.fugitiveEmissions?.totalEmission),
     );
     const prevScope2 = firstDefined(
       getNum(prevEnv.ghg?.scope2?.totalEmission),
       getNum(prevEnv.ghg?.scope2?.locationBased?.totalEmission)
-        + getNum(prevEnv.ghg?.scope2?.marketBased?.totalEmission),
+      + getNum(prevEnv.ghg?.scope2?.marketBased?.totalEmission),
     );
     const prevScope3 = firstDefined(
       getNum(prevEnv.ghg?.scope3?.totalEmission),
       getNum(prevEnv.ghg?.scope3?.upstream?.totalEmission)
-        + getNum(prevEnv.ghg?.scope3?.downstream?.totalEmission),
+      + getNum(prevEnv.ghg?.scope3?.downstream?.totalEmission),
     );
     const prevTotal = prevScope1 + prevScope2 + prevScope3 || getNum(prevEnv.totalEmission);
 
@@ -475,16 +493,16 @@ export class ReportService {
         totalNumberOfIncidents: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests) + getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder),
         securityHumanRightsAndIndigenousPeople: {
           operationsInConflictZones: {
-            totalProvedReserves: getNum(sec.reservesAreaConflict?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.reservesAreaConflict?.provedReservesInConflictVolume),
-            totalProbableReserves: getNum(sec.reservesAreaConflict?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.reservesAreaConflict?.probableReservesInConflictVolume),
+            totalProvedReserves: getNum(sec.operationsInConflictZones?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.operationsInConflictZones?.provedReservesInConflictVolume),
+            totalProbableReserves: getNum(sec.operationsInConflictZones?.totalProbableReservesVolume),
+            probableReserves: getNum(sec.operationsInConflictZones?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
-            totalProvedReserves: getNum(sec.reservesIndigenousLand?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.reservesIndigenousLand?.provedIndigenousVolume),
-            totalProbableReserves: getNum(sec.reservesIndigenousLand?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.reservesIndigenousLand?.probableIndigenousVolume),
+            totalProvedReserves: getNum(sec.reservesInNearIndigenousLand?.totalProvedReservesVolume),
+            provedReserves: getNum(sec.reservesInNearIndigenousLand?.provedIndigenousVolume),
+            totalProbableReserves: getNum(sec.reservesInNearIndigenousLand?.totalProbableReservesVolume),
+            probableReserves: getNum(sec.reservesInNearIndigenousLand?.probableIndigenousVolume),
           }
         },
         communityRelations: {
@@ -600,9 +618,20 @@ export class ReportService {
         nearMisses:
           (getNum(humHealthSafety.direct?.nearMisses) || getNum(humHealthSafety.nearMisses)) +
           getNum(humHealthSafety.contract?.nearMisses),
-        averageSafetyTrainingHoursPerEmployee: getNum(
-          humHealthSafety.safetyTrainingHours,
-        ),
+        averageSafetyTrainingHoursPerEmployee: (() => {
+          const directTraining = getNum(humHealthSafety.direct?.safetyTrainingHours);
+          const contractTraining = getNum(humHealthSafety.contract?.safetyTrainingHours);
+          if (directTraining > 0 && contractTraining > 0) return Number(((directTraining + contractTraining) / 2).toFixed(2));
+          return Number((directTraining || contractTraining || 0).toFixed(2));
+        })(),
+        safetyManagementSystems: (() => {
+          const sms = humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems || {};
+          return [{
+            title: "Safety Management Systems",
+            tag: sms.executiveRemunerationLinked === 'yes' ? "Executive Pay Linked to Safety" : "Safety Management",
+            description: sms.safetyDescription || ""
+          }];
+        })(),
       },
       businessModel: {
         totalReservesAmountAtRisk: computedReservesAtRisk,
@@ -643,10 +672,11 @@ export class ReportService {
         desc: lead.desc || "",
         numberOfTierEventsAndWhatTier: String(pseEvents) || "N/A",
         managementOfLegalAndRegulatoryEnvironment: {
-          publicPolicyAndLobbying: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.discussion || "",
-          policyPosition: legal.publicPolicyEngagement?.policyPositions || legal.publicPolicyEngagement?.position || "",
-          sustainabilityGovernance: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.discussion || "",
-          sustainabilityPosition: legal.boardAndManagementOversight?.oversightDiscussion || legal.boardManagementOversight?.position || "",
+          publicPolicyAndLobbying: legal.publicPolicyEngagement?.disclosesContributions || "",
+          policyPosition: legal.publicPolicyEngagement?.policyPositions || "",
+          sustainabilityGovernance: legal.boardAndManagementOversight?.oversightDiscussion || "",
+          sustainabilityPosition: legal.boardAndManagementOversight?.oversightDiscussion || "",
+          hasBoardCommittee: legal.boardAndManagementOversight?.hasBoardCommittee || "",
         },
         criticalIncidenceRiskManagement: {
           processSafetyEvents: {

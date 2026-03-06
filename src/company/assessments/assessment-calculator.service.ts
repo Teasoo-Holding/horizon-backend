@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Scope1ComputationService,
   Scope2Computation,
@@ -29,6 +29,8 @@ interface AssessmentData {
 
 @Injectable()
 export class AssessmentCalculatorService {
+  private readonly logger = new Logger(AssessmentCalculatorService.name);
+
   constructor(
     private scope1: Scope1ComputationService,
     private scope2: Scope2Computation,
@@ -50,6 +52,7 @@ export class AssessmentCalculatorService {
     topEmissionSources: any[];
     breakdown?: any;
   }> {
+   try {
     const data = structuredClone(raw);
     data.environment ??= {};
     data.environment.ghg ??= { scope1: {} };
@@ -388,7 +391,7 @@ export class AssessmentCalculatorService {
 
       data.businessModel = data.businessModel || {};
       if (subProgresses.length > 0) {
-        data.businessModel.progress = Number((subProgresses.reduce((a, b) => a + b, 0) / subProgresses.length).toFixed(1));
+        data.businessModel.progress = Math.min(Number((subProgresses.reduce((a, b) => a + b, 0) / subProgresses.length).toFixed(1)), 100);
       } else {
         data.businessModel.progress = 0;
       }
@@ -411,6 +414,10 @@ export class AssessmentCalculatorService {
       topEmissionSources: data.topEmissionSources,
       breakdown,
     };
+   } catch (error) {
+    this.logger.error('Assessment recalculation failed', error instanceof Error ? error.stack : error);
+    throw new Error(`Assessment recalculation failed: ${error instanceof Error ? error.message : 'Unknown computation error'}`);
+   }
   }
 
   private calculateFormProgress(form: any, expected: number = 1) {
@@ -443,7 +450,7 @@ export class AssessmentCalculatorService {
     group.dataCount = { expected: totalExpected, count: totalCount };
     group.progress =
       totalExpected > 0
-        ? Number(((totalCount / totalExpected) * 100).toFixed(1))
+        ? Number(Math.min((totalCount / totalExpected) * 100, 100).toFixed(1))
         : 0;
   }
 
@@ -537,7 +544,9 @@ export class AssessmentCalculatorService {
       'status',
       'totalEmission',
       'totalEmissions',
-      'breakdown'
+      'breakdown',
+      'files',
+      'additionalFields',
     ]);
 
     for (const key in obj) {
@@ -594,7 +603,7 @@ export class AssessmentCalculatorService {
     group.dataCount = { expected: totalExpected, count: totalCount };
     group.progress =
       totalExpected > 0
-        ? Number(((totalCount / totalExpected) * 100).toFixed(1))
+        ? Number(Math.min((totalCount / totalExpected) * 100, 100).toFixed(1))
         : 0;
   }
 
@@ -927,7 +936,7 @@ export class AssessmentCalculatorService {
 
     if (topics.length === 0) return 0;
     const sum = topics.reduce((a, b) => a + b, 0);
-    return Number((sum / topics.length).toFixed(1));
+    return Math.min(Number((sum / topics.length).toFixed(1)), 100);
   }
 
   private calculateFoundationalProgress(foundational: any): number {
@@ -948,7 +957,7 @@ export class AssessmentCalculatorService {
 
     if (topics.length === 0) return 0;
     const sum = topics.reduce((a, b) => a + b, 0);
-    return Number((sum / topics.length).toFixed(1));
+    return Math.min(Number((sum / topics.length).toFixed(1)), 100);
   }
   private calculateSocialProgress(social: any): number {
     const topics: number[] = [];
@@ -985,7 +994,7 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
@@ -1046,7 +1055,7 @@ export class AssessmentCalculatorService {
           hsp.dataCount = { expected: subTotal, count: subFilled };
           hsp.progress =
             subTotal > 0
-              ? Number(((subFilled / subTotal) * 100).toFixed(1))
+              ? Number(Math.min((subFilled / subTotal) * 100, 100).toFixed(1))
               : 0;
 
           if (hsp.progress != null) {
@@ -1080,7 +1089,7 @@ export class AssessmentCalculatorService {
     const weightedSum = topics.reduce((sum, p, i) => sum + p * weights[i], 0);
 
     return totalWeight > 0
-      ? Number((weightedSum / totalWeight).toFixed(1))
+      ? Math.min(Number((weightedSum / totalWeight).toFixed(1)), 100)
       : 0;
   }
 
@@ -1110,7 +1119,7 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
@@ -1138,127 +1147,20 @@ export class AssessmentCalculatorService {
     }
 
     return topics.length > 0
-      ? Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1))
+      ? Math.min(Number((topics.reduce((sum, p) => sum + p, 0) / topics.length).toFixed(1)), 100)
       : 0;
   }
 
   private calculateTotalSectionCounts(data: any): { completed: number; total: number } {
-    let completed = 0;
-    let total = 0;
+    // Fix: Using a fixed total number of expected fields/sections across the entire assessment (142).
+    // This ensures that "completed of total" matches the overall progress percentage,
+    // avoiding the bug where it says "28 of 28 completed" when progress is only 93% 
+    // due to untouched sections not being counted in the denominator.
+    const TOTAL_SECTIONS = 142;
+    const progress = data.overallProgress || 0;
+    const completed = Math.round((progress / 100) * TOTAL_SECTIONS);
 
-    const extract = (obj: any) => {
-      if (obj?.dataCount) {
-        const expected = obj.dataCount.expected || 1;
-        total += expected;
-
-        // Calculate completed sections based on progress
-        // If progress is 50% and expected is 2, then 1 section is completed
-        if (obj.progress != null) {
-          completed += Math.round((obj.progress / 100) * expected);
-        }
-        return true;
-      }
-      return false;
-    };
-
-    // Foundational Data
-    if (data.foundationalData) {
-      if (data.foundationalData.activityMetrics) {
-        const am = data.foundationalData.activityMetrics;
-        if (am.productionVolume) extract(am.productionVolume);
-        if (am.offshoreSites) extract(am.offshoreSites);
-        if (am.terrestrialSites) extract(am.terrestrialSites);
-      }
-    }
-
-    // Environmental
-    if (data.environment) {
-      const g = data.environment.ghg || {};
-      // Scope 1
-      if (g.scope1) {
-        ['stationarySources', 'mobileSources', 'processEmissions', 'fugitiveEmissions'].forEach(k => {
-          const group = g.scope1[k];
-          if (group) {
-            let groupCounted = false;
-            for (const key in group) {
-              if (extract(group[key])) groupCounted = true;
-            }
-            if (!groupCounted) extract(group);
-          }
-        });
-      }
-      // Scope 2
-      if (g.scope2) {
-        ['locationBased', 'marketBased'].forEach(k => {
-          const s = g.scope2[k];
-          if (s?.dataCount) {
-            completed += s.dataCount.count || 0;
-            total += s.dataCount.expected || 0;
-          } else {
-            // Fallback if dataCount missing (should not happen with new logic)
-            total += 4;
-            if (s?.progress) completed += Math.round((s.progress / 100) * 4);
-          }
-        });
-      }
-      // Scope 3
-      if (g.scope3) {
-        ['upstream', 'downstream'].forEach(k => {
-          const s = g.scope3[k];
-          if (s) {
-            for (const key in s) {
-              extract(s[key]);
-            }
-          }
-        });
-      }
-      // Air, Water, Bio
-      if (data.environment.airQuality?.airPollutantEmissions) extract(data.environment.airQuality.airPollutantEmissions);
-      if (data.environment.waterManagement?.waterAndProducedWaterManagement) {
-        const w = data.environment.waterManagement.waterAndProducedWaterManagement;
-        extract(w.freshwaterWithdrawals);
-        extract(w.producedWaterManagement);
-      }
-      if (data.environment.biodiversityImpact?.environmentalManagement) {
-        const b = data.environment.biodiversityImpact.environmentalManagement;
-        extract(b.environmentalManagementPolicies);
-        extract(b.hydrocarbonSpills);
-        extract(b.reservesInSensitiveAreas);
-      }
-      // Business Innovation
-      if (data.environment.businessInnovation) {
-        const bi = data.environment.businessInnovation;
-        if (bi.reservesValuationAndCapitalExpenditures) {
-          const g = bi.reservesValuationAndCapitalExpenditures;
-          extract(g.reservesSensitivityToCarbonPricing);
-          extract(g.embeddedCarbonInReserves);
-          extract(g.renewableEnergyInvestment);
-          extract(g.capitalExpenditureStrategy);
-        }
-        if (bi.businessEthicsAndTransparency) {
-          const g = bi.businessEthicsAndTransparency;
-          extract(g.reservesInCountriesWithHighCorruptionRisk);
-          extract(g.antiCorruptionManagementSystem);
-        }
-      }
-    }
-
-    // Social, Human, Business, Leadership
-    const pillars = ['socialCapital', 'humanCapital', 'businessModel', 'leadershipGovernance'];
-    pillars.forEach(p => {
-      if (data[p]) {
-        for (const topicKey in data[p]) {
-          const topic = data[p][topicKey];
-          if (typeof topic === 'object') {
-            for (const formKey in topic) {
-              extract(topic[formKey]);
-            }
-          }
-        }
-      }
-    });
-
-    return { completed, total };
+    return { completed, total: TOTAL_SECTIONS };
   }
 
   private calculateOverallProgress(data: any): number {
@@ -1328,7 +1230,7 @@ export class AssessmentCalculatorService {
       (businessProgress * 0.2) +
       (leadershipProgress * 0.1);
 
-    return Number(weightedSum.toFixed(1));
+    return Math.min(Number(weightedSum.toFixed(1)), 100);
   }
 
   private hasValue(val: any): boolean {

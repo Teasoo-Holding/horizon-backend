@@ -245,7 +245,7 @@ export class AssessmentController {
   @Get()
   @ApiOperation({
     summary: 'Get all assessments for company',
-    description: 'Retrieves all assessments belonging to the authenticated user\'s company, ordered by creation date (newest first).',
+    description: 'Retrieves all assessments belonging to the authenticated user\'s company, ordered by last updated date (newest first).',
   })
   @ApiResponse({
     status: 200,
