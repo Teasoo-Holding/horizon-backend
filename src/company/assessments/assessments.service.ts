@@ -296,14 +296,14 @@ export class AssessmentService {
         : [],
       totals: {
         totals: {
-          sum: this.getGroupSum(result.breakdown, lastSavedForm),
+          sum: this.getGroupSum(result.breakdown, lastSavedForm, recalculated),
           breakdown: result.breakdown,
         },
       },
     };
   }
 
-  private getGroupSum(breakdown: any, lastSavedForm?: string): number {
+  private getGroupSum(breakdown: any, lastSavedForm?: string, recalculated?: any): number {
     if (!lastSavedForm) return 0;
 
     if (lastSavedForm.includes("stationary")) return breakdown.stationarySources?.sum || 0;
@@ -314,6 +314,11 @@ export class AssessmentService {
     if (lastSavedForm.includes("market")) return breakdown.scope2Market?.sum || 0;
     if (lastSavedForm.includes("upstream")) return breakdown.upstreamEmissions?.sum || 0;
     if (lastSavedForm.includes("downstream")) return breakdown.downstreamEmissions?.sum || 0;
+
+    // Non-GHG assessments: extract totals from recalculated data
+    if (lastSavedForm.includes("airQuality") || lastSavedForm.includes("airPollutant")) {
+      return recalculated?.environment?.airQuality?.airPollutantEmissions?.calculated?.total || 0;
+    }
 
     return 0;
   }
