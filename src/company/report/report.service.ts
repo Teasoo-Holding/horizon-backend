@@ -368,11 +368,14 @@ export class ReportService {
 
     // Business Model: compute reserves at risk from sub-fields
     const provedReserves = getNum(busEmbedded.totalProvedReserves);
-    const probableReserves = getNum(busEmbedded.totalProbableReserves);
     const riskPercent = getNum(busClimateImpact.percentageDecrease);
-    const computedReservesAtRisk = riskPercent > 0
-      ? Math.round((provedReserves + probableReserves) * (riskPercent / 100))
-      : 0;
+    const estimatedDecreaseMMboe = getNum(busClimateImpact.estimatedDecrease);
+    // Use the form's explicit estimated decrease if available, otherwise derive from percentage
+    const computedReservesAtRisk = estimatedDecreaseMMboe > 0
+      ? estimatedDecreaseMMboe
+      : riskPercent > 0
+        ? Number((provedReserves * (riskPercent / 100)).toFixed(2))
+        : 0;
 
     // Leadership: compute process safety event rate from actual form data
     const pseTotalHours = getNum(crit.processSafetyEvents?.totalHoursWorked);
@@ -493,16 +496,16 @@ export class ReportService {
         totalNumberOfIncidents: getNum(com.operationalDelays?.numberOfDelaysCommunityProtests) + getNum(com.operationalDelays?.numberOfDelaysOtherStakeholder),
         securityHumanRightsAndIndigenousPeople: {
           operationsInConflictZones: {
-            totalProvedReserves: getNum(sec.operationsInConflictZones?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.operationsInConflictZones?.provedReservesInConflictVolume),
-            totalProbableReserves: getNum(sec.operationsInConflictZones?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.operationsInConflictZones?.probableReservesInConflictVolume),
+            totalProvedReserves: getNum((sec.reservesAreaConflict || sec.operationsInConflictZones)?.totalProvedReservesVolume),
+            provedReserves: getNum((sec.reservesAreaConflict || sec.operationsInConflictZones)?.provedReservesInConflictVolume),
+            totalProbableReserves: getNum((sec.reservesAreaConflict || sec.operationsInConflictZones)?.totalProbableReservesVolume),
+            probableReserves: getNum((sec.reservesAreaConflict || sec.operationsInConflictZones)?.probableReservesInConflictVolume),
           },
           reservesInNearIndigenousLand: {
-            totalProvedReserves: getNum(sec.reservesInNearIndigenousLand?.totalProvedReservesVolume),
-            provedReserves: getNum(sec.reservesInNearIndigenousLand?.provedIndigenousVolume),
-            totalProbableReserves: getNum(sec.reservesInNearIndigenousLand?.totalProbableReservesVolume),
-            probableReserves: getNum(sec.reservesInNearIndigenousLand?.probableIndigenousVolume),
+            totalProvedReserves: getNum((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.totalProvedReservesVolume),
+            provedReserves: getNum((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.provedIndigenousVolume),
+            totalProbableReserves: getNum((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.totalProbableReservesVolume),
+            probableReserves: getNum((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.probableIndigenousVolume),
           }
         },
         communityRelations: {
@@ -642,15 +645,15 @@ export class ReportService {
             carbonPriceScenario: getNum(busClimateImpact.carbonPriceScenario),
             reservesAtRiskPercent: getNum(busClimateImpact.percentageDecrease),
             totalProvedReserves: getNum(busEmbedded.totalProvedReserves),
-            totalProbableReserves: 0,
+            totalProbableReserves: getNum(busClimateImpact.estimatedDecrease),
             embeddedCarbon: getNum(busEmbedded.estimatedEmbeddedEmissions),
           },
           strategicCapitalAllocation: {
             renewableInvestmentAmount: getNum(busRenewable.investmentAmount),
             renewableRevenueAmount: getNum(busRenewable.revenueAmount),
             gasProjectsValueCount: getNum(busCapex.capexPercentage),
-            maintenanceValueCount: 0,
             renewableProjectsValueCount: 0,
+            maintenanceValueCount: Math.max(0, 100 - getNum(busCapex.capexPercentage)),
           },
         },
         businessEthicsAndTransparency: {
