@@ -28,9 +28,14 @@ export class AirQualityComputationService {
             }
         }
 
+        let total = 0;
+        for (const entry of Object.values(result)) {
+            total += Number((entry as any)?.volume) || 0;
+        }
+
         return {
             breakdown: result,
-            total: 0
+            total: Number(total.toFixed(4)),
         };
     }
 }

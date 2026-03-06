@@ -112,17 +112,17 @@ export class UpstreamEmissionDto {
   
   
   @ApiProperty({
-    description: "Total passenger kilometers travelled (if available) in km)",
+    description: "Total air distance travelled in km",
     example: 3000
   })
   @IsNumber()
-  total_passenger_kilometers_travelled: number;
+  total_air_distance_travelled: number;
 
   @ApiProperty({
-    description: "Emission factor of the means of travel for total travelled distance",
+    description: "Emission factor for air travel distance",
   })
   @IsNumber()
-  total_passenger_kilometers_travelled_ef?: number;
+  total_air_distance_travelled_ef?: number;
   
   @ApiProperty({
     description: "Total number of flights taken",

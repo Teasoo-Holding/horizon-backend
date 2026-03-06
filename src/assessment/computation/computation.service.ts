@@ -329,7 +329,7 @@ export class Scope1ComputationService {
 
   // Investments
   async investmentsComputations(dto: BasicComputationDto) {
-    const value = dto.value * dto.emission_factor;
+    const value = (dto.value / 100) * dto.emission_factor;
     return {
       value,
       unit: 'tCO2​e',
@@ -409,15 +409,15 @@ export class Scope1ComputationService {
     // GHG Guide: Volume * Methane Density (0.656) * GWP (28) = kgCO2e. Then divide by 1000 for tonnes.
     const venting = ((dto.volume || 0) * this.EF_VENTING * 28) / 1000;
     const hfc = (dto as any).hfcMass
-      ? ((dto as any).hfcMass * this.EF_HFC) / 1000
+      ? ((dto as any).hfcMass * ((dto as any).hfcGwp || this.EF_HFC)) / 1000
       : 0;
 
     return { venting, hfc, sum: venting + hfc, unit: 'tCO2e' };
   }
 
   async ProcessEmission(dto: ProcessEmissionDto) {
-    const cement = (dto.mass_of_cement || 0) * this.EF_CEMENT;
-    const flaring = ((dto.volume_of_flared_gas || 0) * this.EF_FLARING) / 1000;
+    const cement = (dto.mass_of_cement || 0) * (dto.cement_emission_factor || this.EF_CEMENT);
+    const flaring = ((dto.volume_of_flared_gas || 0) * (dto.gas_emission_factor || this.EF_FLARING)) / 1000;
 
     return { cement, flaring, sum: cement + flaring, unit: 'tCO2e' };
   }
@@ -558,10 +558,8 @@ export class Scope3ComputationService {
       dto.total_distance_travelled_ef ?? 0.11,
     );
     const air_travel = await this.travelEmissionComputation(
-      dto.total_number_of_flights_taken *
-      dto.total_number_of_employee_for_all_trips *
-      dto.total_passenger_kilometers_travelled,
-      dto.total_passenger_kilometers_travelled_ef ?? 0.35,
+      dto.total_air_distance_travelled || 0,
+      dto.total_air_distance_travelled_ef ?? 0.35,
     );
 
     const employee_commuting =
@@ -609,7 +607,7 @@ export class Scope3ComputationService {
       (dto.number_of_unit_products_sold *
         dto.expected_lifetime_of_the_product *
         dto.average_annual_fuel_or_energy_consumption_of_product *
-        dto.emission_factor_of_energy || 0.526) / 1000;
+        (dto.emission_factor_of_energy || 0.526)) / 1000;
 
     const eol_emissions: { type: string; value: number }[] = [];
 
@@ -642,9 +640,8 @@ export class Scope3ComputationService {
       1000;
 
     const investment =
-      (dto.investment_equity_share *
-        dto.investment_reported_scope_1and2_of_portfolio_company) /
-      1000;
+      (dto.investment_equity_share / 100) *
+        dto.investment_reported_scope_1and2_of_portfolio_company;
 
     return {
       mass_of_products_sold,

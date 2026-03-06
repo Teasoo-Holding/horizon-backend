@@ -715,7 +715,7 @@ export class AssessmentCalculatorService {
         group.cementManufacturing?.emissionFactor || 0.4985,
       ),
       volume_of_flared_gas: Number(group.gasFlaring?.gasVolume || 0),
-      gas_emission_factor: Number(group.gasFlaring?.emissionFactor || 2.89),
+      gas_emission_factor: Number(group.gasFlaring?.emissionFactor || 2.6),
     };
   }
 
@@ -784,18 +784,18 @@ export class AssessmentCalculatorService {
         upstream.wasteGeneratedInOperations?.wasteWeight || 0,
       ),
       total_weight_of_waste_generated_ef: 0.5,
-      total_distance_travelled: Number(upstream.businessTravel?.distance || 0),
+      total_distance_travelled: Number(upstream.businessTravel?.groundDistance || upstream.businessTravel?.distance || 0),
       total_distance_travelled_ef: 0.11,
       total_number_of_flights_taken: Number(
-        upstream.businessTravel?.numberOfFlights || 0,
+        upstream.businessTravel?.totalFlights || upstream.businessTravel?.numberOfFlights || 0,
+      ),
+      total_air_distance_travelled: Number(
+        upstream.businessTravel?.airDistance || upstream.businessTravel?.passengerKilometers || 0,
       ),
       total_number_of_employee_for_all_trips: Number(
-        upstream.businessTravel?.numberOfEmployees || 0,
+        upstream.businessTravel?.airEmployees || upstream.businessTravel?.numberOfEmployees || 0,
       ),
-      total_passenger_kilometers_travelled: Number(
-        upstream.businessTravel?.passengerKilometers || 0,
-      ),
-      total_passenger_kilometers_travelled_ef: 0.35,
+      total_air_distance_travelled_ef: 0.35,
       number_of_employees_commuting: Number(
         upstream.employeeCommuting?.numberOfEmployees || 0,
       ),
@@ -832,7 +832,11 @@ export class AssessmentCalculatorService {
         downstream.useOfSoldProducts?.averageAnnualConsumption || 0,
       ),
       emission_factor_of_energy: 0.526,
-      end_of_life_treatments: downstream.endOfLifeTreatment?.treatments || [],
+      end_of_life_treatments: (downstream.endOfLifeTreatment?.products || []).map((p: any) => ({
+        type_of_material: p.productType || '',
+        mass_of_products: Number(p.weight) || 0,
+        type_of_material_ef: this.getEndOfLifeEF(p.productType),
+      })),
       total_fuel_consumed_by_tennant: Number(
         downstream.downstreamLeasedAssets?.otherEnergyConsumed
         || downstream.downstreamLeasedAssets?.fuelConsumed || 0,
@@ -860,6 +864,20 @@ export class AssessmentCalculatorService {
         downstream.investments?.portfolioEmissions || 0,
       ),
     };
+  }
+
+  private getEndOfLifeEF(productType: string): number {
+    const efMap: Record<string, number> = {
+      metals: 1.5,
+      plastics: 3.0,
+      glass: 0.5,
+      'paper-cardboard': 1.0,
+      paper: 1.0,
+      textiles: 1.2,
+      electronics: 2.5,
+      organic: 1.0,
+    };
+    return efMap[productType] || 1.0;
   }
 
   private calculateScope3Progress(scope3: any): number {
