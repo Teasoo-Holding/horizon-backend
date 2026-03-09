@@ -316,7 +316,7 @@ export class AssessmentService {
     if (lastSavedForm.includes("downstream")) return breakdown.downstreamEmissions?.sum || 0;
 
     // Non-GHG assessments: extract totals from recalculated data
-    if (lastSavedForm.includes("airQuality") || lastSavedForm.includes("airPollutant")) {
+    if (lastSavedForm.includes("airQuality") || lastSavedForm.includes("airPollutant") || lastSavedForm.includes("air-pollutant")) {
       return recalculated?.environment?.airQuality?.airPollutantEmissions?.calculated?.total || 0;
     }
 
