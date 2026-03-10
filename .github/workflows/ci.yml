@@ -22,7 +22,7 @@ jobs:
         run: corepack enable
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --no-immutable
 
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
