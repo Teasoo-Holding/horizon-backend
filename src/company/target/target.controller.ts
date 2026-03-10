@@ -188,6 +188,23 @@ export class TargetController {
     return this.targetService.getBaselineOptions(req.user.companyId);
   }
 
+  @Get('latest-pair')
+  @ApiOperation({
+    summary: 'Get latest General and Scope targets for company',
+    description:
+      'Returns the most recent GENERAL and SCOPE targets independently, with refreshed emission values.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Latest target pair',
+  })
+  async getLatestTargetPair(@Req() req: RequestWithUser) {
+    if (!req.user?.companyId) {
+      throw new BadRequestException('User company ID is missing');
+    }
+    return this.targetService.getLatestTargetPair(req.user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get a single target by ID',

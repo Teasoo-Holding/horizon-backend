@@ -70,6 +70,9 @@ export class TargetResponseDto {
   @ApiProperty({ example: 2030 })
   targetYear: number;
 
+  @ApiPropertyOptional({ example: 2024 })
+  currentAssessmentYear?: number | null;
+
   @ApiPropertyOptional({ type: GeneralTargetResponseDto })
   generalTarget?: GeneralTargetResponseDto;
 
