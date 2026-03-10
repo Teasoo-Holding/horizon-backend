@@ -1036,7 +1036,8 @@ export class AssessmentCalculatorService {
 
     if (safetySource) {
       if (safetySource.safetyManagementSystems) {
-        this.calculateGroupProgress(safetySource, ['safetyManagementSystems'], [4]);
+        // safetyManagementSystems has 2 required fields: executiveRemunerationLinked + safetyDescription
+        this.calculateGroupProgress(safetySource, ['safetyManagementSystems'], [2]);
         if (safetySource.safetyManagementSystems.progress != null) {
           topics.push(safetySource.safetyManagementSystems.progress);
           weights.push(0.4);
