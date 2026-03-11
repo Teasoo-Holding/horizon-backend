@@ -33,4 +33,10 @@ export class BaselineOptionDto {
 
   @ApiProperty({ description: 'When the assessment was created' })
   createdAt: Date;
+
+  @ApiProperty({ description: 'When the assessment was submitted for review', nullable: true })
+  submittedAt: Date | null;
+
+  @ApiProperty({ description: 'When the assessment was approved', nullable: true })
+  approvedAt: Date | null;
 }

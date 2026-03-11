@@ -31,6 +31,8 @@ interface BaselineOption {
   totalEmission: number;
   hasReport: boolean;
   createdAt: Date;
+  submittedAt: Date | null;
+  approvedAt: Date | null;
 }
 /** Assessments eligible as baselines: approved or auto-approved (pass-through). */
 const BASELINE_ELIGIBLE_STATUSES: AssessmentStatus[] = [
@@ -976,6 +978,8 @@ export class TargetService {
         endMonth: true,
         endYear: true,
         createdAt: true,
+        submittedAt: true,
+        approvedAt: true,
         assessmentData: true,
       },
     });
@@ -1012,6 +1016,8 @@ export class TargetService {
         totalEmission,
         hasReport: reportIds.has(a.id),
         createdAt: a.createdAt,
+        submittedAt: a.submittedAt,
+        approvedAt: a.approvedAt,
       });
     }
 
