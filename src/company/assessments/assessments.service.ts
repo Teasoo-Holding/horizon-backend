@@ -177,7 +177,7 @@ export class AssessmentService {
     if (assessment.status === AssessmentStatus.declined) {
       await this.prisma.assessment.update({
         where: { id: assessmentId },
-        data: { status: AssessmentStatus.in_progress, rejection_reason: null },
+        data: { status: AssessmentStatus.in_progress, rejection_reason: null, submittedAt: null },
       });
     }
 
@@ -360,6 +360,7 @@ export class AssessmentService {
       newStatus = AssessmentStatus.submitted_approved;
     }
 
+    const now = new Date();
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
       data: {
@@ -367,6 +368,10 @@ export class AssessmentService {
         updated_by: userId,
         reviewed_by: finalReviewerId,
         rejection_reason: null, // clear any previous decline reason
+        submittedAt: now,
+        ...(newStatus === AssessmentStatus.submitted_approved
+          ? { approvedAt: now }
+          : {}),
       },
     });
 
@@ -516,6 +521,7 @@ export class AssessmentService {
         updated_by: currentUserId,
         reviewed_by: currentUserId,
         reviewedAt: new Date(),
+        approvedAt: new Date(),
         rejection_reason: null,
       },
     });
