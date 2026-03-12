@@ -512,7 +512,7 @@ export class ReportService {
           hcdtContribution: {
             priorYearOpexAmount: getNum(com.hcdtContribution?.opexAmount),
             annualContribution: getNum(com.hcdtContribution?.hcdtAmount),
-            percentage: Math.min(100, Math.round(getPercentage(getNum(com.hcdtContribution?.hcdtAmount), getNum(com.hcdtContribution?.opexAmount)))),
+            percentage: parseFloat(getPercentage(getNum(com.hcdtContribution?.hcdtAmount), getNum(com.hcdtContribution?.opexAmount)).toFixed(2)),
           },
           communityDisputeResolution: (() => {
             const d = com.communityDisputeResolution || com.disputeResolution || {};
