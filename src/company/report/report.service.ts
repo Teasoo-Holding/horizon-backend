@@ -6,6 +6,7 @@ import {
   // getTop5ByFuelType,
   // sumScope1Values,
 } from './entities/helpers';
+import { TOTAL_GROUP_COUNT } from '../assessments/common/group-keys';
 
 @Injectable()
 export class ReportService {
@@ -40,10 +41,12 @@ export class ReportService {
     });
     return report.map((r: any) => {
       const data = (r.assessmentData || {}) as any;
-      const rawProgress = Number(data.overallProgress ?? r.report?.progress ?? 0);
-      const progress = Math.min(Math.round(rawProgress), 100);
-      const totalSections = Number(data.totalSections ?? r.report?.total_sections ?? 142);
-      const completedSections = Math.round((progress / 100) * totalSections);
+      const submittedGroups: string[] = Array.isArray(data.submittedGroups) ? data.submittedGroups : [];
+      const completedSections = submittedGroups.length;
+      const totalSections = TOTAL_GROUP_COUNT;
+      const progress = totalSections > 0
+        ? parseFloat(((completedSections / totalSections) * 100).toFixed(2))
+        : 0;
       return {
         ...r,
         progress,
