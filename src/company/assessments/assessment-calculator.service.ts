@@ -8,6 +8,7 @@ import { AirQualityComputationService } from 'src/assessment/computation/air-qua
 import { WaterComputationService } from 'src/assessment/computation/water.service';
 import { BiodiversityComputationService } from 'src/assessment/computation/biodiversity.service';
 import { ActivityMetricsComputationService } from 'src/assessment/computation/activity-metrics.service';
+import { TOTAL_GROUP_COUNT } from './common/group-keys';
 
 interface AssessmentData {
   environment?: any;
@@ -491,9 +492,6 @@ export class AssessmentCalculatorService {
       locationBased: 4,
       marketBased: 4,
     };
-
-    let totalFilled = 0;
-    let totalExpected = 0;
 
     // Location Based Progress
     const loc = scope2.locationBased;
@@ -1171,22 +1169,12 @@ export class AssessmentCalculatorService {
   }
 
   private calculateTotalSectionCounts(data: any): { completed: number; total: number } {
-    // Fix: Using a fixed total number of expected fields/sections across the entire assessment (142).
-    // This ensures that "completed of total" matches the overall progress percentage,
-    // avoiding the bug where it says "28 of 28 completed" when progress is only 93% 
-    // due to untouched sections not being counted in the denominator.
-    const TOTAL_SECTIONS = 142;
-    const progress = data.overallProgress || 0;
-    const completed = Math.round((progress / 100) * TOTAL_SECTIONS);
-
-    return { completed, total: TOTAL_SECTIONS };
+    const submittedGroups: string[] = Array.isArray(data.submittedGroups) ? data.submittedGroups : [];
+    return { completed: submittedGroups.length, total: TOTAL_GROUP_COUNT };
   }
 
   private calculateOverallProgress(data: any): number {
-    // Implement weight based calculation for overall progress
-    // Weights: Env (40%), Social (20%), Human (10%), Business (20%), Leadership (10%)
-
-    // BUT FIRST: Map Business Innovation to Business Model for Reports
+    // Map Business Innovation to Business Model for Reports
     if (data.environment?.businessInnovation) {
       const bi = data.environment.businessInnovation;
       data.businessModel = data.businessModel || {};
@@ -1194,26 +1182,22 @@ export class AssessmentCalculatorService {
       // Map Reserves Valuation
       if (bi.reservesValuationAndCapitalExpenditures) {
         const src = bi.reservesValuationAndCapitalExpenditures;
-        // Ensure singular 'Expenditure' to match Report Type
         data.businessModel.reservesValuationAndCapitalExpenditure = {
           climateImpactOnReserves: {
             carbonPriceScenario: src.reservesSensitivityToCarbonPricing?.carbonPriceScenario,
             reservesAtRiskPercent: src.reservesSensitivityToCarbonPricing?.percentageDecrease,
             totalProvedReserves: src.embeddedCarbonInReserves?.totalProvedReserves,
-            totalProbableReserves: 0, // Not captured in form yet?
+            totalProbableReserves: 0,
             embeddedCarbon: src.embeddedCarbonInReserves?.estimatedEmbeddedEmissions
           },
           strategicCapitalAllocation: {
             renewableInvestmentAmount: src.renewableEnergyInvestment?.investmentAmount,
             renewableRevenueAmount: src.renewableEnergyInvestment?.revenueAmount,
-            gasProjectsValueCount: 0, // Mapped if available
+            gasProjectsValueCount: 0,
             maintenanceValueCount: 0,
             renewableProjectsValueCount: 0
           }
         };
-        // Progress for sub-parts is already copied via reference or explicit assignment if needed, 
-        // but here we just ensure the structure is correct for reports.
-        // The overall pillar progress is handled in recalculate()
         if (bi.reservesValuationAndCapitalExpenditures.progress != null) {
           data.businessModel.reservesValuationAndCapitalExpenditure.progress = bi.reservesValuationAndCapitalExpenditures.progress;
         }
@@ -1235,21 +1219,12 @@ export class AssessmentCalculatorService {
       }
     }
 
-    // Use pre-calculated pillar progress
-    const envProgress = data.environment?.progress || 0;
-    const socialProgress = data.socialCapital?.progress || 0;
-    const humanProgress = data.humanCapital?.progress || 0;
-    const businessProgress = data.businessModel?.progress || 0;
-    const leadershipProgress = data.leadershipGovernance?.progress || 0;
-
-    const weightedSum =
-      (envProgress * 0.4) +
-      (socialProgress * 0.2) +
-      (humanProgress * 0.1) +
-      (businessProgress * 0.2) +
-      (leadershipProgress * 0.1);
-
-    return Math.min(Number(weightedSum.toFixed(1)), 100);
+    // Progress based on submitted group count (aligned with frontend InfoCardsRow)
+    const submittedGroups: string[] = Array.isArray(data.submittedGroups) ? data.submittedGroups : [];
+    const progress = TOTAL_GROUP_COUNT > 0
+      ? parseFloat(((submittedGroups.length / TOTAL_GROUP_COUNT) * 100).toFixed(2))
+      : 0;
+    return Math.min(progress, 100);
   }
 
   private hasValue(val: any): boolean {
