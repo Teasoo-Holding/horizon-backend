@@ -34,16 +34,11 @@ export class EmailService {
 
       return { success: true, message: `Email sent` };
     } catch (error: unknown) {
-      console.error('Error sending email:', error);
-      let errorMessage = 'Unknown error';
-      if (
-        error &&
-        typeof error === 'object' &&
-        'message' in error &&
-        typeof (error as any).message === 'string'
-      ) {
-        errorMessage = (error as { message: string }).message;
-      }
+      const axErr = error as any;
+      const status = axErr?.response?.status;
+      const body = axErr?.response?.data;
+      console.error('Error sending email:', { status, body: body ?? axErr?.message });
+      const errorMessage = body?.message || axErr?.message || 'Unknown error';
       return { success: false, error: errorMessage };
     }
   }
