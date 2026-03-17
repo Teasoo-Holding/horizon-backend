@@ -8,10 +8,158 @@ import {
 } from './entities/helpers';
 import { TOTAL_GROUP_COUNT } from '../assessments/common/group-keys';
 
+export interface EvidenceFile {
+  name: string;
+  url: string;
+  section: string;
+  size?: number;
+  uploadedAt?: string;
+}
+
+export interface ReportEvidence {
+  environmental: EvidenceFile[];
+  socialCapital: EvidenceFile[];
+  humanCapital: EvidenceFile[];
+  businessModel: EvidenceFile[];
+  leadershipAndGovernance: EvidenceFile[];
+}
+
 @Injectable()
 export class ReportService {
   private readonly logger = new Logger(ReportService.name);
   constructor(private prisma: PrismaService) { }
+
+  /* ─── Evidence file extraction helpers ─── */
+
+  private extractFiles(obj: any, section: string, target: EvidenceFile[]) {
+    if (!obj) return;
+    const push = (f: any) => {
+      if (f?.url)
+        target.push({
+          name: f.name || 'File',
+          url: f.url,
+          section,
+          size: f.size,
+          uploadedAt: f.uploadedAt || f.createdAt,
+        });
+    };
+    if (obj.files && typeof obj.files === 'object') {
+      Object.values(obj.files).forEach(push);
+    }
+    if (Array.isArray(obj.additionalFields)) {
+      obj.additionalFields.forEach(push);
+    }
+    if (Array.isArray(obj.filesAndLinks)) {
+      obj.filesAndLinks.forEach(push);
+    }
+  }
+
+  private collectEvidenceByPillar(data: any): ReportEvidence {
+    const environmental: EvidenceFile[] = [];
+    const socialCapital: EvidenceFile[] = [];
+    const humanCapital: EvidenceFile[] = [];
+    const businessModel: EvidenceFile[] = [];
+    const leadershipAndGovernance: EvidenceFile[] = [];
+
+    const env = data?.environment || {};
+    const ghg = env.ghg || {};
+    const scope1 = ghg.scope1 || {};
+    const scope2 = ghg.scope2 || {};
+    const scope3 = ghg.scope3 || {};
+    const upstream = scope3.upstream || {};
+    const downstream = scope3.downstream || {};
+
+    // Scope 1
+    this.extractFiles(scope1.stationarySources?.electricityHeat, 'Stationary - Electricity & Heat', environmental);
+    this.extractFiles(scope1.stationarySources?.industrialProcesses, 'Stationary - Industrial', environmental);
+    this.extractFiles(scope1.stationarySources?.oilGasOperations, 'Stationary - Oil & Gas', environmental);
+    this.extractFiles(scope1.mobileSources?.roadTransport, 'Mobile - Road Transport', environmental);
+    this.extractFiles(scope1.mobileSources?.vehicleEquipment, 'Mobile - Vehicle Equipment', environmental);
+    this.extractFiles(scope1.mobileSources?.marineAviation, 'Mobile - Marine/Aviation', environmental);
+    this.extractFiles(scope1.processEmissions?.cementManufacturing, 'Process - Cement', environmental);
+    this.extractFiles(scope1.processEmissions?.gasFlaring, 'Process - Gas Flaring', environmental);
+    this.extractFiles(scope1.fugitiveEmissions?.ventingNaturalGas, 'Fugitive - Venting', environmental);
+    this.extractFiles(scope1.fugitiveEmissions?.hfcLeaks, 'Fugitive - HFC Leaks', environmental);
+
+    // Scope 2
+    this.extractFiles(scope2.locationBased?.electricity, 'Scope 2 - Location Electricity', environmental);
+    this.extractFiles(scope2.locationBased?.cooling, 'Scope 2 - Location Cooling', environmental);
+    this.extractFiles(scope2.locationBased?.steam, 'Scope 2 - Location Steam', environmental);
+    this.extractFiles(scope2.locationBased?.heating, 'Scope 2 - Location Heating', environmental);
+    this.extractFiles(scope2.marketBased?.ipps, 'Scope 2 - Market IPPs', environmental);
+    this.extractFiles(scope2.marketBased?.eac, 'Scope 2 - Market EAC', environmental);
+    this.extractFiles(scope2.marketBased?.residual, 'Scope 2 - Market Residual', environmental);
+    this.extractFiles(scope2.marketBased?.coolingSteam, 'Scope 2 - Market Cooling/Steam', environmental);
+
+    // Scope 3
+    this.extractFiles(upstream.purchasedGoodsAndServices, 'Scope 3 - Purchased Goods', environmental);
+    this.extractFiles(upstream.capitalGoods, 'Scope 3 - Capital Goods', environmental);
+    this.extractFiles(upstream.fuelEnergyRelatedActivities, 'Scope 3 - Fuel/Energy Related', environmental);
+    this.extractFiles(upstream.upstreamTransportationDistribution, 'Scope 3 - Upstream Transport', environmental);
+    this.extractFiles(upstream.wasteGeneratedInOperations, 'Scope 3 - Waste in Ops', environmental);
+    this.extractFiles(upstream.businessTravel, 'Scope 3 - Business Travel', environmental);
+    this.extractFiles(upstream.employeeCommuting, 'Scope 3 - Employee Commuting', environmental);
+    this.extractFiles(upstream.upstreamLeasedAssets, 'Scope 3 - Upstream Leased', environmental);
+    this.extractFiles(downstream.downstreamTransportationDistribution, 'Scope 3 - Downstream Transport', environmental);
+    this.extractFiles(downstream.processingSoldProducts, 'Scope 3 - Processing Sold', environmental);
+    this.extractFiles(downstream.useOfSoldProducts, 'Scope 3 - Use of Sold', environmental);
+    this.extractFiles(downstream.endOfLifeTreatment, 'Scope 3 - End of Life', environmental);
+    this.extractFiles(downstream.downstreamLeasedAssets, 'Scope 3 - Downstream Leased', environmental);
+    this.extractFiles(downstream.franchises, 'Scope 3 - Franchises', environmental);
+    this.extractFiles(downstream.investments, 'Scope 3 - Investments', environmental);
+
+    // Air Quality, Water, Biodiversity
+    this.extractFiles(env.airQuality?.airPollutantEmissions, 'Air Quality', environmental);
+    this.extractFiles(env.waterManagement?.waterAndProducedWaterManagement, 'Water Management', environmental);
+    this.extractFiles(env.waterManagement?.hydraulicFracturingImpacts, 'Hydraulic Fracturing', environmental);
+    this.extractFiles(env.biodiversityImpact?.environmentalManagement, 'Biodiversity', environmental);
+
+    // ── Social Capital ──
+    const soc = data?.socialCapital || {};
+    const secRights = soc.securityRights || {};
+    const comRel = soc.communityRelations || {};
+
+    this.extractFiles(secRights.reservesAreaConflict, 'Reserves in Conflict Areas', socialCapital);
+    this.extractFiles(secRights.reservesIndigenousLand, 'Indigenous Land', socialCapital);
+    this.extractFiles(secRights.humanRightEngagement, 'Human Rights Engagement', socialCapital);
+    this.extractFiles(comRel.hcdtContribution, 'HCDT Contribution', socialCapital);
+    this.extractFiles(comRel.communityRisk, 'Community Risk Management', socialCapital);
+    this.extractFiles(comRel.communityDisputeResolution, 'Dispute Resolution', socialCapital);
+    this.extractFiles(comRel.operationalDelays, 'Operational Delays', socialCapital);
+
+    // ── Human Capital ──
+    const hum = data?.humanCapital || {};
+    const humRisk = hum.riskAndOpportunityManagement || {};
+    const humHSP = humRisk.healthAndSafetyPerformance || {};
+
+    this.extractFiles(humHSP.direct, 'Direct Employees - Health & Safety', humanCapital);
+    this.extractFiles(humHSP.contract, 'Contract Employees - Health & Safety', humanCapital);
+    this.extractFiles(humRisk.safetyManagementSystems, 'Safety Management Systems', humanCapital);
+
+    // ── Business Model ──
+    const bus = data?.businessInnovation || {};
+    const busReserves = bus.reservesValuationAndCapitalExpenditures || {};
+    const busEthics = bus.businessEthicsAndTransparency || {};
+
+    this.extractFiles(busReserves.reservesSensitivityToCarbonPricing, 'Carbon Pricing Sensitivity', businessModel);
+    this.extractFiles(busReserves.embeddedCarbonInReserves, 'Embedded Carbon', businessModel);
+    this.extractFiles(busReserves.renewableEnergyInvestment, 'Renewable Energy Investment', businessModel);
+    this.extractFiles(busReserves.capitalExpenditureStrategy, 'Capital Expenditure Strategy', businessModel);
+    this.extractFiles(busEthics.antiCorruptionManagementSystem, 'Anti-Corruption Management', businessModel);
+    this.extractFiles(busEthics.reservesInCountriesWithHighCorruptionRisk, 'Corruption Risk Reserves', businessModel);
+
+    // ── Leadership & Governance ──
+    const lead = data?.leadershipGovernance || {};
+    const crit = lead.criticalIncidentRiskManagement || {};
+    const legal = lead.managementOfTheLegalAndRegulatoryEnvironment || lead.legalRegulatoryEnvironment || {};
+
+    this.extractFiles(crit.processSafetyEvents, 'Process Safety Events', leadershipAndGovernance);
+    this.extractFiles(crit.catastrophicRiskManagementSystems, 'Catastrophic Risk Management', leadershipAndGovernance);
+    this.extractFiles(legal.boardAndManagementOversight, 'Board & Management Oversight', leadershipAndGovernance);
+    this.extractFiles(legal.publicPolicyEngagement, 'Public Policy Engagement', leadershipAndGovernance);
+
+    return { environmental, socialCapital, humanCapital, businessModel, leadershipAndGovernance };
+  }
 
   async findOrganizationAssessmentReport(id: number) {
     const report = await this.prisma.assessment.findMany({
@@ -708,6 +856,7 @@ export class ReportService {
       endMonth: record.endMonth,
       endYear: record.endYear,
       targets: targets[0] || null,
+      evidence: this.collectEvidenceByPillar(currentData),
     };
   }
 }
