@@ -1,21 +1,21 @@
-model DisclosureTopic {
+model DisclosureTopicLegacy {
   id           Int                @id @default(autoincrement())
   assessmentId Int
   category     DisclosureCategory
   topic        String
   subtopic     String
-  assessment   Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment   Assessment         @relation("AssessmentToDisclosureTopic", fields: [assessmentId], references: [id], onDelete: Cascade)
   ghgData      GhgData?
 
   @@unique([assessmentId, category, topic, subtopic])
   @@index([assessmentId])
-  @@map("disclosure_topics")
+  @@map("disclosure_topics_legacy")
 }
 
 model GhgData {
-  id                Int             @id @default(autoincrement())
-  disclosureTopicId Int             @unique
-  disclosureTopic   DisclosureTopic @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
+  id                Int                  @id @default(autoincrement())
+  disclosureTopicId Int                  @unique
+  disclosureTopic   DisclosureTopicLegacy @relation(fields: [disclosureTopicId], references: [id], onDelete: Cascade)
   scope1            Scope1Data?
 
   @@index([disclosureTopicId])

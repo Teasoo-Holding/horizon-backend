@@ -1,0 +1,113 @@
+enum InputType {
+  NUMBER
+  TEXT
+  RADIO
+  CHECKBOX
+  FILE
+  SELECT
+  DATE
+  MULTISELECT
+  SOURCE_DATA_MAP
+}
+
+model Sector {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  industries  Industry[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("sectors")
+}
+
+model Pillar {
+  id          Int                @id @default(autoincrement())
+  name        String
+  description String?
+  industries  PillarOnIndustry[]
+  topics      DisclosureTopic[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("pillars")
+}
+
+model PillarOnIndustry {
+  pillarId   Int
+  industryId Int
+  pillar     Pillar   @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@id([pillarId, industryId])
+  @@map("pillar_on_industry")
+}
+
+model DisclosureTopic {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  description String?
+  pillarId    Int
+  pillar      Pillar               @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  subtopics   DisclosureSubtopic[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("disclosure_topics")
+}
+
+model DisclosureSubtopic {
+  id          Int                @id @default(autoincrement())
+  name        String
+  description String?
+  topicId     Int
+  topic       DisclosureTopic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  metrics     DisclosureMetric[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("disclosure_subtopics")
+}
+
+model DisclosureMetric {
+  id          Int                   @id @default(autoincrement())
+  name        String
+  description String?
+  subtopicId  Int
+  subtopic    DisclosureSubtopic    @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  submetrics  DisclosureSubmetric[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@map("disclosure_metrics")
+}
+
+model DisclosureSubmetric {
+  id               Int                      @id @default(autoincrement())
+  name             String
+  description      String?
+  metricId         Int
+  metric           DisclosureMetric         @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  submetricDetails DisclosureSubmetricDetail[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@map("disclosure_submetrics")
+}
+
+model DisclosureSubmetricDetail {
+  id               Int                @id @default(autoincrement())
+  submetricId      Int
+  submetric        DisclosureSubmetric @relation(fields: [submetricId], references: [id], onDelete: Cascade)
+  label            String
+  inputType        InputType
+  options          Json?              // For select/radio options
+  emissionFactor   Json?              // e.g. { value: 2.5, source: '2025' }
+  mappingKey       String?            // Maps to legacy JSON field names (e.g. 'dieselGenerators')
+  required         Boolean            @default(false)
+  answers          AssessmentAnswer[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@map("disclosure_submetric_details")
+}

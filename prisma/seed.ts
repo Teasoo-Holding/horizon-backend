@@ -110,9 +110,24 @@ async function main() {
         industry: {
           connectOrCreate: {
             where: {
-              sector_industry: { sector: 'Services', industry: 'Advisory' },
+              sectorId_name: { 
+                sectorId: await prisma.sector.upsert({
+                  where: { name: 'Services' },
+                  update: {},
+                  create: { name: 'Services' }
+                }).then(s => s.id),
+                name: 'Advisory' 
+              },
             },
-            create: { sector: 'Services', industry: 'Advisory' },
+            create: { 
+              name: 'Advisory',
+              sector: {
+                connectOrCreate: {
+                  where: { name: 'Services' },
+                  create: { name: 'Services' }
+                }
+              }
+            },
           },
         },
         isoCountryCode: 'NG',
@@ -140,9 +155,24 @@ async function main() {
         industry: {
           connectOrCreate: {
             where: {
-              sector_industry: { sector: 'Technology', industry: 'Software' },
+              sectorId_name: { 
+                sectorId: await prisma.sector.upsert({
+                  where: { name: 'Technology' },
+                  update: {},
+                  create: { name: 'Technology' }
+                }).then(s => s.id),
+                name: 'Software' 
+              },
             },
-            create: { sector: 'Technology', industry: 'Software' },
+            create: { 
+              name: 'Software',
+              sector: {
+                connectOrCreate: {
+                  where: { name: 'Technology' },
+                  create: { name: 'Technology' }
+                }
+              }
+            },
           },
         },
         isoCountryCode: 'US',
@@ -224,14 +254,23 @@ async function main() {
           industry: {
             connectOrCreate: {
               where: {
-                sector_industry: {
-                  sector: 'Services',
-                  industry: 'Advisory',
+                sectorId_name: {
+                  sectorId: await prisma.sector.upsert({
+                    where: { name: 'Services' },
+                    update: {},
+                    create: { name: 'Services' }
+                  }).then(s => s.id),
+                  name: 'Advisory',
                 },
               },
               create: {
-                sector: 'Services',
-                industry: 'Advisory',
+                name: 'Advisory',
+                sector: {
+                  connectOrCreate: {
+                    where: { name: 'Services' },
+                    create: { name: 'Services' }
+                  }
+                }
               },
             },
           },
@@ -328,15 +367,24 @@ async function main() {
     }
 
     for (const ind of industries) {
+      const sector = await prisma.sector.upsert({
+        where: { name: ind.sector },
+        update: {},
+        create: { name: ind.sector },
+      });
+
       await prisma.industry.upsert({
         where: {
-          sector_industry: {
-            sector: ind.sector,
-            industry: ind.industry,
+          sectorId_name: {
+            sectorId: sector.id,
+            name: ind.name,
           },
         },
         update: {},
-        create: ind,
+        create: {
+          name: ind.name,
+          sectorId: sector.id,
+        },
       });
     }
 

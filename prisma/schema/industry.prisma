@@ -1,10 +1,12 @@
 model Industry {
-  id           Int          @id @default(autoincrement())
-  sector       String
-  industry     String
+  id           Int                @id @default(autoincrement())
+  name         String             @unique @map("industry")
+  sectorId     Int
+  sector       Sector             @relation(fields: [sectorId], references: [id])
   subsidiaries Subsidiary[]
   companies    Company[]
+  pillars      PillarOnIndustry[]
 
-  @@unique([sector, industry])
+  @@unique([sectorId, name])
   @@map("industries")
 }

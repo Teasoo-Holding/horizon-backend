@@ -11,7 +11,7 @@ import { UpdateSubsidiaryDto } from './dto/update-subsidiary.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Industry, Prisma } from '@prisma/client';
 import { ActivitiesService } from 'src/activities/activities.service';
 
 @Injectable()
@@ -116,22 +116,23 @@ export class SubsidiaryService {
         teamLead = user;
       }
 
-      let industryRecord: {
-        id: number;
-        industry: string;
-        sector?: string;
-      } | null = null;
+      let industryRecord: Industry | null = null;
 
       if (createSubsidiaryDto.industry) {
         industryRecord = await this.prisma.industry.findFirst({
-          where: { industry: createSubsidiaryDto.industry },
+          where: { name: createSubsidiaryDto.industry },
         });
 
         if (!industryRecord) {
           industryRecord = await this.prisma.industry.create({
             data: {
-              industry: createSubsidiaryDto.industry,
-              sector: createSubsidiaryDto.sector ?? '',
+              name: createSubsidiaryDto.industry,
+              sector: {
+                connectOrCreate: {
+                  where: { name: createSubsidiaryDto.sector ?? '' },
+                  create: { name: createSubsidiaryDto.sector ?? '' }
+                }
+              }
             },
           });
         }
@@ -161,7 +162,7 @@ export class SubsidiaryService {
             company_logo_url: createSubsidiaryDto.company_logo_url,
           },
           include: {
-            industry: { select: { id: true, industry: true, sector: true } },
+            industry: { select: { id: true, name: true, sector: { select: { name: true } } } },
             teamLead: {
               select: { first_name: true, last_name: true, email: true },
             },
@@ -192,7 +193,7 @@ export class SubsidiaryService {
         return subsidiary;
       } catch (error) {
         if (
-          error instanceof PrismaClientKnownRequestError &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
           throw new ConflictException(
@@ -245,7 +246,7 @@ export class SubsidiaryService {
         },
       },
       include: {
-        industry: { select: { id: true, industry: true, sector: true } },
+        industry: { select: { id: true, name: true, sector: { select: { name: true } } } },
         teamLead: {
           select: { first_name: true, last_name: true, email: true },
         },
@@ -289,7 +290,7 @@ export class SubsidiaryService {
     const subsidiary = await this.prisma.subsidiary.findUnique({
       where: { id },
       include: {
-        industry: { select: { industry: true, sector: true } },
+        industry: { select: { name: true, sector: { select: { name: true } } } },
         teamLead: {
           select: { first_name: true, last_name: true, email: true },
         },
@@ -449,7 +450,7 @@ export class SubsidiaryService {
         data,
         include: {
           parentCompany: true,
-          industry: { select: { id: true, industry: true, sector: true } },
+          industry: { select: { id: true, name: true, sector: { select: { name: true } } } },
           teamLead: {
             select: { first_name: true, last_name: true, email: true },
           },

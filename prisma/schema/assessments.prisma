@@ -1,9 +1,9 @@
 model Assessment {
-  id               Int               @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
   subsidiary       String
-  status           AssessmentStatus  @default(in_progress)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  status           AssessmentStatus   @default(in_progress)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   assessmentData   Json
   companyId        Int
   created_by       Int?
@@ -17,13 +17,14 @@ model Assessment {
   reviewed_by      Int?
   submittedAt      DateTime?
   approvedAt       DateTime?
-  company          Company           @relation(fields: [companyId], references: [id])
-  creator          User?             @relation("CreatedAssessment", fields: [created_by], references: [id])
-  reviewer         User?             @relation("ReviewedAssessment", fields: [reviewed_by], references: [id])
-  updater          User?             @relation("UpdatedAssessment", fields: [updated_by], references: [id])
-  DisclosureTopic  DisclosureTopic[]
+  company          Company            @relation(fields: [companyId], references: [id])
+  creator          User?              @relation("CreatedAssessment", fields: [created_by], references: [id])
+  reviewer         User?              @relation("ReviewedAssessment", fields: [reviewed_by], references: [id])
+  updater          User?              @relation("UpdatedAssessment", fields: [updated_by], references: [id])
   report           Report?
   taskAssignments  TaskAssignment[]
+  answers          AssessmentAnswer[]
+  DisclosureTopicLegacy DisclosureTopicLegacy[] @relation("AssessmentToDisclosureTopic")
 
   @@index([companyId])
   @@index([created_by])
@@ -39,4 +40,20 @@ enum AssessmentStatus {
   approved
   unapproved_rejected
   declined
+}
+
+model AssessmentAnswer {
+  id                 Int                       @id @default(autoincrement())
+  assessmentId       Int
+  assessment         Assessment                @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  submetricDetailId  Int
+  submetricDetail    DisclosureSubmetricDetail @relation(fields: [submetricDetailId], references: [id], onDelete: Cascade)
+  value              Json?                     // The actual input value
+  files              Json?                     // Uploaded file metadata
+  metadata           Json?                     // Supplementary info (units, fuel type, etc)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@unique([assessmentId, submetricDetailId])
+  @@map("assessment_answers")
 }

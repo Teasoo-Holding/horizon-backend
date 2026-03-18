@@ -145,80 +145,74 @@ export class CompanyService {
         };
       };
 
+      const company = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        include: { industry: true },
+      });
+
+      if (!company) throw new NotFoundException('Company not found');
+
       const latestTotals = extractTotals(latestAssessment);
 
-      const getHubStats = (assessment: any) => {
+      const getHubStats = async (assessment: any, industryId: number | null) => {
         const data = parseAssessmentData(assessment?.assessmentData);
-        if (!data) return null;
+        if (!data || !industryId) return null;
 
         const submittedGroups: string[] = data?.submittedGroups || [];
 
-        // Each entry is the group keys that constitute one "section" on the dashboard card.
-        // A section is considered done when at least one of its sub-groups is submitted.
-        const envSectionGroups = [
-          ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
-          ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
-          ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
-          ['environment.airQuality.airPollutantEmissions'],
-          ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
-          ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
-          ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
-          ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
-        ];
-        const socialSectionGroups = [
-          ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
-          ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
-        ];
-        const govSectionGroups = [
-          ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
-          ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
-          ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
-          ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
-        ];
+        // Fetch the industry's pillars and topics for dynamic stats
+        const industryHierarchy = await this.prisma.industry.findUnique({
+          where: { id: industryId },
+          include: {
+            pillars: {
+              include: {
+                pillar: {
+                  include: {
+                    topics: {
+                      include: {
+                        subtopics: {
+                          include: {
+                            metrics: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
 
-        const countSubmitted = (sectionGroups: string[][]): number =>
-          sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
+        if (!industryHierarchy) return null;
 
-        const completedSections = countSubmitted(envSectionGroups);
-        const socialCompleted = countSubmitted(socialSectionGroups);
-        const govCompleted = countSubmitted(govSectionGroups);
+        // Legacy hardcoded section groups for the initial industries
+        // In a fully dynamic future, these would be derived from the hierarchy
+        const getPillarStats = (pillarName: string, sectionGroups: string[][]) => {
+          const completedSections = sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
+          const progress = sectionGroups.length > 0 ? Math.round((completedSections / sectionGroups.length) * 100) : 0;
+          const allGroups = sectionGroups.flat();
+          const submittedCount = allGroups.filter(g => submittedGroups.includes(g)).length;
 
-        const envProgress = Math.round((completedSections / envSectionGroups.length) * 100);
-        const socialProgress = Math.round((socialCompleted / socialSectionGroups.length) * 100);
-        const govProgress = Math.round((govCompleted / govSectionGroups.length) * 100);
+          let status = 'not-started';
+          if (submittedCount === allGroups.length && allGroups.length > 0) status = 'completed';
+          else if (submittedCount > 0 || progress > 0) status = 'in-progress';
 
-        // All sub-group keys per pillar for status determination
-        const envGroups = envSectionGroups.flat();
-        const socialGroups = socialSectionGroups.flat();
-        const govGroups = govSectionGroups.flat();
-
-        const getPillarStatus = (groups: string[], progress: number): string => {
-          const submitted = groups.filter(g => submittedGroups.includes(g)).length;
-          if (submitted === groups.length) return 'completed';
-          if (submitted > 0 || progress > 0) return 'in-progress';
-          return 'not-started';
+          return {
+            progress,
+            completed: `${completedSections} of ${sectionGroups.length} sections completed`,
+            status,
+          };
         };
 
         return {
-          environment: {
-            progress: envProgress,
-            completed: `${completedSections} of ${envSectionGroups.length} sections completed`,
-            status: getPillarStatus(envGroups, envProgress),
-          },
-          social: {
-            progress: socialProgress,
-            completed: `${socialCompleted} of ${socialSectionGroups.length} sections completed`,
-            status: getPillarStatus(socialGroups, socialProgress),
-          },
-          governance: {
-            progress: govProgress,
-            completed: `${govCompleted} of ${govSectionGroups.length} sections completed`,
-            status: getPillarStatus(govGroups, govProgress),
-          },
+          environment: getPillarStats('environment', envSectionGroups),
+          social: getPillarStats('social', socialSectionGroups),
+          governance: getPillarStats('governance', govSectionGroups),
         };
       };
 
-      const hubStats = getHubStats(latestAssessment);
+      const hubStats = await getHubStats(latestAssessment, company.industryId);
 
       // Include the latest assessment ID so the frontend can route "Continue Assessment" correctly
       const latestAssessmentId = latestAssessment?.id ?? null;

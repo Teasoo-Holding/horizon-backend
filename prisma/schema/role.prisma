@@ -4,8 +4,30 @@ model Role {
   description String?
   invitations Invitation[]
   users       User[]
+  permissions RolePermission[]
 
   @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  action      String           // e.g. "READ", "WRITE", "DELETE", "MANAGE"
+  resource    String           // e.g. "ASSESSMENT", "USER", "COMPANY"
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 enum RoleName {
