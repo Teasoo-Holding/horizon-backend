@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { hasCrossCompanyAccess } from 'src/auth/roles/role.constants';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { UpdateSubUserDto } from './dto/update-sub-user.dto';
@@ -117,7 +118,7 @@ export class CompanyUsersService {
         ? requestingUser.role
         : requestingUser.role?.name;
 
-    if (roleName !== 'super_admin' && requestingUser.companyId !== companyId) {
+    if (!hasCrossCompanyAccess(roleName) && requestingUser.companyId !== companyId) {
       throw new ForbiddenException(
         'You are not authorized to view users of this company',
       );

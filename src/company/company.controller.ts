@@ -11,7 +11,6 @@ import {
   HttpStatus,
   HttpCode,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CompanyService } from './company.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
 import {
@@ -20,9 +19,10 @@ import {
   ApiForbiddenResponse,
   ApiResponse,
 } from '@nestjs/swagger';
-import { CompanyStatus } from '@prisma/client';
+import { CompanyStatus, RoleName } from '@prisma/client';
 import { Request } from 'express';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { hasCrossCompanyAccess } from 'src/auth/roles/role.constants';
 
 interface CustomRequest extends Request {
   user: {
@@ -58,7 +58,7 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) { }
 
   @UseGuards(JwtRolesGuard)
-  @Roles('super_admin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin)
   @ApiOperation({ summary: 'Retrieve all companies' })
   @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
   @Get('all')
@@ -69,10 +69,10 @@ export class CompanyController {
   @ApiOperation({ summary: 'Retrieve my company details' })
   @UseGuards(JwtRolesGuard)
   @Roles(
-    'company_esg_admin',
-    'company_esg_subadmin',
-    'company_esg_data_officer',
-    'company_esg_viewer',
+    RoleName.company_esg_admin,
+    RoleName.company_esg_subadmin,
+    RoleName.company_esg_data_officer,
+    RoleName.company_esg_viewer,
   )
   @Get('profile')
   getMyCompany(@Req() req: Request & { user: { companyId: number } }) {
@@ -84,10 +84,10 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Returns ESG dashboard overview' })
   @UseGuards(JwtRolesGuard)
   @Roles(
-    'company_esg_admin',
-    'company_esg_subadmin',
-    'company_esg_data_officer',
-    'company_esg_viewer',
+    RoleName.company_esg_admin,
+    RoleName.company_esg_subadmin,
+    RoleName.company_esg_data_officer,
+    RoleName.company_esg_viewer,
   )
   @Get('dashboard')
   @HttpCode(HttpStatus.OK)
@@ -109,10 +109,10 @@ export class CompanyController {
   @ApiOperation({ summary: 'Get onboarding progress' })
   @UseGuards(JwtRolesGuard)
   @Roles(
-    'company_esg_admin',
-    'company_esg_subadmin',
-    'company_esg_data_officer',
-    'company_esg_viewer',
+    RoleName.company_esg_admin,
+    RoleName.company_esg_subadmin,
+    RoleName.company_esg_data_officer,
+    RoleName.company_esg_viewer,
   )
   @Get('onboarding-progress')
   async getOnboardingProgress(@Req() req: CustomRequest) {
@@ -131,16 +131,23 @@ export class CompanyController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
+  @UseGuards(JwtRolesGuard)
+  @Roles(
+    RoleName.super_admin,
+    RoleName.platform_subadmin,
+    RoleName.platform_data_officer,
+    RoleName.platform_viewer,
+    RoleName.company_esg_admin,
+    RoleName.company_esg_subadmin,
+  )
   @ApiOperation({ summary: 'Get company details by ID' })
   @ApiForbiddenResponse({
-    description: 'Access denied: Only super_admin and Company User can access',
+    description: 'Access denied: Only platform roles and company admins can access',
   })
   async findOne(@Param('id') id: number, @Req() req) {
     const user = req.user;
 
-    if (user.role !== 'super_admin' && user.companyId !== Number(id)) {
+    if (!hasCrossCompanyAccess(user.role) && user.companyId !== Number(id)) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -148,10 +155,10 @@ export class CompanyController {
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard)
-  @Roles('super_admin')
+  @UseGuards(JwtRolesGuard)
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin)
   @ApiOperation({ summary: 'Update company status' })
-  @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin role' })
+  @ApiForbiddenResponse({ description: 'Forbidden: requires super_admin or platform_subadmin role' })
   async updateStatus(
     @Param('id') id: number,
     @Body('status') status: CompanyStatus,
@@ -160,8 +167,8 @@ export class CompanyController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @Roles('company_esg_admin', 'company_esg_subadmin')
+  @UseGuards(JwtRolesGuard)
+  @Roles(RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'Update company details (excluding status)' })
   @ApiForbiddenResponse({
     description: 'Forbidden: requires valid role and company ownership',

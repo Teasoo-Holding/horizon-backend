@@ -17,7 +17,8 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { LocationBasedS2Service } from './scope-2-location-based.service';
 import { LocationBasedS2Dto } from './dto/create_scope-2_location_based.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { ALL_ROLES, DATA_WRITE_ROLES } from 'src/auth/roles/role.constants';
 
 @ApiTags('LocationBasedS2')
 @Controller('location-based-s2')
@@ -43,7 +44,8 @@ export class LocationBasedS2Controller {
   { name: 'supplier_contracts_url', maxCount: 1 },
   { name: 'certification_of_refigirant_type_url', maxCount: 1 },
 ]))
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtRolesGuard)
+@Roles(...DATA_WRITE_ROLES)
 async create(
   @Body() dto: LocationBasedS2Dto,
   @UploadedFiles() files: Record<string, Express.Multer.File[]>,
@@ -54,6 +56,8 @@ async create(
 
 
   @Get()
+  @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiOperation({ summary: 'Get all LocationBasedS2 records' })
   async findAll() {
     return this.service.findAll();
@@ -61,6 +65,8 @@ async create(
 
 
   @Get(':id')
+  @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiOperation({ summary: 'Get single LocationBasedS2 record' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -91,7 +97,8 @@ async create(
       { name: 'certification_of_refigirant_type_url', maxCount: 1 },
     ]),
   )
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRolesGuard)
+  @Roles(...DATA_WRITE_ROLES)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: LocationBasedS2Dto,
@@ -103,6 +110,8 @@ async create(
 
 
   @Delete(':id')
+  @UseGuards(JwtRolesGuard)
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({ summary: 'Delete LocationBasedS2 record' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

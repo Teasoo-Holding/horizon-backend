@@ -14,18 +14,18 @@ import {
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiForbiddenResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Roles } from 'src/auth/guards/jwtroles.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
 
 @ApiTags('Departments')
 @Controller('departments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtRolesGuard)
 @ApiBearerAuth()
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
@@ -42,7 +42,7 @@ export class DepartmentsController {
   }
 
   @Post(':companyId')
-  @Roles('company_esg_admin', 'company_esg_subadmin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'Create a department for a company' })
   @ApiForbiddenResponse({
     description: 'Forbidden: requires proper role and company ownership',
@@ -63,7 +63,7 @@ export class DepartmentsController {
   }
 
   @Patch(':id')
-  @Roles('company_esg_admin', 'company_esg_subadmin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'Update a department' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -77,7 +77,7 @@ export class DepartmentsController {
   }
 
   @Delete(':id')
-  @Roles('company_esg_admin', 'company_esg_subadmin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'Delete a department' })
   async delete(
     @Param('id', ParseIntPipe) id: number,
@@ -90,7 +90,7 @@ export class DepartmentsController {
   }
 
   @Get(':companyId')
-  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'List all departments for a company' })
   async findAll(
     @Param('companyId', ParseIntPipe) companyId: number,
@@ -101,7 +101,7 @@ export class DepartmentsController {
   }
 
   @Get(':departmentId/users')
-  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({ summary: 'List all users in a departments for a company' })
   async getDepartmentUsers(
     @Param('departmentId', ParseIntPipe) departmentId: number,

@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { AssessmentService } from './assessments.service';
 import { Request } from 'express';
-import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { ALL_ROLES, DATA_WRITE_ROLES, VALIDATOR_ROLES } from 'src/auth/roles/role.constants';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiNoContentResponse } from '@nestjs/swagger';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { PartialAssessmentPayloadDto } from './dto/partial-assessment-payload.dto';
@@ -41,6 +42,7 @@ export class AssessmentController {
   constructor(private readonly assessmentService: AssessmentService) { }
 
   @Post()
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Create a new ESG assessment',
     description: 'Creates a new assessment draft for the authenticated user\'s company. The assessment will be in "in_progress" status and can be filled out step by step.',
@@ -71,6 +73,7 @@ export class AssessmentController {
   }
 
   @Post(':id/save')
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Save assessment progress',
     description: 'Saves partial assessment data at a specific path. Supports auto-save functionality and form validation. Recalculates dependent values automatically.',
@@ -122,6 +125,7 @@ export class AssessmentController {
   }
 
   @Post(':id/submit')
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Submit an assessment group/pillar',
     description: 'Submits a completed assessment group (pillar section) for review. Triggers report generation and may change assessment status if all pillars are complete.',
@@ -184,6 +188,7 @@ export class AssessmentController {
   }
 
   @Post(':id/submit-for-review')
+  @Roles(...DATA_WRITE_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Submit assessment for review or direct approval',
@@ -243,6 +248,7 @@ export class AssessmentController {
   }
 
   @Get()
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get all assessments for company',
     description: 'Retrieves all assessments belonging to the authenticated user\'s company, ordered by last updated date (newest first).',
@@ -259,6 +265,7 @@ export class AssessmentController {
   }
 
   @Get(':id')
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get specific assessment by ID',
     description: 'Retrieves detailed assessment data including progress, assessment data, and metadata. Only returns assessments belonging to the authenticated user\'s company.',
@@ -302,6 +309,7 @@ export class AssessmentController {
   }
 
   @Delete(':id')
+  @Roles(...DATA_WRITE_ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a draft assessment',
@@ -355,6 +363,7 @@ export class AssessmentController {
   }
 
   @Post(':id/approve')
+  @Roles(...VALIDATOR_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve an assessment',
@@ -401,6 +410,7 @@ export class AssessmentController {
   }
 
   @Post(':id/decline')
+  @Roles(...VALIDATOR_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Decline/reject an assessment',

@@ -13,7 +13,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { TeasoAdminSendRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
 import { AdminGetusersDto } from '../dto/getuser.dto';
-import { UserStatus } from '@prisma/client';
+import { RoleName, UserStatus } from '@prisma/client';
+import { isPlatformRole, resolveRoleId } from 'src/auth/roles/role.constants';
 
 @Injectable()
 export class AdminAuthService {
@@ -44,7 +45,7 @@ export class AdminAuthService {
         first_name: first_name,
         last_name: last_name,
         phone_number,
-        roleId: 2,
+        roleId: await resolveRoleId(this.prisma, RoleName.platform_subadmin),
         companyId: 0,
         status: UserStatus.pending,
       },
@@ -81,22 +82,22 @@ export class AdminAuthService {
     });
   }
 
-  async inviteAdminUser(dto: TeasoAdminSendRequest, roleId: number) {
+  async inviteAdminUser(dto: TeasoAdminSendRequest, role: number | string) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (existing) throw new ConflictException('User with email already exists');
 
-    // Only admin (roleId 1) and super admin (roleId 2) can invite others
-    if (roleId !== 1 && roleId !== 2) {
+    const roleName = String(role);
+    if (!isPlatformRole(roleName)) {
       throw new UnauthorizedException(
-        'Only users with admin privileges can invite others',
+        'Only users with platform admin privileges can invite others',
       );
     }
 
-    // Prevent creating another super admin (roleId 1)
-    if (dto.roleId === 1) {
+    // Prevent creating another super admin
+    if (dto.roleId === 1 || String(dto.roleId) === RoleName.super_admin) {
       throw new UnauthorizedException('You cannot add another super admin');
     }
 
@@ -220,15 +221,15 @@ export class AdminAuthService {
     return updatedUser;
   }
 
-  async getAllUsers(filters: AdminGetusersDto, roleId: number = 1) {
+  async getAllUsers(filters: AdminGetusersDto, role: number | string = RoleName.super_admin) {
     const { search, status } = filters;
     const where: any = {};
 
     if (status) {
       where.status = status;
     }
-    if (roleId !== 1 && roleId !== 2 && roleId !== 3) {
-      throw new UnauthorizedException('Only admin can view all users');
+    if (!isPlatformRole(String(role))) {
+      throw new UnauthorizedException('Only platform admin roles can view all users');
     }
     if (search) {
       where.OR = [
