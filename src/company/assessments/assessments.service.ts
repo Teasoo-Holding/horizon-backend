@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Assessment, AssessmentStatus, TaskStatus } from '@prisma/client';
+import { VALIDATOR_ROLES } from 'src/auth/roles/role.constants';
 import { ReportService } from '../report/report.service';
 import { ActivitiesService } from 'src/activities/activities.service';
 import { EmailService } from 'src/email/email.service';
@@ -328,6 +329,7 @@ export class AssessmentService {
     userId: number,
     assessmentId: number,
     reviewerId?: number,
+    userRole?: string,
   ): Promise<Assessment> {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId, companyId },
@@ -352,10 +354,33 @@ export class AssessmentService {
     let newStatus: AssessmentStatus;
     let finalReviewerId: number | null = null;
 
+    const isSubmitterValidator = userRole
+      && (VALIDATOR_ROLES as readonly string[]).includes(userRole);
+
     if (requireReview) {
       newStatus = AssessmentStatus.awaiting_review;
-      // If no reviewer selected, self-review (assign to submitting user)
-      finalReviewerId = reviewerId || userId;
+
+      if (reviewerId) {
+        // Validate that the selected reviewer has approval permissions
+        const reviewer = await this.prisma.user.findUnique({
+          where: { id: reviewerId },
+          include: { role: true },
+        });
+        if (!reviewer || !(VALIDATOR_ROLES as readonly string[]).includes(reviewer.role?.name)) {
+          throw new BadRequestException(
+            'Selected reviewer does not have approval permissions. Please select an administrator.',
+          );
+        }
+        finalReviewerId = reviewerId;
+      } else if (isSubmitterValidator) {
+        // Admin/SubAdmin submitting without selecting a reviewer = self-review OK
+        finalReviewerId = userId;
+      } else {
+        // Data Officer submitting without selecting a reviewer = not allowed
+        throw new BadRequestException(
+          'Please select a reviewer. Contributors cannot self-review assessments.',
+        );
+      }
     } else {
       newStatus = AssessmentStatus.submitted_approved;
     }
@@ -497,9 +522,22 @@ export class AssessmentService {
     currentUserId: number,
     assessmentId: number,
   ): Promise<Assessment> {
-    const assessment = await this.prisma.assessment.findUnique({
+    const assessment = await this.prisma.assessment.findFirst({
       where: { id: assessmentId, companyId },
-      select: { status: true },
+      select: {
+        status: true,
+        creator: {
+          select: {
+            email: true,
+            first_name: true,
+          },
+        },
+        company: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     if (!assessment) throw new NotFoundException('Assessment not found');
@@ -525,6 +563,23 @@ export class AssessmentService {
         rejection_reason: null,
       },
     });
+
+    // Notify creator that their assessment was approved (non-blocking)
+    const creatorEmail = assessment.creator?.email;
+    if (creatorEmail) {
+      try {
+        await this.emailService.sendEmail(
+          creatorEmail,
+          {
+            first_name: assessment.creator?.first_name || '',
+            company_name: assessment.company?.name || '',
+          },
+          17, // Reusing decline template for now — replace with dedicated approval template when available
+        );
+      } catch (error) {
+        this.logger.error(`Failed to send approval email for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+      }
+    }
 
     // Trigger report generation upon approval (non-blocking — approval itself must succeed)
     try {
