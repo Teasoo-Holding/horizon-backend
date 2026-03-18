@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
 import { CompanySetupService } from './company-setup.service';
 import { BulkCreateDto } from './dtos/bulk-create.dto';
 
@@ -12,7 +13,7 @@ export class CompanySetupController {
   constructor(private readonly companySetupService: CompanySetupService) {}
 
   @Post('bulk-create')
-  @Roles('company_esg_admin')
+  @Roles(RoleName.company_esg_admin, RoleName.company_esg_subadmin)
   @ApiOperation({
     summary: 'Create subsidiaries, departments, and users in bulk',
   })

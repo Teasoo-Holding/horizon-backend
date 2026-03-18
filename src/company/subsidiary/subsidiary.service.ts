@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { isPlatformRole, DEFAULT_TEAM_LEAD_ROLE, resolveRoleId } from 'src/auth/roles/role.constants';
 import { CreateSubsidiaryDto } from './dto/create-subsidiary.dto';
 import { UpdateSubsidiaryDto } from './dto/update-subsidiary.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -88,7 +89,7 @@ export class SubsidiaryService {
               first_name: createSubsidiaryDto?.teamLead_name ?? '',
               companyId: user.companyId,
               password: '',
-              roleId: 2,
+              roleId: await resolveRoleId(this.prisma, DEFAULT_TEAM_LEAD_ROLE),
             },
           });
 
@@ -224,7 +225,7 @@ export class SubsidiaryService {
       },
     });
 
-    if (user?.role.name !== 'super_admin') {
+    if (!user?.role?.name || !isPlatformRole(user.role.name)) {
       throw new ForbiddenException(
         'You are not authorized to view all subsidiaries',
       );
