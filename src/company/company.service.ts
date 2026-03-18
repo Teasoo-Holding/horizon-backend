@@ -7,6 +7,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
 import { AssessmentStatus, CompanyStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
+import { ALL_GROUP_KEYS } from './assessments/common/group-keys';
 
 @Injectable()
 export class CompanyService {
@@ -204,6 +205,32 @@ export class CompanyService {
             status,
           };
         };
+
+        const getGroupsForPillar = (pillarName: string) => {
+          const pillar = industryHierarchy.pillars.find((p) =>
+            p.pillar.name.toLowerCase().includes(pillarName.toLowerCase()),
+          )?.pillar;
+
+          if (!pillar) return [];
+
+          // Map the pillar name to the prefix used in ALL_GROUP_KEYS
+          const prefixMap: Record<string, string> = {
+            environment: 'environment.',
+            social: 'socialCapital.',
+            governance: 'leadershipGovernance.',
+          };
+
+          const prefix = prefixMap[pillarName.toLowerCase()];
+          if (!prefix) return [];
+
+          return ALL_GROUP_KEYS.filter((k) => k.startsWith(prefix)).map((k) => [
+            k,
+          ]);
+        };
+
+        const envSectionGroups = getGroupsForPillar('environment');
+        const socialSectionGroups = getGroupsForPillar('social');
+        const govSectionGroups = getGroupsForPillar('governance');
 
         return {
           environment: getPillarStats('environment', envSectionGroups),
