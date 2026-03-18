@@ -20,10 +20,10 @@ export class ActivitiesController {
 
   @Get()
   @Roles(
-    'company_esg_admin',
-    'company_esg_subadmin',
-    'company_esg_data_officer',
-    'company_esg_viewer',
+    RoleName.company_esg_admin,
+    RoleName.company_esg_subadmin,
+    RoleName.company_esg_data_officer,
+    RoleName.company_esg_viewer,
   )
   async getCompanyActivities(@Req() req: RequestWithUser) {
     return this.activitiesService.getActivities(req.user);

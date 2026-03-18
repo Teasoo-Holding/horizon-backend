@@ -1,6 +1,6 @@
 const roleMappings: Record<string, string> = {
   super_admin: 'Super Admin',
-  platform_admin: 'Platform Subadmin',
+  platform_subadmin: 'Platform Subadmin',
   platform_data_officer: 'Platform Data Officer',
   platform_viewer: 'Platform Viewer',
   company_esg_admin: 'Company Admin',
