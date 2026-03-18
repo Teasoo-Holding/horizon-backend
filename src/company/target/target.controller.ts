@@ -23,7 +23,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtRolesGuard } from 'src/auth/guards/jwtroles.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
+import { ALL_ROLES, DATA_WRITE_ROLES } from 'src/auth/roles/role.constants';
 import { RequestWithUser } from 'src/user/user.controller';
 import { BaselineOptionDto } from './dto/baseline-options.dto';
 import {
@@ -49,6 +51,7 @@ export class TargetController {
   constructor(private readonly targetService: TargetService) {}
 
   @Post()
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Create a new target',
     description:
@@ -118,6 +121,7 @@ export class TargetController {
   }
 
   @Get()
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get all targets for company',
     description:
@@ -141,6 +145,7 @@ export class TargetController {
   }
 
   @Get('/latest')
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get the latest targets for company',
     description:
@@ -164,6 +169,7 @@ export class TargetController {
   }
 
   @Get('baseline-options')
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'List baseline-eligible assessments',
     description:
@@ -189,6 +195,7 @@ export class TargetController {
   }
 
   @Get('latest-pair')
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get latest General and Scope targets for company',
     description:
@@ -206,6 +213,7 @@ export class TargetController {
   }
 
   @Get(':id')
+  @Roles(...ALL_ROLES)
   @ApiOperation({
     summary: 'Get a single target by ID',
     description:
@@ -242,6 +250,7 @@ export class TargetController {
   }
 
   @Patch(':id')
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Update a target',
     description: 'Update an existing target (partial updates supported)',
@@ -295,6 +304,7 @@ export class TargetController {
   }
 
   @Delete(':id')
+  @Roles(...DATA_WRITE_ROLES)
   @ApiOperation({
     summary: 'Delete a target',
     description: 'Delete a target and all its associated data',
@@ -330,11 +340,13 @@ export class TargetController {
   }
 
   @Get('baseline/:id')
+  @Roles(...ALL_ROLES)
   async getBaselineValue(@Param('id', ParseIntPipe) id: number) {
     const baseline = await this.targetService.getBaselineValue(id);
     return baseline;
   }
   @Get('baseline-scope/:id')
+  @Roles(...ALL_ROLES)
   async getBaselineValueByScope(
     @Param('id', ParseIntPipe) id: number,
     @Query('assessmentId') assessmentId?: string,

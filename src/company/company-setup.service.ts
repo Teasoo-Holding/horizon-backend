@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { formatRoleName } from 'src/utils/format-rolename';
 import { ActivitiesService } from 'src/activities/activities.service';
+import { DEFAULT_TEAM_LEAD_ROLE, resolveRoleId } from 'src/auth/roles/role.constants';
 
 @Injectable()
 export class CompanySetupService {
@@ -71,7 +72,7 @@ export class CompanySetupService {
                 first_name: subDto.teamLead_name ?? '',
                 companyId,
                 password: '',
-                roleId: 2,
+                roleId: await resolveRoleId(prisma, DEFAULT_TEAM_LEAD_ROLE),
                 status: UserStatus.pending,
               },
             });
@@ -85,7 +86,7 @@ export class CompanySetupService {
                 expiresAt,
                 status: 'pending',
                 companyId,
-                roleId: 2,
+                roleId: await resolveRoleId(prisma, DEFAULT_TEAM_LEAD_ROLE),
                 invitedById,
               },
             });

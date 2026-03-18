@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { DEFAULT_TEAM_LEAD_ROLE, resolveRoleId } from 'src/auth/roles/role.constants';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { ActivitiesService } from 'src/activities/activities.service';
@@ -54,7 +55,7 @@ export class DepartmentsService {
             last_name: lastName,
             companyId,
             password: '',
-            roleId: 2, // Default role for department leads
+            roleId: await resolveRoleId(this.prisma, DEFAULT_TEAM_LEAD_ROLE), // Default role for department leads
             status: 'pending',
           },
         });
@@ -208,7 +209,7 @@ export class DepartmentsService {
               departmentId: id,
               subsidiaryId: subsidiaryId || currentDept.subsidiaryId, // Associate with the subsidiary
               password: '',
-              roleId: 2,
+              roleId: await resolveRoleId(this.prisma, DEFAULT_TEAM_LEAD_ROLE),
               status: 'pending',
             },
           });
