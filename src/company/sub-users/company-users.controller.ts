@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { CompanyUsersService } from './company-users.service';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
+import { USER_MANAGEMENT_ROLES } from 'src/auth/roles/role.constants';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UpdateSubUserDto } from './dto/update-sub-user.dto';
 
@@ -22,6 +24,7 @@ export class CompanyUsersController {
   constructor(private readonly companyUsersService: CompanyUsersService) {}
 
   @Patch(':id')
+  @Roles(...USER_MANAGEMENT_ROLES)
   @ApiOperation({ summary: 'Update a company user' })
   async updateCompanyUser(
     @Param('id', ParseIntPipe) id: number,
@@ -36,6 +39,7 @@ export class CompanyUsersController {
   }
 
   @Delete(':id')
+  @Roles(...USER_MANAGEMENT_ROLES)
   @ApiOperation({ summary: 'Delete a company user' })
   async deleteCompanyUser(
     @Param('id', ParseIntPipe) id: number,
@@ -46,7 +50,7 @@ export class CompanyUsersController {
 
   @Get(':companyId')
   @UseGuards(JwtRolesGuard)
-  @Roles('super_admin', 'company_esg_admin', 'company_esg_subadmin')
+  @Roles(...USER_MANAGEMENT_ROLES)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get all active and pending users of a company',

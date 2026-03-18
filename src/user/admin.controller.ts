@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
 import { Request } from 'express';
 import { AdminService } from './admin.service';
+import { RoleName } from '@prisma/client';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -23,7 +24,7 @@ export class AdminController {
 
   @Get('dashboard')
   @UseGuards(JwtRolesGuard)
-  @Roles('super_admin', 'platform_admin')
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get super admin dashboard data (super_admin-only)' })
   async getSuperAdminDashboard(@Req() req: RequestWithUser) {

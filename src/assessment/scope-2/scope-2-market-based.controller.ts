@@ -21,7 +21,8 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MarketBasedS2Service } from './scope-2-market-based.service';
 import { MarketBasedS2Dto } from './dto/create-scope-2.market_baseddto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { DATA_WRITE_ROLES } from 'src/auth/roles/role.constants';
 import { Express } from 'express';
 
 @ApiTags('Market-Based S2')
@@ -51,7 +52,8 @@ export class MarketBasedS2Controller {
       { name: 'performance_or_operational_logs_url', maxCount: 1 },
     ]),
   )
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRolesGuard)
+  @Roles(...DATA_WRITE_ROLES)
   async create(
     @Body() dto: MarketBasedS2Dto,
     @UploadedFiles() files: Record<string, Express.Multer.File[]>,
@@ -85,7 +87,8 @@ export class MarketBasedS2Controller {
       { name: 'performance_or_operational_logs_url', maxCount: 1 },
     ]),
   )
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRolesGuard)
+  @Roles(...DATA_WRITE_ROLES)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: MarketBasedS2Dto,

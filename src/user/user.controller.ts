@@ -3,6 +3,8 @@ import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
+import { PLATFORM_ROLES, ALL_ROLES } from 'src/auth/roles/role.constants';
 import { Request } from 'express';
 
 export interface RequestWithUser extends Request {
@@ -21,6 +23,7 @@ export class UserController {
 
   @Get('me')
   @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user details' })
   getMe(@Req() req: RequestWithUser) {
@@ -29,6 +32,7 @@ export class UserController {
 
   @Patch('me')
   @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user profile' })
   updateMe(@Req() req: RequestWithUser, @Body() updateUserDto: UpdateUserDto) {
@@ -37,14 +41,16 @@ export class UserController {
 
   @Get('all')
   @UseGuards(JwtRolesGuard)
-  @Roles('super_admin')
+  @Roles(...PLATFORM_ROLES)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all users on the platform (super_admin-only)' })
+  @ApiOperation({ summary: 'Get all users on the platform (platform roles only)' })
   async getAllPlatformUsers() {
     return this.userService.getAllPlatformUsers();
   }
   
   @Get('user-roles')
+  @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users roles' })
   async getAllUserRoles() {
@@ -53,6 +59,7 @@ export class UserController {
 
   @Get('dashboard')
   @UseGuards(JwtRolesGuard)
+  @Roles(...ALL_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user dashboard data' })
   async getUserDashboard(@Req() req: RequestWithUser) {
