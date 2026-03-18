@@ -15,6 +15,7 @@ import {
 import { AssessmentService } from './assessments.service';
 import { Request } from 'express';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
+import { RoleName } from '@prisma/client';
 import { ALL_ROLES, DATA_WRITE_ROLES, VALIDATOR_ROLES } from 'src/auth/roles/role.constants';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiNoContentResponse } from '@nestjs/swagger';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
@@ -31,6 +32,7 @@ interface CustomRequest extends Request {
   user: {
     id: number;
     companyId: number;
+    role?: string;
   };
 }
 
@@ -239,6 +241,7 @@ export class AssessmentController {
       userId,
       assessmentId,
       body.reviewerId,
+      req.user.role,
     );
 
     return {
@@ -309,7 +312,7 @@ export class AssessmentController {
   }
 
   @Delete(':id')
-  @Roles(...DATA_WRITE_ROLES)
+  @Roles(RoleName.super_admin, RoleName.platform_subadmin, RoleName.company_esg_admin)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a draft assessment',
