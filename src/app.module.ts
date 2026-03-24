@@ -30,6 +30,7 @@ import { ComputationModule } from './assessment/computation/computation.module';
 import { AssessmentModule } from './company/assessments/assessments.module';
 import { DisclosureModule } from './admin/disclosure/disclosure.module';
 import { ActivitiesModule } from './activities/activities.module';
+import { ScoringModule } from './assessment/scoring/scoring.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ActivitiesModule } from './activities/activities.module';
     Scope2Module,
     ComputationModule,
     DisclosureModule,
+    ScoringModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
