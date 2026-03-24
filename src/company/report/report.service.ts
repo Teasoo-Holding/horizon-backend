@@ -7,6 +7,7 @@ import {
   // sumScope1Values,
 } from './entities/helpers';
 import { TOTAL_GROUP_COUNT } from '../assessments/common/group-keys';
+import { ScoringService } from '../../assessment/scoring/scoring.service';
 
 export interface EvidenceFile {
   name: string;
@@ -27,7 +28,7 @@ export interface ReportEvidence {
 @Injectable()
 export class ReportService {
   private readonly logger = new Logger(ReportService.name);
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private scoringService: ScoringService) { }
 
   /* ─── Evidence file extraction helpers ─── */
 
@@ -291,10 +292,19 @@ export class ReportService {
       total_sections: report?.totalSections ?? 100,
     };
 
+    const esgEvaluation = this.scoringService.calculateESGScore(report, result);
+
+    const fullResult = {
+      ...result,
+      esgScore: esgEvaluation.overallScore,
+      esgGrade: esgEvaluation.overallGrade,
+      esgPillars: esgEvaluation.pillars as any,
+    };
+
     const saved = await this.prisma.report.upsert({
       where: { assessmentId: id },
-      update: result,
-      create: { assessmentId: id, ...result },
+      update: fullResult,
+      create: { assessmentId: id, ...fullResult },
     });
 
     this.logger.log(`Report saved: ${saved.id}`);
@@ -857,6 +867,11 @@ export class ReportService {
       endYear: record.endYear,
       targets: targets[0] || null,
       evidence: this.collectEvidenceByPillar(currentData),
+      esgEvaluation: report ? {
+        score: report.esgScore,
+        grade: report.esgGrade,
+        pillars: report.esgPillars,
+      } : null,
     };
   }
 }

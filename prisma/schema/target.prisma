@@ -12,8 +12,6 @@ model Target {
   generalTarget GeneralTarget?
   scopeTargets  ScopeTarget[]
   createdById   Int
-  
-
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -21,28 +19,28 @@ model Target {
 }
 
 model GeneralTarget {
-  id                  Int      @id @default(autoincrement())
-  targetId            Int      @unique
-  target              Target   @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  reductionPercentage Float
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  baselineYearEmission Float @default(00)
-  targetEmission Float @default(00)
-  currentEmission Float? 
+  id                   Int      @id @default(autoincrement())
+  targetId             Int      @unique
+  target               Target   @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  reductionPercentage  Float
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  baselineYearEmission Float    @default(00)
+  targetEmission       Float    @default(00)
+  currentEmission      Float?
 }
 
 model ScopeTarget {
-  id                  Int           @id @default(autoincrement())
-  targetId            Int
-  target              Target        @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  scope               EmissionScope
-  reductionPercentage Float
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  baselineYearEmission Float @default(00)
-  targetEmission Float @default(00)
-  currentEmission Float? 
+  id                   Int           @id @default(autoincrement())
+  targetId             Int
+  target               Target        @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  scope                EmissionScope
+  reductionPercentage  Float
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  baselineYearEmission Float         @default(00)
+  targetEmission       Float         @default(00)
+  currentEmission      Float?
 
   @@unique([targetId, scope])
   @@index([targetId])
