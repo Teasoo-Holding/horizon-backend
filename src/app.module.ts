@@ -39,6 +39,7 @@ import { ActivitiesModule } from './activities/activities.module';
     EmailModule,
     OtpModule,
     EsgAuthModule,
+    ActivitiesModule,
     CompanyModule,
     DepartmentsModule,
     IndustriesModule,
@@ -50,7 +51,6 @@ import { ActivitiesModule } from './activities/activities.module';
     AssessmentModule,
     Scope2Module,
     ComputationModule,
-    ActivitiesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
