@@ -189,7 +189,22 @@ export class TargetService {
       data.targetEmission = serverBaseline * (1 - (data.reductionPercentage ?? 0) / 100);
       return this.createGeneralTarget(companyId, createdById, data);
     } else {
-      return this.createScopeTarget(companyId, createdById, data as Extract<CreateTargetData, { type: 'SCOPE' }>);
+      const scopeData = data as Extract<CreateTargetData, { type: 'SCOPE' }>;
+      // Derive parent years from per-scope years (for overlap validation)
+      const scopeYears = [
+        scopeData.scopes.scope1,
+        scopeData.scopes.scope2,
+        scopeData.scopes.scope3,
+      ];
+      const perScopeBaselineYears = scopeYears.map(s => s.baselineYear).filter((y): y is number => y != null);
+      const perScopeTargetYears = scopeYears.map(s => s.targetYear).filter((y): y is number => y != null);
+      if (perScopeBaselineYears.length > 0) {
+        scopeData.baselineYear = Math.min(...perScopeBaselineYears);
+      }
+      if (perScopeTargetYears.length > 0) {
+        scopeData.targetYear = Math.max(...perScopeTargetYears);
+      }
+      return this.createScopeTarget(companyId, createdById, scopeData);
     }
   }
 
@@ -255,6 +270,8 @@ export class TargetService {
               targetEmission: data.scopes.scope1.targetEmission,
               baselineYearEmission: data.scopes.scope1.baselineYearEmission,
               currentEmission: data.scopes.scope1.currentEmission,
+              baselineYear: data.scopes.scope1.baselineYear ?? data.baselineYear,
+              targetYear: data.scopes.scope1.targetYear ?? data.targetYear,
             },
             {
               scope: 'SCOPE2',
@@ -262,6 +279,8 @@ export class TargetService {
               targetEmission: data.scopes.scope2.targetEmission,
               baselineYearEmission: data.scopes.scope2.baselineYearEmission,
               currentEmission: data.scopes.scope2.currentEmission,
+              baselineYear: data.scopes.scope2.baselineYear ?? data.baselineYear,
+              targetYear: data.scopes.scope2.targetYear ?? data.targetYear,
             },
             {
               scope: 'SCOPE3',
@@ -269,6 +288,8 @@ export class TargetService {
               targetEmission: data.scopes.scope3.targetEmission,
               baselineYearEmission: data.scopes.scope3.baselineYearEmission,
               currentEmission: data.scopes.scope3.currentEmission,
+              baselineYear: data.scopes.scope3.baselineYear ?? data.baselineYear,
+              targetYear: data.scopes.scope3.targetYear ?? data.targetYear,
             },
           ],
         },
@@ -389,29 +410,44 @@ export class TargetService {
     // Build scope updates
     const scopeUpdates: any[] = [];
 
-    if (data.scopes?.scope1?.reductionPercentage !== undefined) {
+    if (data.scopes?.scope1) {
+      const s1 = data.scopes.scope1;
       scopeUpdates.push(
         this.prisma.scopeTarget.updateMany({
           where: { targetId: id, scope: 'SCOPE1' },
-          data: { reductionPercentage: data.scopes.scope1.reductionPercentage },
+          data: {
+            ...(s1.reductionPercentage !== undefined && { reductionPercentage: s1.reductionPercentage }),
+            ...(s1.baselineYear !== undefined && { baselineYear: s1.baselineYear }),
+            ...(s1.targetYear !== undefined && { targetYear: s1.targetYear }),
+          },
         }),
       );
     }
 
-    if (data.scopes?.scope2?.reductionPercentage !== undefined) {
+    if (data.scopes?.scope2) {
+      const s2 = data.scopes.scope2;
       scopeUpdates.push(
         this.prisma.scopeTarget.updateMany({
           where: { targetId: id, scope: 'SCOPE2' },
-          data: { reductionPercentage: data.scopes.scope2.reductionPercentage },
+          data: {
+            ...(s2.reductionPercentage !== undefined && { reductionPercentage: s2.reductionPercentage }),
+            ...(s2.baselineYear !== undefined && { baselineYear: s2.baselineYear }),
+            ...(s2.targetYear !== undefined && { targetYear: s2.targetYear }),
+          },
         }),
       );
     }
 
-    if (data.scopes?.scope3?.reductionPercentage !== undefined) {
+    if (data.scopes?.scope3) {
+      const s3 = data.scopes.scope3;
       scopeUpdates.push(
         this.prisma.scopeTarget.updateMany({
           where: { targetId: id, scope: 'SCOPE3' },
-          data: { reductionPercentage: data.scopes.scope3.reductionPercentage },
+          data: {
+            ...(s3.reductionPercentage !== undefined && { reductionPercentage: s3.reductionPercentage }),
+            ...(s3.baselineYear !== undefined && { baselineYear: s3.baselineYear }),
+            ...(s3.targetYear !== undefined && { targetYear: s3.targetYear }),
+          },
         }),
       );
     }
@@ -628,6 +664,8 @@ export class TargetService {
               baselineYearEmission: se.baseline,
               reductionPercentage: generalReduction,
               targetEmission: 0,
+              baselineYear: scopeTarget.baselineYear,
+              targetYear: scopeTarget.targetYear,
             },
           }),
         ),
@@ -789,6 +827,8 @@ export class TargetService {
             baselineYearEmission: se.baselineEmission,
             reductionPercentage: generalReduction,
             targetEmission: 0,
+            baselineYear: target.baselineYear,
+            targetYear: target.targetYear,
           },
         }),
       ),
@@ -871,6 +911,8 @@ export class TargetService {
         targetEmission: scope.targetEmission || 0,
         baselineYearEmission: scope.baselineYearEmission || 0,
         currentEmission: scope.currentEmission ?? null,
+        baselineYear: scope.baselineYear ?? null,
+        targetYear: scope.targetYear ?? null,
       })),
       createdAt: target.createdAt,
       updatedAt: target.updatedAt,

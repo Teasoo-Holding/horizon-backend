@@ -42,7 +42,9 @@ model ScopeTarget {
   updatedAt           DateTime      @updatedAt
   baselineYearEmission Float @default(00)
   targetEmission Float @default(00)
-  currentEmission Float? 
+  currentEmission Float?
+  baselineYear    Int?
+  targetYear      Int?
 
   @@unique([targetId, scope])
   @@index([targetId])
