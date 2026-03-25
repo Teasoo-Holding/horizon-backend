@@ -111,21 +111,29 @@ export class CompanyService {
 
   async getDashboard(companyId: number) {
     try {
+      // 1. Get the latest assessment for progress/hubStats (can be in-progress)
       const latestAssessment = await this.prisma.assessment.findFirst({
-        where: {
-          companyId,
-          status: {
-            in: [
-              AssessmentStatus.approved,
-              AssessmentStatus.submitted_approved,
-              AssessmentStatus.awaiting_review,
-              AssessmentStatus.in_progress,
-            ],
-          },
-        },
+        where: { companyId },
         orderBy: { updatedAt: 'desc' },
       });
 
+      // 2. Get the latest approved/submitted report for the main scores and emissions
+      const latestReport = await this.prisma.report.findFirst({
+        where: {
+          assessment: {
+            companyId,
+            status: {
+              in: [
+                AssessmentStatus.approved,
+                AssessmentStatus.submitted_approved,
+              ],
+            },
+          },
+        },
+        orderBy: { id: 'desc' },
+      });
+
+      // 3. Helper to parse assessment data
       const parseAssessmentData = (raw: any) => {
         if (!raw) return null;
         try {
@@ -134,6 +142,7 @@ export class CompanyService {
           return null;
         }
       };
+
 
       const extractTotals = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
@@ -155,6 +164,7 @@ export class CompanyService {
 
       const latestTotals = extractTotals(latestAssessment);
 
+      // 4. Hub / Section Progress Stats (based on latest assessment)
       const getHubStats = async (assessment: any, industryId: number | null) => {
         const data = parseAssessmentData(assessment?.assessmentData);
         if (!data || !industryId) return null;
@@ -187,8 +197,6 @@ export class CompanyService {
 
         if (!industryHierarchy) return null;
 
-        // Legacy hardcoded section groups for the initial industries
-        // In a fully dynamic future, these would be derived from the hierarchy
         const getPillarStats = (pillarName: string, sectionGroups: string[][]) => {
           const completedSections = sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
           const progress = sectionGroups.length > 0 ? Math.round((completedSections / sectionGroups.length) * 100) : 0;
@@ -203,6 +211,8 @@ export class CompanyService {
             progress,
             completed: `${completedSections} of ${sectionGroups.length} sections completed`,
             status,
+            completedCount: completedSections,
+            totalCount: sectionGroups.length,
           };
         };
 
@@ -232,85 +242,36 @@ export class CompanyService {
         const socialSectionGroups = getGroupsForPillar('social');
         const govSectionGroups = getGroupsForPillar('governance');
 
+        const envStats = getPillarStats('environment', envSectionGroups);
+        const socialStats = getPillarStats('social', socialSectionGroups);
+        const govStats = getPillarStats('governance', govSectionGroups);
+
         return {
-          environment: getPillarStats('environment', envSectionGroups),
-          social: getPillarStats('social', socialSectionGroups),
-          governance: getPillarStats('governance', govSectionGroups),
+          environment: envStats,
+          social: socialStats,
+          governance: govStats,
+          totalCompleted: (envStats.completedCount ?? 0) + (socialStats.completedCount ?? 0) + (govStats.completedCount ?? 0),
+          totalSections: (envStats.totalCount ?? 0) + (socialStats.totalCount ?? 0) + (govStats.totalCount ?? 0),
         };
       };
 
       const hubStats = await getHubStats(latestAssessment, company.industryId);
 
-      // Include the latest assessment ID so the frontend can route "Continue Assessment" correctly
-      const latestAssessmentId = latestAssessment?.id ?? null;
-
-      const overallScore = latestTotals?.total ?? null;
-
-      const breakdown = {
-        environment: latestTotals?.environment ?? 0,
-        social: latestTotals?.social ?? 0,
-        governance: latestTotals?.governance ?? 0,
-      };
-
-      const activities = await this.prisma.activities.findMany({
-        where: { companyId },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          createdBy: {
-            select: { first_name: true, last_name: true, email: true}
-          },
-          type: true,
-          status: true,
-          createdAt: true,
-        },
-      });
-
-      const recentActivities = (activities ?? []).map((a) => ({
-        id: a.id,
-        title: a.title,
-        description: a.description ?? '',
-        type: a.type ?? null,
-        status: a.status ?? null,
-        date: a.createdAt,
-        user: {
-          firstName: a.createdBy.first_name,
-          lastName: a.createdBy.last_name,
-          email: a.createdBy.email,
-        }
-      }));
-
-      const companySub = await this.prisma.companySubscription.findFirst({
-        where: { company_id: companyId },
-        orderBy: { created_at: 'desc' },
-        include: { Subscription: true },
-      });
-
-      const subscriptionDto = companySub
-        ? {
-          tier: companySub.Subscription.name,
-          amount: companySub.Subscription.price_monthly,
-          dueDate: companySub.end_date,
-          status: companySub.status,
-        }
-        : null;
-
-      const reviewedAssessments = await this.prisma.assessment.findMany({
+      // 5. Emissions Trend (Last 10 assessments with Reports)
+      const trendReports = await this.prisma.report.findMany({
         where: {
-          companyId,
-          status: {
-            in: [
-              AssessmentStatus.approved,
-              AssessmentStatus.submitted_approved,
-            ],
+          assessment: {
+            companyId,
+            status: { in: [AssessmentStatus.approved, AssessmentStatus.submitted_approved] },
           },
         },
-        orderBy: [{ startYear: 'asc' }, { startMonth: 'asc' }],
+        orderBy: { assessment: { createdAt: 'asc' } },
+        take: 10,
         select: {
-          createdAt: true,
-          assessmentData: true,
+          ghg_total_emissions: true,
+          ghg_scope_one: true,
+          ghg_scope_two: true,
+          ghg_scope_three: true,
           startMonth: true,
           startYear: true,
           endMonth: true,
@@ -318,106 +279,104 @@ export class CompanyService {
         },
       });
 
-      const parseMonthNumber = (m?: string | null): number | null => {
+      const pad = (n: number | null): string => (n === null ? '--' : n < 10 ? `0${n}` : `${n}`);
+      const parseMonth = (m?: string | null): number | null => {
         if (!m) return null;
-        const trimmed = m.trim();
-        const num = parseInt(trimmed, 10);
-        if (!isNaN(num) && num >= 1 && num <= 12) return num;
-
-        const short = trimmed.toLowerCase().slice(0, 3);
-        const map: Record<string, number> = {
-          jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-          jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
-        };
-        return map[short] ?? null;
+        const num = parseInt(m, 10);
+        if (!isNaN(num)) return num;
+        const map: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+        return map[m.toLowerCase().slice(0, 3)] ?? null;
       };
 
-      const pad = (n: number | null): string => {
-        if (n === null) return '--';
-        return n < 10 ? `0${n}` : `${n}`;
-      };
+      const emissionTrend = trendReports.map((r) => ({
+        period: `${pad(parseMonth(r.startMonth))}/${r.startYear?.slice(-2) ?? '--'} - ${pad(parseMonth(r.endMonth))}/${r.endYear?.slice(-2) ?? '--'}`,
+        total: r.ghg_total_emissions,
+        scope1: r.ghg_scope_one,
+        scope2: r.ghg_scope_two,
+        scope3: r.ghg_scope_three,
+      }));
 
-      const formatYearTwoDigits = (y?: string | null, createdAt?: Date) => {
-        if (!y && createdAt) return createdAt.getFullYear().toString().slice(-2);
-        if (!y) return '--';
-        const yearNum = parseInt(y, 10);
-        if (!isNaN(yearNum)) return yearNum.toString().slice(-2);
-        return y.slice(-2);
-      };
-
-      const makePeriodKey = (
-        sMonth?: string | null,
-        sYear?: string | null,
-        eMonth?: string | null,
-        eYear?: string | null,
-        createdAt?: Date,
-      ) => {
-        const sm = parseMonthNumber(sMonth);
-        const em = parseMonthNumber(eMonth);
-        const sy = sYear ?? null;
-        const ey = eYear ?? null;
-
-        const startMM = sm ?? (createdAt ? createdAt.getMonth() + 1 : null);
-        const endMM = em ?? (createdAt ? createdAt.getMonth() + 1 : null);
-        const startYY = formatYearTwoDigits(sy, createdAt);
-        const endYY = formatYearTwoDigits(ey, createdAt);
-
-        return `${pad(startMM)}/${startYY} - ${pad(endMM)}/${endYY}`;
-      };
-
-      const esgJourney = reviewedAssessments
-        .map((a) => {
-          const totals = extractTotals(a);
-          const score = totals?.total ?? 0;
-          const pm = parseMonthNumber(a.startMonth) ?? (a.createdAt as Date).getMonth() + 1;
-          const py = a.startYear ? parseInt(a.startYear, 10) : (a.createdAt as Date).getFullYear();
-          const sortDate = !isNaN(py) && pm ? new Date(py, (pm - 1), 1) : (a.createdAt as Date);
-
-          return {
-            period: makePeriodKey(a.startMonth, a.startYear, a.endMonth, a.endYear, a.createdAt as Date),
-            score,
-            sortDate
-          };
-        })
-        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime())
-        .map((p) => ({ period: p.period, score: p.score }));
-
-      const totalAssessmentsCount = await this.prisma.assessment.count({
+      // 6. Recent Activities
+      const activities = await this.prisma.activities.findMany({
         where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { createdBy: true },
       });
 
-      const reviewedCount = await this.prisma.assessment.count({
-        where: {
-          companyId,
-          status: {
-            in: [
-              AssessmentStatus.approved,
-              AssessmentStatus.submitted_approved,
-              AssessmentStatus.awaiting_review,
-            ],
-          },
+      const recentActivities = activities.map((a) => ({
+        id: a.id,
+        title: a.title,
+        description: a.description ?? '',
+        type: a.type ?? null,
+        status: a.status ?? null,
+        date: a.createdAt,
+        user: {
+          firstName: a.createdBy?.first_name,
+          lastName: a.createdBy?.last_name,
+          email: a.createdBy?.email,
         },
+      }));
+
+      // 7. Company Target
+      const activeTarget = await this.prisma.target.findFirst({
+        where: { companyId },
+        orderBy: { updatedAt: 'desc' },
+        include: { generalTarget: true, scopeTargets: true },
       });
+
+      // 8. Final Score Pillars (from the latest report)
+      const parsePillars = (p: any): any => {
+        if (!p) return { E: 0, S: 0, H: 0, B: 0, L: 0 };
+        return typeof p === 'string' ? JSON.parse(p) : p;
+      };
+      const pillarScores = parsePillars(latestReport?.esgPillars);
 
       return {
-        overallScore: typeof overallScore === 'number' ? overallScore : null,
-        breakdown,
-        recentActivities,
-        subscription: subscriptionDto,
-        esgJourney,
-        hubStats,
-        latestAssessmentId,
-        latestAssessmentStatus: latestAssessment?.status ?? null,
-        stats: {
-          totalAssessments: totalAssessmentsCount,
-          reviewedAssessments: reviewedCount,
+        // Main Header Stats
+        totalEmissions: latestReport?.ghg_total_emissions ?? 0,
+        scope1: latestReport?.ghg_scope_one ?? 0,
+        scope2: latestReport?.ghg_scope_two ?? 0,
+        scope3: latestReport?.ghg_scope_three ?? 0,
+
+        // ESG Overview
+        esgScore: latestReport?.esgScore ?? 0,
+        esgGrade: latestReport?.esgGrade ?? 'N/A',
+        overallProgress: {
+          count: `${hubStats?.totalCompleted ?? 0} of ${hubStats?.totalSections ?? 0} sections`,
+          percentage: Math.round(((hubStats?.totalCompleted ?? 0) / (hubStats?.totalSections ?? 1)) * 100),
         },
+
+        // Pillar Breakdown
+        pillars: {
+          environmental: pillarScores.E ?? 0,
+          social: pillarScores.S ?? 0,
+          humanCapital: pillarScores.H ?? 0,
+          businessModel: pillarScores.B ?? 0,
+          leadership: pillarScores.L ?? 0,
+        },
+
+        // Emission Trend
+        emissionTrend,
+
+        // Target Details
+        target: activeTarget ? {
+          name: activeTarget.name,
+          reduction: activeTarget.generalTarget?.reductionPercentage ?? activeTarget.scopeTargets[0]?.reductionPercentage ?? 0,
+          year: activeTarget.targetYear,
+        } : null,
+
+        // Recent Items
+        recentActivities,
+        latestAssessmentId: latestAssessment?.id ?? null,
+        latestAssessmentStatus: latestAssessment?.status ?? null,
+
+        // Detailed hub stats for pillar cards if needed
+        hubStats,
       };
     } catch (err) {
       console.error('Error building company dashboard', err);
-      throw new InternalServerErrorException(
-        'Failed to build company dashboard',
-      );
+      throw new InternalServerErrorException('Failed to build company dashboard');
     }
   }
 
