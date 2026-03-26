@@ -187,15 +187,10 @@ export class CompanyService {
         const socialProgress = Math.round((socialCompleted / socialSectionGroups.length) * 100);
         const govProgress = Math.round((govCompleted / govSectionGroups.length) * 100);
 
-        // All sub-group keys per pillar for status determination
-        const envGroups = envSectionGroups.flat();
-        const socialGroups = socialSectionGroups.flat();
-        const govGroups = govSectionGroups.flat();
-
-        const getPillarStatus = (groups: string[], progress: number): string => {
-          const submitted = groups.filter(g => submittedGroups.includes(g)).length;
-          if (submitted === groups.length) return 'completed';
-          if (submitted > 0 || progress > 0) return 'in-progress';
+        // Status based on section-level completion (aligned with progress bar logic)
+        const getPillarStatus = (completed: number, total: number): string => {
+          if (completed === total) return 'completed';
+          if (completed > 0) return 'in-progress';
           return 'not-started';
         };
 
@@ -203,17 +198,17 @@ export class CompanyService {
           environment: {
             progress: envProgress,
             completed: `${completedSections} of ${envSectionGroups.length} sections completed`,
-            status: getPillarStatus(envGroups, envProgress),
+            status: getPillarStatus(completedSections, envSectionGroups.length),
           },
           social: {
             progress: socialProgress,
             completed: `${socialCompleted} of ${socialSectionGroups.length} sections completed`,
-            status: getPillarStatus(socialGroups, socialProgress),
+            status: getPillarStatus(socialCompleted, socialSectionGroups.length),
           },
           governance: {
             progress: govProgress,
             completed: `${govCompleted} of ${govSectionGroups.length} sections completed`,
-            status: getPillarStatus(govGroups, govProgress),
+            status: getPillarStatus(govCompleted, govSectionGroups.length),
           },
         };
       };
