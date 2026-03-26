@@ -38,6 +38,12 @@ class ScopeTargetResponseDto {
 
   @ApiPropertyOptional({ example: 1800.7 })
   currentEmission?: number;
+
+  @ApiPropertyOptional({ example: 2024 })
+  baselineYear?: number | null;
+
+  @ApiPropertyOptional({ example: 2030 })
+  targetYear?: number | null;
 }
 
 export class TargetResponseDto {

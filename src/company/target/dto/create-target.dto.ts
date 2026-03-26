@@ -48,6 +48,30 @@ export class ScopeReductionDto {
   @IsNumber()
   @IsOptional()
   currentEmission?: number;
+
+  @ApiPropertyOptional({
+    description: 'Baseline year for this specific scope',
+    example: 2024,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  @IsOptional()
+  baselineYear?: number;
+
+  @ApiPropertyOptional({
+    description: 'Target year for this specific scope',
+    example: 2030,
+    minimum: 2000,
+    maximum: 2100,
+  })
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  @IsOptional()
+  targetYear?: number;
 }
 
 export class ScopesDto {
