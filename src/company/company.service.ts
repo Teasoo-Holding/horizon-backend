@@ -109,6 +109,30 @@ export class CompanyService {
     });
   }
 
+  // --- Dashboard Section Definitions ---
+  private readonly ENV_SECTIONS = [
+    ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
+    ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
+    ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
+    ['environment.airQuality.airPollutantEmissions'],
+    ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
+    ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
+    ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
+    ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
+  ];
+
+  private readonly SOCIAL_SECTIONS = [
+    ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
+    ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
+  ];
+
+  private readonly GOV_SECTIONS = [
+    ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
+    ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
+    ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
+    ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
+  ];
+
   async getDashboard(companyId: number) {
     try {
       // 1. Get the latest assessment for progress/hubStats (can be in-progress)
