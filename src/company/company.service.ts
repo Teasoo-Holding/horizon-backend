@@ -182,9 +182,10 @@ export class CompanyService {
         const socialProgress = Math.round((socialCompleted / this.SOCIAL_SECTIONS.length) * 100);
         const govProgress = Math.round((govCompleted / this.GOV_SECTIONS.length) * 100);
 
-        const getPillarStatus = (progress: number): string => {
-          if (progress === 100) return 'completed';
-          if (progress > 0) return 'in-progress';
+        // Status based on section-level completion (aligned with progress bar logic)
+        const getPillarStatus = (completed: number, total: number): string => {
+          if (completed === total) return 'completed';
+          if (completed > 0) return 'in-progress';
           return 'not-started';
         };
 
@@ -192,17 +193,17 @@ export class CompanyService {
           environment: {
             progress: envProgress,
             completed: `${envCompleted} of ${this.ENV_SECTIONS.length} sections completed`,
-            status: getPillarStatus(envProgress),
+            status: getPillarStatus(envCompleted, this.ENV_SECTIONS.length),
           },
           social: {
             progress: socialProgress,
             completed: `${socialCompleted} of ${this.SOCIAL_SECTIONS.length} sections completed`,
-            status: getPillarStatus(socialProgress),
+            status: getPillarStatus(socialCompleted, this.SOCIAL_SECTIONS.length),
           },
           governance: {
             progress: govProgress,
             completed: `${govCompleted} of ${this.GOV_SECTIONS.length} sections completed`,
-            status: getPillarStatus(govProgress),
+            status: getPillarStatus(govCompleted, this.GOV_SECTIONS.length),
           },
           totalCompleted: envCompleted + socialCompleted + govCompleted,
           totalSections: this.ENV_SECTIONS.length + this.SOCIAL_SECTIONS.length + this.GOV_SECTIONS.length,
