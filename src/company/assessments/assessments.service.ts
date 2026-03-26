@@ -89,6 +89,23 @@ export class AssessmentService {
     },
   ): Promise<Assessment> {
     try {
+      // Deduplication: return existing in-progress assessment for same company + period
+      const existing = await this.prisma.assessment.findFirst({
+        where: {
+          companyId,
+          status: AssessmentStatus.in_progress,
+          subsidiary: dto.subsidiary || 'Self',
+          startMonth: dto.startMonth,
+          startYear: dto.startYear,
+          endMonth: dto.endMonth,
+          endYear: dto.endYear,
+        },
+      });
+
+      if (existing) {
+        return existing;
+      }
+
       const assessment = await this.prisma.assessment.create({
         data: {
           companyId,
