@@ -108,6 +108,30 @@ export class CompanyService {
     });
   }
 
+  // --- Dashboard Section Definitions ---
+  private readonly ENV_SECTIONS = [
+    ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
+    ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
+    ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
+    ['environment.airQuality.airPollutantEmissions'],
+    ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
+    ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
+    ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
+    ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
+  ];
+
+  private readonly SOCIAL_SECTIONS = [
+    ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
+    ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
+  ];
+
+  private readonly GOV_SECTIONS = [
+    ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
+    ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
+    ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
+    ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
+  ];
+
   async getDashboard(companyId: number) {
     try {
       // 1. Get the latest assessment for progress/hubStats (can be in-progress)
@@ -142,45 +166,21 @@ export class CompanyService {
         }
       };
 
-      // 4. Hub / Section Progress Stats (based on latest assessment)
+      // 4. Hub / Section Progress Stats
       const getHubStats = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
-        if (!data) return null;
-
         const submittedGroups: string[] = data?.submittedGroups || [];
-
-        // Define dashboard card sections (same as previous logic, but refined)
-        const envSectionGroups = [
-          ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
-          ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
-          ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
-          ['environment.airQuality.airPollutantEmissions'],
-          ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
-          ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
-          ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
-          ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
-        ];
-        const socialSectionGroups = [
-          ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
-          ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
-        ];
-        const govSectionGroups = [
-          ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
-          ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
-          ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
-          ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
-        ];
 
         const countSubmitted = (sectionGroups: string[][]): number =>
           sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
 
-        const envCompleted = countSubmitted(envSectionGroups);
-        const socialCompleted = countSubmitted(socialSectionGroups);
-        const govCompleted = countSubmitted(govSectionGroups);
+        const envCompleted = countSubmitted(this.ENV_SECTIONS);
+        const socialCompleted = countSubmitted(this.SOCIAL_SECTIONS);
+        const govCompleted = countSubmitted(this.GOV_SECTIONS);
 
-        const envProgress = Math.round((envCompleted / envSectionGroups.length) * 100);
-        const socialProgress = Math.round((socialCompleted / socialSectionGroups.length) * 100);
-        const govProgress = Math.round((govCompleted / govSectionGroups.length) * 100);
+        const envProgress = Math.round((envCompleted / this.ENV_SECTIONS.length) * 100);
+        const socialProgress = Math.round((socialCompleted / this.SOCIAL_SECTIONS.length) * 100);
+        const govProgress = Math.round((govCompleted / this.GOV_SECTIONS.length) * 100);
 
         const getPillarStatus = (progress: number): string => {
           if (progress === 100) return 'completed';
@@ -191,21 +191,21 @@ export class CompanyService {
         return {
           environment: {
             progress: envProgress,
-            completed: `${envCompleted} of ${envSectionGroups.length} sections completed`,
+            completed: `${envCompleted} of ${this.ENV_SECTIONS.length} sections completed`,
             status: getPillarStatus(envProgress),
           },
           social: {
             progress: socialProgress,
-            completed: `${socialCompleted} of ${socialSectionGroups.length} sections completed`,
+            completed: `${socialCompleted} of ${this.SOCIAL_SECTIONS.length} sections completed`,
             status: getPillarStatus(socialProgress),
           },
           governance: {
             progress: govProgress,
-            completed: `${govCompleted} of ${govSectionGroups.length} sections completed`,
+            completed: `${govCompleted} of ${this.GOV_SECTIONS.length} sections completed`,
             status: getPillarStatus(govProgress),
           },
           totalCompleted: envCompleted + socialCompleted + govCompleted,
-          totalSections: envSectionGroups.length + socialSectionGroups.length + govSectionGroups.length,
+          totalSections: this.ENV_SECTIONS.length + this.SOCIAL_SECTIONS.length + this.GOV_SECTIONS.length,
         };
       };
 
