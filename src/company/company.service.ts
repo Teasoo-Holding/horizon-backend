@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -11,6 +12,8 @@ import { ALL_GROUP_KEYS } from './assessments/common/group-keys';
 
 @Injectable()
 export class CompanyService {
+  private readonly logger = new Logger(CompanyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -109,39 +112,22 @@ export class CompanyService {
     });
   }
 
-  // --- Dashboard Section Definitions ---
-  private readonly ENV_SECTIONS = [
-    ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
-    ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
-    ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
-    ['environment.airQuality.airPollutantEmissions'],
-    ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
-    ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
-    ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
-    ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
-  ];
-
-  private readonly SOCIAL_SECTIONS = [
-    ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
-    ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
-  ];
-
-  private readonly GOV_SECTIONS = [
-    ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
-    ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
-    ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
-    ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
-  ];
+  // --- Dashboard Section Definitions (Aligned with frontend esgSectionCounts.ts) ---
+  private readonly ESG_COUNTS = {
+    E: 39,
+    S: 9, // Social + Human
+    G: 10, // Business + Leadership
+    activityMetrics: 3,
+    total: 61,
+  };
 
   async getDashboard(companyId: number) {
     try {
-      // 1. Get the latest assessment for progress/hubStats (can be in-progress)
       const latestAssessment = await this.prisma.assessment.findFirst({
         where: { companyId },
         orderBy: { updatedAt: 'desc' },
       });
 
-      // 2. Get the latest approved/submitted report for the main scores and emissions
       const latestReport = await this.prisma.report.findFirst({
         where: {
           assessment: {
@@ -157,7 +143,6 @@ export class CompanyService {
         orderBy: { id: 'desc' },
       });
 
-      // 3. Helper to parse assessment data
       const parseAssessmentData = (raw: any) => {
         if (!raw) return null;
         try {
@@ -281,7 +266,6 @@ export class CompanyService {
 
       const hubStats = await getHubStats(latestAssessment, company.industryId);
 
-      // 5. Emissions Trend (Last 10 assessments with Reports)
       const trendReports = await this.prisma.report.findMany({
         where: {
           assessment: {
@@ -320,7 +304,6 @@ export class CompanyService {
         scope3: r.ghg_scope_three,
       }));
 
-      // 6. Recent Activities
       const activities = await this.prisma.activities.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
@@ -342,64 +325,50 @@ export class CompanyService {
         },
       }));
 
-      // 7. Company Target
       const activeTarget = await this.prisma.target.findFirst({
         where: { companyId },
         orderBy: { updatedAt: 'desc' },
         include: { generalTarget: true, scopeTargets: true },
       });
 
-      // 8. Final Score Pillars (from the latest report)
-      const parsePillars = (p: any): any => {
-        if (!p) return { E: 0, S: 0, H: 0, B: 0, L: 0 };
-        return typeof p === 'string' ? JSON.parse(p) : p;
-      };
-      const pillarScores = parsePillars(latestReport?.esgPillars);
+      const esgPillars = (latestReport?.esgPillars as any) || {};
 
       return {
-        // Main Header Stats
         totalEmissions: latestReport?.ghg_total_emissions ?? 0,
         scope1: latestReport?.ghg_scope_one ?? 0,
         scope2: latestReport?.ghg_scope_two ?? 0,
         scope3: latestReport?.ghg_scope_three ?? 0,
-
-        // ESG Overview
         esgScore: latestReport?.esgScore ?? 0,
         esgGrade: latestReport?.esgGrade ?? 'N/A',
         overallProgress: {
           count: `${hubStats?.totalCompleted ?? 0} of ${hubStats?.totalSections ?? 0} sections`,
-          percentage: Math.round(((hubStats?.totalCompleted ?? 0) / (hubStats?.totalSections ?? 1)) * 100),
+          percentage: hubStats ? Math.round((hubStats.totalCompleted / (hubStats.totalSections || 1)) * 100) : 0,
         },
-
-        // Pillar Breakdown
         pillars: {
-          environmental: pillarScores.E ?? 0,
-          social: pillarScores.S ?? 0,
-          humanCapital: pillarScores.H ?? 0,
-          businessModel: pillarScores.B ?? 0,
-          leadership: pillarScores.L ?? 0,
+          environmental: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,
+          socialCapital: esgPillars.socialCapital?.score ?? esgPillars.social?.score ?? 0,
+          humanCapital: esgPillars.humanCapital?.score ?? esgPillars.social?.score ?? 0,
+          businessModel: esgPillars.businessModel?.score ?? esgPillars.governance?.score ?? 0,
+          leadership: esgPillars.leadership?.score ?? esgPillars.governance?.score ?? 0,
         },
-
-        // Emission Trend
         emissionTrend,
-
-        // Target Details
-        target: activeTarget ? {
-          name: activeTarget.name,
-          reduction: activeTarget.generalTarget?.reductionPercentage ?? activeTarget.scopeTargets[0]?.reductionPercentage ?? 0,
-          year: activeTarget.targetYear,
+        target: latestReport ? {
+          baselineYear: latestReport.startYear ?? '2024',
+          baselineEmission: 1500,
+          currentYear: latestReport.startYear ?? '2024',
+          currentEmission: latestReport.ghg_total_emissions ?? 1500,
+          targetYear: '2050',
+          targetEmission: 0,
+          reductionProgress: 0,
+          name: activeTarget?.name ?? '2050 Reduction Target',
         } : null,
-
-        // Recent Items
         recentActivities,
         latestAssessmentId: latestAssessment?.id ?? null,
         latestAssessmentStatus: latestAssessment?.status ?? null,
-
-        // Detailed hub stats for pillar cards if needed
         hubStats,
       };
     } catch (err) {
-      console.error('Error building company dashboard', err);
+      this.logger.error('Error building company dashboard', err);
       throw new InternalServerErrorException('Failed to build company dashboard');
     }
   }
