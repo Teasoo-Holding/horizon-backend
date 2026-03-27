@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -10,6 +11,8 @@ import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class CompanyService {
+  private readonly logger = new Logger(CompanyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -108,39 +111,22 @@ export class CompanyService {
     });
   }
 
-  // --- Dashboard Section Definitions ---
-  private readonly ENV_SECTIONS = [
-    ['environment.ghg.scope1.stationarySources', 'environment.ghg.scope1.mobileSources', 'environment.ghg.scope1.processEmissions', 'environment.ghg.scope1.fugitiveEmissions'],
-    ['environment.ghg.scope2.locationBased', 'environment.ghg.scope2.marketBased'],
-    ['environment.ghg.scope3.upstream', 'environment.ghg.scope3.downstream'],
-    ['environment.airQuality.airPollutantEmissions'],
-    ['environment.waterManagement.waterAndProducedWaterManagement.freshwaterWithdrawals'],
-    ['environment.waterManagement.waterAndProducedWaterManagement.producedWaterManagement'],
-    ['environment.waterManagement.hydraulicFracturingImpacts.chemicalDisclosure'],
-    ['environment.biodiversityImpact.environmentalManagement.environmentalManagementPolicies'],
-  ];
-
-  private readonly SOCIAL_SECTIONS = [
-    ['socialCapital.securityHumanRights.operationsInConflictZones', 'socialCapital.securityHumanRights.reservesInNearIndigenousLand', 'socialCapital.securityHumanRights.humanRightsEngagementProcesses'],
-    ['socialCapital.communityRelations.communityRiskOpportunityManagement', 'socialCapital.communityRelations.hcdtContribution', 'socialCapital.communityRelations.communityDisputeResolution', 'socialCapital.communityRelations.operationalDelays'],
-  ];
-
-  private readonly GOV_SECTIONS = [
-    ['businessModel.reservesValuation.reservesSensitivity', 'businessModel.reservesValuation.embeddedCarbon', 'businessModel.reservesValuation.renewableEnergyInvestment', 'businessModel.reservesValuation.capitalExpenditureStrategy'],
-    ['businessModel.businessEthics.reservesCountriesCorruptionRisk', 'businessModel.businessEthics.antiCorruptionManagement'],
-    ['leadershipGovernance.criticalIncidentRiskManagement.processSafetyEvents', 'leadershipGovernance.criticalIncidentRiskManagement.catastrophicRiskManagementSystems'],
-    ['leadershipGovernance.legalRegulatoryEnvironment.boardManagementOversight', 'leadershipGovernance.legalRegulatoryEnvironment.publicPolicyEngagement'],
-  ];
+  // --- Dashboard Section Definitions (Aligned with frontend esgSectionCounts.ts) ---
+  private readonly ESG_COUNTS = {
+    E: 39,
+    S: 9, // Social + Human
+    G: 10, // Business + Leadership
+    activityMetrics: 3,
+    total: 61,
+  };
 
   async getDashboard(companyId: number) {
     try {
-      // 1. Get the latest assessment for progress/hubStats (can be in-progress)
       const latestAssessment = await this.prisma.assessment.findFirst({
         where: { companyId },
         orderBy: { updatedAt: 'desc' },
       });
 
-      // 2. Get the latest approved/submitted report for the main scores and emissions
       const latestReport = await this.prisma.report.findFirst({
         where: {
           assessment: {
@@ -156,7 +142,6 @@ export class CompanyService {
         orderBy: { id: 'desc' },
       });
 
-      // 3. Helper to parse assessment data
       const parseAssessmentData = (raw: any) => {
         if (!raw) return null;
         try {
@@ -166,53 +151,51 @@ export class CompanyService {
         }
       };
 
-      // 4. Hub / Section Progress Stats
       const getHubStats = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
-        const submittedGroups: string[] = data?.submittedGroups || [];
 
-        const countSubmitted = (sectionGroups: string[][]): number =>
-          sectionGroups.filter(groups => groups.some(g => submittedGroups.includes(g))).length;
+        const envProgress = data?.environment?.progress ?? 0;
+        const socialProgress = data?.socialCapital?.progress ?? 0;
+        const humanProgress = data?.humanCapital?.progress ?? 0;
+        const busProgress = data?.businessModel?.progress ?? data?.environment?.businessInnovation?.progress ?? 0;
+        const leadProgress = data?.leadershipGovernance?.progress ?? 0;
 
-        const envCompleted = countSubmitted(this.ENV_SECTIONS);
-        const socialCompleted = countSubmitted(this.SOCIAL_SECTIONS);
-        const govCompleted = countSubmitted(this.GOV_SECTIONS);
+        const combinedSocialProgress = (socialProgress + humanProgress) / 2;
+        const combinedGovProgress = (busProgress + leadProgress) / 2;
 
-        const envProgress = Math.round((envCompleted / this.ENV_SECTIONS.length) * 100);
-        const socialProgress = Math.round((socialCompleted / this.SOCIAL_SECTIONS.length) * 100);
-        const govProgress = Math.round((govCompleted / this.GOV_SECTIONS.length) * 100);
+        const envCompleted = Math.round((envProgress / 100) * this.ESG_COUNTS.E);
+        const socialCompleted = Math.round((combinedSocialProgress / 100) * this.ESG_COUNTS.S);
+        const govCompleted = Math.round((combinedGovProgress / 100) * this.ESG_COUNTS.G);
 
-        // Status based on section-level completion (aligned with progress bar logic)
-        const getPillarStatus = (completed: number, total: number): string => {
-          if (completed === total) return 'completed';
-          if (completed > 0) return 'in-progress';
+        const getPillarStatus = (progress: number): string => {
+          if (progress >= 100) return 'completed';
+          if (progress > 0) return 'in-progress';
           return 'not-started';
         };
 
         return {
           environment: {
-            progress: envProgress,
-            completed: `${envCompleted} of ${this.ENV_SECTIONS.length} sections completed`,
-            status: getPillarStatus(envCompleted, this.ENV_SECTIONS.length),
+            progress: Math.round(envProgress),
+            completed: `${envCompleted} of ${this.ESG_COUNTS.E} sections completed`,
+            status: getPillarStatus(envProgress),
           },
           social: {
-            progress: socialProgress,
-            completed: `${socialCompleted} of ${this.SOCIAL_SECTIONS.length} sections completed`,
-            status: getPillarStatus(socialCompleted, this.SOCIAL_SECTIONS.length),
+            progress: Math.round(combinedSocialProgress),
+            completed: `${socialCompleted} of ${this.ESG_COUNTS.S} sections completed`,
+            status: getPillarStatus(combinedSocialProgress),
           },
           governance: {
-            progress: govProgress,
-            completed: `${govCompleted} of ${this.GOV_SECTIONS.length} sections completed`,
-            status: getPillarStatus(govCompleted, this.GOV_SECTIONS.length),
+            progress: Math.round(combinedGovProgress),
+            completed: `${govCompleted} of ${this.ESG_COUNTS.G} sections completed`,
+            status: getPillarStatus(combinedGovProgress),
           },
           totalCompleted: envCompleted + socialCompleted + govCompleted,
-          totalSections: this.ENV_SECTIONS.length + this.SOCIAL_SECTIONS.length + this.GOV_SECTIONS.length,
+          totalSections: this.ESG_COUNTS.total,
         };
       };
 
       const hubStats = getHubStats(latestAssessment);
 
-      // 5. Emissions Trend (Last 10 assessments with Reports)
       const trendReports = await this.prisma.report.findMany({
         where: {
           assessment: {
@@ -251,7 +234,6 @@ export class CompanyService {
         scope3: r.ghg_scope_three,
       }));
 
-      // 6. Recent Activities
       const activities = await this.prisma.activities.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
@@ -273,64 +255,50 @@ export class CompanyService {
         },
       }));
 
-      // 7. Company Target
       const activeTarget = await this.prisma.target.findFirst({
         where: { companyId },
         orderBy: { updatedAt: 'desc' },
         include: { generalTarget: true, scopeTargets: true },
       });
 
-      // 8. Final Score Pillars (from the latest report)
-      const parsePillars = (p: any): any => {
-        if (!p) return { E: 0, S: 0, H: 0, B: 0, L: 0 };
-        return typeof p === 'string' ? JSON.parse(p) : p;
-      };
-      const pillarScores = parsePillars(latestReport?.esgPillars);
+      const esgPillars = (latestReport?.esgPillars as any) || {};
 
       return {
-        // Main Header Stats
         totalEmissions: latestReport?.ghg_total_emissions ?? 0,
         scope1: latestReport?.ghg_scope_one ?? 0,
         scope2: latestReport?.ghg_scope_two ?? 0,
         scope3: latestReport?.ghg_scope_three ?? 0,
-
-        // ESG Overview
         esgScore: latestReport?.esgScore ?? 0,
         esgGrade: latestReport?.esgGrade ?? 'N/A',
         overallProgress: {
-          count: `${hubStats?.totalCompleted ?? 0} of ${hubStats?.totalSections ?? 0} sections`,
-          percentage: Math.round(((hubStats?.totalCompleted ?? 0) / (hubStats?.totalSections ?? 1)) * 100),
+          count: `${hubStats.totalCompleted} of ${hubStats.totalSections} sections`,
+          percentage: Math.round((hubStats.totalCompleted / hubStats.totalSections) * 100),
         },
-
-        // Pillar Breakdown
         pillars: {
-          environmental: pillarScores.E ?? 0,
-          social: pillarScores.S ?? 0,
-          humanCapital: pillarScores.H ?? 0,
-          businessModel: pillarScores.B ?? 0,
-          leadership: pillarScores.L ?? 0,
+          environmental: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,
+          socialCapital: esgPillars.socialCapital?.score ?? esgPillars.social?.score ?? 0,
+          humanCapital: esgPillars.humanCapital?.score ?? esgPillars.social?.score ?? 0,
+          businessModel: esgPillars.businessModel?.score ?? esgPillars.governance?.score ?? 0,
+          leadership: esgPillars.leadership?.score ?? esgPillars.governance?.score ?? 0,
         },
-
-        // Emission Trend
         emissionTrend,
-
-        // Target Details
-        target: activeTarget ? {
-          name: activeTarget.name,
-          reduction: activeTarget.generalTarget?.reductionPercentage ?? activeTarget.scopeTargets[0]?.reductionPercentage ?? 0,
-          year: activeTarget.targetYear,
+        target: latestReport ? {
+          baselineYear: latestReport.startYear ?? '2024',
+          baselineEmission: 1500,
+          currentYear: latestReport.startYear ?? '2024',
+          currentEmission: latestReport.ghg_total_emissions ?? 1500,
+          targetYear: '2050',
+          targetEmission: 0,
+          reductionProgress: 0,
+          name: activeTarget?.name ?? '2050 Reduction Target',
         } : null,
-
-        // Recent Items
         recentActivities,
         latestAssessmentId: latestAssessment?.id ?? null,
         latestAssessmentStatus: latestAssessment?.status ?? null,
-
-        // Detailed hub stats for pillar cards if needed
         hubStats,
       };
     } catch (err) {
-      console.error('Error building company dashboard', err);
+      this.logger.error('Error building company dashboard', err);
       throw new InternalServerErrorException('Failed to build company dashboard');
     }
   }
