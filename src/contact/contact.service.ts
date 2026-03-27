@@ -31,10 +31,10 @@ export class ContactService {
     return `
       <div style="font-family:'Inter',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f7fdfb;">
         <!-- Header with logo -->
-        <div style="background:#0F9E8E;padding:28px 30px;border-radius:12px 12px 0 0;text-align:center;">
-          <img src="https://esghorizon.africa/logo.png" alt="ESG Horizon" width="160" style="margin-bottom:16px;" />
-          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Thank you, ${this.escapeHtml(dto.firstName)}!</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">We've received your demo request</p>
+        <div style="padding:28px 30px;border-radius:12px 12px 0 0;border-bottom:1px solid #e5e5e5;">
+          <img src="https://esghorizon.africa/logo-full.png" alt="ESG Horizon" width="140" style="display:block;margin-bottom:20px;" />
+          <h1 style="margin:0;color:#1a1a1a;font-size:22px;font-weight:700;">Thank you, ${this.escapeHtml(dto.firstName)}!</h1>
+          <p style="margin:6px 0 0;color:#666;font-size:14px;">We've received your demo request</p>
         </div>
 
         <!-- Body -->
@@ -92,9 +92,10 @@ export class ContactService {
 
     return `
       <div style="font-family:'Inter',Arial,sans-serif;max-width:600px;margin:0 auto;">
-        <div style="background:#0F9E8E;padding:24px 30px;border-radius:12px 12px 0 0;">
-          <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">New Demo Request</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">Someone wants a personalised walkthrough</p>
+        <div style="padding:24px 30px;border-radius:12px 12px 0 0;border-bottom:1px solid #e5e5e5;">
+          <img src="https://esghorizon.africa/logo-full.png" alt="ESG Horizon" width="140" style="display:block;margin-bottom:16px;" />
+          <h1 style="margin:0;color:#1a1a1a;font-size:20px;font-weight:700;">New Demo Request</h1>
+          <p style="margin:6px 0 0;color:#666;font-size:14px;">Someone wants a personalised walkthrough</p>
         </div>
         <div style="background:#fff;padding:24px 30px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
           <table style="width:100%;border-collapse:collapse;font-size:14px;">
