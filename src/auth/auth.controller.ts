@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Res,
   Req,
@@ -29,6 +30,109 @@ export class AuthController {
     private jwtService: JwtService,
     private prisma: PrismaService,
   ) {}
+
+  @Get('status')
+  @ApiOperation({ summary: 'Check if user has an active session' })
+  async status(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const accessToken = req.cookies?.accessToken;
+    const refreshToken = req.cookies?.refreshToken;
+
+    // Try the access token first
+    if (accessToken) {
+      try {
+        const payload = this.jwtService.verify(accessToken, {
+          secret: process.env.JWT_SECRET,
+        });
+
+        const user = await this.prisma.user.findUnique({
+          where: { id: payload.sub },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            role: { select: { name: true } },
+          },
+        });
+
+        if (user) {
+          return {
+            authenticated: true,
+            user: {
+              firstName: user.first_name,
+              lastName: user.last_name,
+              email: user.email,
+              role: user.role?.name,
+            },
+          };
+        }
+      } catch {
+        // Access token expired or invalid — fall through to refresh
+      }
+    }
+
+    // Try silent refresh
+    if (refreshToken) {
+      try {
+        const tokenRecord = await this.prisma.refreshToken.findUnique({
+          where: { refresh_token: refreshToken },
+        });
+
+        if (tokenRecord && tokenRecord.expires_at > new Date()) {
+          const payload = this.jwtService.verify(String(refreshToken), {
+            secret: process.env.JWT_SECRET,
+          });
+
+          const newAccessToken = this.jwtService.sign(
+            {
+              sub: payload.sub,
+              email: payload.email,
+              role: payload.role,
+              companyId: payload.companyId,
+            },
+            { expiresIn: '24h' },
+          );
+
+          res.cookie('accessToken', newAccessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            maxAge: 15 * 60 * 1000,
+            sameSite: isProduction ? 'none' : 'lax',
+          });
+
+          const user = await this.prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              role: { select: { name: true } },
+            },
+          });
+
+          if (user) {
+            return {
+              authenticated: true,
+              user: {
+                firstName: user.first_name,
+                lastName: user.last_name,
+                email: user.email,
+                role: user.role?.name,
+              },
+            };
+          }
+        }
+      } catch {
+        // Refresh token also invalid
+      }
+    }
+
+    return { authenticated: false };
+  }
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {

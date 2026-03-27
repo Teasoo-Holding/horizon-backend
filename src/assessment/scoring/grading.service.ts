@@ -32,7 +32,7 @@ export class GradingService {
     envScores: number[],
     socScores: number[],
     govScores: number[],
-    vetouInputs: {
+    vetoInputs: {
       fatalities: number;
       majorSpills: number;
       processSafetyEvents: number;
@@ -54,41 +54,19 @@ export class GradingService {
     let gScore = avg(govScores);
 
     let eCapped = false, sCapped = false, gCapped = false;
+    if (vetoInputs.majorSpills > 0) { eScore = Math.min(eScore, 40); eCapped = true; }
+    if (vetoInputs.fatalities >= 1) { sScore = Math.min(sScore, 50); sCapped = true; }
+    if (vetoInputs.protestDays > 30) { sScore = Math.min(sScore, 60); sCapped = true; }
+    if (vetoInputs.hcdtDefiance) { sScore = Math.min(sScore, 40); sCapped = true; }
+    if (vetoInputs.humanRightsAbuses) { sScore = Math.min(sScore, 30); sCapped = true; }
+    if (vetoInputs.processSafetyEvents >= 2) { gScore = Math.min(gScore, 50); gCapped = true; }
+    if (vetoInputs.briberyConviction) { gScore = Math.min(gScore, 30); gCapped = true; }
+    if (vetoInputs.licenseSuspension) { gScore = Math.min(gScore, 40); gCapped = true; }
 
-    if (vetouInputs.majorSpills > 0) {
-      eScore = Math.min(eScore, 40);
-      eCapped = true;
-    }
-
-    if (vetouInputs.fatalities >= 1) {
-      sScore = Math.min(sScore, 50);
-      sCapped = true;
-    }
-    if (vetouInputs.protestDays > 30) {
-      sScore = Math.min(sScore, 60);
-      sCapped = true;
-    }
-    if (vetouInputs.hcdtDefiance) {
-      sScore = Math.min(sScore, 40);
-      sCapped = true;
-    }
-    if (vetouInputs.humanRightsAbuses) {
-      sScore = Math.min(sScore, 30);
-      sCapped = true;
-    }
-
-    if (vetouInputs.processSafetyEvents >= 2) {
-      gScore = Math.min(gScore, 50);
-      gCapped = true;
-    }
-    if (vetouInputs.briberyConviction) {
-      gScore = Math.min(gScore, 30);
-      gCapped = true;
-    }
-    if (vetouInputs.licenseSuspension) {
-      gScore = Math.min(gScore, 40);
-      gCapped = true;
-    }
+    const socialCapScore = avg(socScores.slice(0, 4));
+    const humanCapScore = socScores[4] ?? 0;
+    const leadershipScore = avg([govScores[0], govScores[4]]);
+    const businessModelScore = avg(govScores.slice(1, 4));
 
     const overallScore = (eScore * this.weights.E) + (sScore * this.weights.S) + (gScore * this.weights.G);
     const overallGrade = this.calculateGrade(overallScore);
@@ -98,6 +76,12 @@ export class GradingService {
         environment: { score: Number(eScore.toFixed(2)), grade: this.calculateGrade(eScore), isCapped: eCapped },
         social: { score: Number(sScore.toFixed(2)), grade: this.calculateGrade(sScore), isCapped: sCapped },
         governance: { score: Number(gScore.toFixed(2)), grade: this.calculateGrade(gScore), isCapped: gCapped },
+        
+        environmental: { score: Number(eScore.toFixed(2)), grade: this.calculateGrade(eScore) },
+        socialCapital: { score: Number(socialCapScore.toFixed(2)), grade: this.calculateGrade(socialCapScore) },
+        humanCapital: { score: Number(humanCapScore.toFixed(2)), grade: this.calculateGrade(humanCapScore) },
+        businessModel: { score: Number(businessModelScore.toFixed(2)), grade: this.calculateGrade(businessModelScore) },
+        leadership: { score: Number(leadershipScore.toFixed(2)), grade: this.calculateGrade(leadershipScore) },
       },
       overallScore: Number(overallScore.toFixed(2)),
       overallGrade,
