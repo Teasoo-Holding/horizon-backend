@@ -41,96 +41,148 @@ export class ScoringService {
     const totalOffshoreAssets = Number(offAsset.totalNumber) || 1;
     const totalOnshoreAssets = Number(onAsset.totalNumber) || 1;
 
+    // --- Environmental indicators ---
     const envScores: number[] = [];
+    const envIndicators: { label: string; score: number }[] = [];
 
     const ghgTotalEmit = Number(totals?.ghg_total_emissions) || 0;
     const ghgIntensity = ghgTotalEmit / totalProdBoe;
-    envScores.push(this.interpolate(ghgIntensity, 0.010, 0.040));
+    const ghgScore = this.interpolate(ghgIntensity, 0.010, 0.040);
+    envScores.push(ghgScore);
+    envIndicators.push({ label: 'GHG Intensity', score: ghgScore });
 
     const env = assessmentData?.environment || {};
     const flaredVol = Number(env.ghg?.scope1?.processEmissions?.gasFlaring?.volumeOfFlaredGas || env.ghg?.gasFlaringVolume || 0);
     const flareIntensity = flaredVol / totalProdBoe;
-    envScores.push(this.interpolate(flareIntensity, 0.5, 5.0));
+    const flareScore = this.interpolate(flareIntensity, 0.5, 5.0);
+    envScores.push(flareScore);
+    envIndicators.push({ label: 'Gas Flaring', score: flareScore });
 
     const ventedVol = Number(env.ghg?.scope1?.fugitiveEmissions?.ventingNaturalGas?.volume || 0);
     const ventIntensity = ventedVol / totalProdBoe;
-    envScores.push(this.interpolate(ventIntensity, 0.05, 0.5));
+    const ventScore = this.interpolate(ventIntensity, 0.05, 0.5);
+    envScores.push(ventScore);
+    envIndicators.push({ label: 'Venting & Fugitives', score: ventScore });
 
-    envScores.push(this.interpolate(0, 0, 1.5)); 
+    const methaneScore = this.interpolate(0, 0, 1.5);
+    envScores.push(methaneScore);
+    envIndicators.push({ label: 'Methane Leakage', score: methaneScore });
 
     const water = env.waterManagement?.waterAndProducedWaterManagement || {};
     const waterCalc = water.freshwaterWithdrawals?.calculated || {};
-    const waterWithdrawn = (Number(waterCalc.withdrawals?.surfaceWater?.volume) || 0) + 
-                           (Number(waterCalc.withdrawals?.groundwater?.volume) || 0) + 
+    const waterWithdrawn = (Number(waterCalc.withdrawals?.surfaceWater?.volume) || 0) +
+                           (Number(waterCalc.withdrawals?.groundwater?.volume) || 0) +
                            (Number(waterCalc.withdrawals?.municipal?.volume) || 0);
     const waterIntensity = waterWithdrawn / totalProdBoe;
-    envScores.push(this.interpolate(waterIntensity, 0.05, 0.3));
+    const waterScore = this.interpolate(waterIntensity, 0.05, 0.3);
+    envScores.push(waterScore);
+    envIndicators.push({ label: 'Water Use Intensity', score: waterScore });
 
     const bio = env.biodiversityImpact?.environmentalManagement || {};
     const spill = bio.hydrocarbonSpills?.calculated || bio.hydrocarbonSpills || {};
     const spillVol = Number(spill.totalVolumeSpilled?.volume || spill.totalVolumeSpilled) || 0;
     const spillsBblPerMMBOE = (spillVol / totalProdBoe) * 1000000;
-    envScores.push(this.interpolate(spillsBblPerMMBOE, 2.0, 50.0));
+    const spillScore = this.interpolate(spillsBblPerMMBOE, 2.0, 50.0);
+    envScores.push(spillScore);
+    envIndicators.push({ label: 'Hydrocarbon Spills', score: spillScore });
 
+    // --- Social Capital + Human Capital indicators ---
     const socScores: number[] = [];
+    const socIndicators: { label: string; score: number }[] = [];
+
     const sec = soc.securityRights || soc.securityHumanRights || {};
     const conflictRes = Number((sec.reservesAreaConflict || sec.operationsInConflictZones)?.totalProvedReservesVolume) || 0;
     const conflictRatio = conflictRes / totalProvedReserves;
-    socScores.push(this.interpolate(conflictRatio, 0.0, 0.25));
+    const conflictScore = this.interpolate(conflictRatio, 0.0, 0.25);
+    socScores.push(conflictScore);
+    socIndicators.push({ label: 'Operations in Conflict Zones', score: conflictScore });
 
     const indigRes = Number((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.totalProvedReservesVolume) || 0;
     const indigRatio = indigRes / totalProvedReserves;
-    socScores.push(this.interpolate(indigRatio, 0.0, 0.25));
+    const indigScore = this.interpolate(indigRatio, 0.0, 0.25);
+    socScores.push(indigScore);
+    socIndicators.push({ label: 'Indigenous Land Reserves', score: indigScore });
 
     const hcdtAmount = Number(com.hcdtContribution?.hcdtAmount) || 0;
     const hcdtRatio = hcdtAmount / priorYearOpex;
-    socScores.push(hcdtRatio >= 0.03 ? 100 : 0);
+    const hcdtScore = hcdtRatio >= 0.03 ? 100 : 0;
+    socScores.push(hcdtScore);
+    socIndicators.push({ label: 'HCDT Contribution', score: hcdtScore });
 
     const dis = com.communityDisputeResolution || com.disputeResolution || {};
     const disRef = Number(dis.disputesReferred) || 1;
     const disRes = Number(dis.disputesResolved) || 0;
-    socScores.push(this.interpolate(disRes / disRef, 1.0, 0.0));
+    const disputeScore = this.interpolate(disRes / disRef, 1.0, 0.0);
+    socScores.push(disputeScore);
+    socIndicators.push({ label: 'Dispute Resolution', score: disputeScore });
 
     const totalIncidents = (Number(humSafety.direct?.recordableIncidents) || 0) + (Number(humSafety.contract?.recordableIncidents) || 0);
     const trir = totalHoursWorked > 0 ? (totalIncidents * 200000) / totalHoursWorked : 0;
-    socScores.push(this.interpolate(trir, 0.07, 0.30));
+    const trirScore = this.interpolate(trir, 0.07, 0.30);
+    socScores.push(trirScore);
+    socIndicators.push({ label: 'Total Recordable Incident Rate (TRIR)', score: trirScore });
 
+    // --- Governance (Business Model + Leadership) indicators ---
     const govScores: number[] = [];
+    const govIndicators: { label: string; score: number }[] = [];
+
     const lead = assessmentData?.leadershipGovernance || assessmentData?.environment?.leadershipGovernance || {};
     const crit = lead.criticalIncidentRiskManagement || {};
     const tier1 = Number(crit.processSafetyEvents?.numberOfEvents) || 0;
     const pseTotalHours = Number(crit.processSafetyEvents?.totalHoursWorked) || totalHoursWorked;
     const pser = pseTotalHours > 0 ? (tier1 * 200000) / pseTotalHours : 0;
-    govScores.push(this.interpolate(pser, 0.01, 0.10));
+    const pserScore = this.interpolate(pser, 0.01, 0.10);
+    govScores.push(pserScore);
+    govIndicators.push({ label: 'Process Safety Event Rate', score: pserScore });
 
     const capexStr = Number(busRes.capitalExpenditureStrategy?.transitionCapexPercentage) || 0;
-    govScores.push(this.interpolate(capexStr, 0.50, 0.10));
+    const capexScore = this.interpolate(capexStr, 0.50, 0.10);
+    govScores.push(capexScore);
+    govIndicators.push({ label: 'Transition CapEx Strategy', score: capexScore });
 
     const climateRiskRes = Number(busRes.reservesSensitivityToCarbonPricing?.estimatedDecrease) || Number(busRes.reservesSensitivityToCarbonPricing?.percentageDecrease) || 0;
     const climateRiskRatio = climateRiskRes > 100 ? climateRiskRes / totalProvedReserves : climateRiskRes / 100;
-    govScores.push(this.interpolate(climateRiskRatio, 0.0, 0.25));
+    const climateScore = this.interpolate(climateRiskRatio, 0.0, 0.25);
+    govScores.push(climateScore);
+    govIndicators.push({ label: 'Climate Risk on Reserves', score: climateScore });
 
     const embeddedCarbon = Number(busRes.embeddedCarbonInReserves?.estimatedEmbeddedEmissions) || 0;
     const embeddedIntensity = embeddedCarbon / totalProvedReserves;
-    govScores.push(this.interpolate(embeddedIntensity, 0.25, 0.50));
+    const embeddedScore = this.interpolate(embeddedIntensity, 0.25, 0.50);
+    govScores.push(embeddedScore);
+    govIndicators.push({ label: 'Embedded Carbon Intensity', score: embeddedScore });
 
-    const safetyCert = hum.riskAndOpportunityManagement?.safetyManagementSystems?.iso45001Certified === 'yes' ? 100 : 0;
+    const safetyMgmt = hum.workforceHealthAndSafety?.riskAndOpportunityManagement?.safetyManagementSystems
+      || hum.workforceHealthSafety?.riskAndOpportunityManagement?.safetyManagementSystems
+      || hum.riskAndOpportunityManagement?.safetyManagementSystems
+      || {};
+    const safetyCert = safetyMgmt.iso45001Certified === 'yes' || safetyMgmt.executiveRemunerationLinked === 'yes' ? 100 : 0;
     govScores.push(safetyCert);
+    govIndicators.push({ label: 'Safety Certification (ISO 45001)', score: safetyCert });
 
     const fatalities = (Number(humSafety.direct?.fatalities) || 0) + (Number(humSafety.contract?.fatalities) || 0);
     const protestDaysLevel = Number(com.operationalDelays?.durationDelaysCommunityProtests) || 0;
 
-    return this.gradingService.aggregate(
+    const result = this.gradingService.aggregate(
       envScores,
       socScores,
       govScores,
       {
-        majorSpills: spillVol > 250 ? 1 : 0, 
+        majorSpills: spillVol > 250 ? 1 : 0,
         fatalities: fatalities,
         protestDays: protestDaysLevel,
         processSafetyEvents: tier1,
         hcdtDefiance: hcdtAmount === 0,
       }
     );
+
+    // Attach per-indicator breakdowns to each pillar
+    result.pillars.environmental.indicators = envIndicators;
+    result.pillars.socialCapital.indicators = socIndicators.slice(0, 4);
+    result.pillars.humanCapital.indicators = [socIndicators[4]]; // TRIR only
+    result.pillars.businessModel.indicators = govIndicators.slice(1, 4); // CapEx, Climate, Embedded
+    result.pillars.leadership.indicators = [govIndicators[0], govIndicators[4]]; // PSER, ISO cert
+
+    return result;
   }
 }
