@@ -14,6 +14,7 @@ import { CompanySetupService } from './company-setup.service';
 import { ReportModule } from './report/report.module';
 import { ActivitiesService } from 'src/activities/activities.service';
 import { TargetModule } from './target/target.module';
+import { ScoringModule } from 'src/assessment/scoring/scoring.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TargetModule } from './target/target.module';
     Scope1Module,
     ReportModule,
     TargetModule,
+    ScoringModule,
   ],
   controllers: [CompanyController, TestController, CompanySetupController],
   providers: [CompanyService, PrismaService, EmailService, CompanySetupService, ActivitiesService],
