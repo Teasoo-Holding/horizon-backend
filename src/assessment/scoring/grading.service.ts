@@ -19,13 +19,12 @@ export class GradingService {
   }
 
   calculateGrade(score: number): string {
-    if (score >= 85.71) return 'AAA';
-    if (score >= 71.43) return 'AA';
-    if (score >= 57.14) return 'A';
-    if (score >= 42.86) return 'BBB';
-    if (score >= 28.57) return 'BB';
-    if (score >= 14.29) return 'B';
-    return 'CCC';
+    if (score >= 95) return 'A+';
+    if (score >= 85) return 'A';
+    if (score >= 75) return 'B+';
+    if (score >= 65) return 'B';
+    if (score >= 50) return 'C';
+    return 'D';
   }
 
   aggregate(
