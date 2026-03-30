@@ -306,11 +306,31 @@ export class CompanyService {
           percentage: hubStats.totalSections > 0 ? Math.round((hubStats.totalCompleted / hubStats.totalSections) * 100) : 0,
         },
         pillars: {
-          environmental: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,
-          socialCapital: esgPillars.socialCapital?.score ?? esgPillars.social?.score ?? 0,
-          humanCapital: esgPillars.humanCapital?.score ?? esgPillars.social?.score ?? 0,
-          businessModel: esgPillars.businessModel?.score ?? esgPillars.governance?.score ?? 0,
-          leadership: esgPillars.leadership?.score ?? esgPillars.governance?.score ?? 0,
+          environmental: {
+            score: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,
+            grade: esgPillars.environmental?.grade ?? 'N/A',
+            indicators: esgPillars.environmental?.indicators ?? [],
+          },
+          socialCapital: {
+            score: esgPillars.socialCapital?.score ?? esgPillars.social?.score ?? 0,
+            grade: esgPillars.socialCapital?.grade ?? 'N/A',
+            indicators: esgPillars.socialCapital?.indicators ?? [],
+          },
+          humanCapital: {
+            score: esgPillars.humanCapital?.score ?? esgPillars.social?.score ?? 0,
+            grade: esgPillars.humanCapital?.grade ?? 'N/A',
+            indicators: esgPillars.humanCapital?.indicators ?? [],
+          },
+          businessModel: {
+            score: esgPillars.businessModel?.score ?? esgPillars.governance?.score ?? 0,
+            grade: esgPillars.businessModel?.grade ?? 'N/A',
+            indicators: esgPillars.businessModel?.indicators ?? [],
+          },
+          leadership: {
+            score: esgPillars.leadership?.score ?? esgPillars.governance?.score ?? 0,
+            grade: esgPillars.leadership?.grade ?? 'N/A',
+            indicators: esgPillars.leadership?.indicators ?? [],
+          },
         },
         emissionTrend,
         target: latestReport ? {
