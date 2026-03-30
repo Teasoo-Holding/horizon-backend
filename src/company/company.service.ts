@@ -8,6 +8,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dtos/update-company.dto';
 import { AssessmentStatus, CompanyStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
+import { ALL_GROUP_KEYS } from './assessments/common/group-keys';
+import { ScoringService } from 'src/assessment/scoring/scoring.service';
 
 @Injectable()
 export class CompanyService {
@@ -16,6 +18,7 @@ export class CompanyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly scoringService: ScoringService,
   ) { }
   async findAll() {
     return this.prisma.company.findMany({
@@ -111,19 +114,27 @@ export class CompanyService {
     });
   }
 
-  // --- Dashboard Section Definitions (Aligned with frontend esgSectionCounts.ts) ---
-  private readonly ESG_COUNTS = {
-    E: 39,
-    S: 9, // Social + Human
-    G: 10, // Business + Leadership
-    activityMetrics: 3,
-    total: 61,
+  // Hub prefix → group key mapping for submittedGroups-based progress
+  private readonly HUB_PREFIXES = {
+    environment: ['environment.'],
+    social: ['socialCapital.', 'humanCapital.'],
+    governance: ['businessModel.', 'leadershipGovernance.'],
+    foundational: ['foundationalData.'],
   };
 
   async getDashboard(companyId: number) {
     try {
       const latestAssessment = await this.prisma.assessment.findFirst({
         where: { companyId },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      // Latest approved/submitted_approved assessment — used for ESG scoring
+      const latestApprovedAssessment = await this.prisma.assessment.findFirst({
+        where: {
+          companyId,
+          status: { in: [AssessmentStatus.approved, AssessmentStatus.submitted_approved] },
+        },
         orderBy: { updatedAt: 'desc' },
       });
 
@@ -153,44 +164,45 @@ export class CompanyService {
 
       const getHubStats = (assessment: any) => {
         const data = parseAssessmentData(assessment?.assessmentData);
+        const submitted: string[] = Array.isArray(data?.submittedGroups) ? data.submittedGroups : [];
 
-        const envProgress = data?.environment?.progress ?? 0;
-        const socialProgress = data?.socialCapital?.progress ?? 0;
-        const humanProgress = data?.humanCapital?.progress ?? 0;
-        const busProgress = data?.businessModel?.progress ?? data?.environment?.businessInnovation?.progress ?? 0;
-        const leadProgress = data?.leadershipGovernance?.progress ?? 0;
+        const countByHub = (prefixes: string[]) => {
+          const total = ALL_GROUP_KEYS.filter(k => prefixes.some(p => k.startsWith(p))).length;
+          const completed = submitted.filter(k => prefixes.some(p => k.startsWith(p))).length;
+          return { completed, total };
+        };
 
-        const combinedSocialProgress = (socialProgress + humanProgress) / 2;
-        const combinedGovProgress = (busProgress + leadProgress) / 2;
+        const env = countByHub([...this.HUB_PREFIXES.environment, ...this.HUB_PREFIXES.foundational]);
+        const soc = countByHub(this.HUB_PREFIXES.social);
+        const gov = countByHub(this.HUB_PREFIXES.governance);
 
-        const envCompleted = Math.round((envProgress / 100) * this.ESG_COUNTS.E);
-        const socialCompleted = Math.round((combinedSocialProgress / 100) * this.ESG_COUNTS.S);
-        const govCompleted = Math.round((combinedGovProgress / 100) * this.ESG_COUNTS.G);
+        const totalCompleted = env.completed + soc.completed + gov.completed;
+        const totalSections = env.total + soc.total + gov.total;
 
-        const getPillarStatus = (progress: number): string => {
-          if (progress >= 100) return 'completed';
-          if (progress > 0) return 'in-progress';
+        const getStatus = (completed: number, total: number): string => {
+          if (total > 0 && completed >= total) return 'completed';
+          if (completed > 0) return 'in-progress';
           return 'not-started';
         };
 
         return {
           environment: {
-            progress: Math.round(envProgress),
-            completed: `${envCompleted} of ${this.ESG_COUNTS.E} sections completed`,
-            status: getPillarStatus(envProgress),
+            progress: env.total > 0 ? Math.round((env.completed / env.total) * 100) : 0,
+            completed: `${env.completed} of ${env.total} sections completed`,
+            status: getStatus(env.completed, env.total),
           },
           social: {
-            progress: Math.round(combinedSocialProgress),
-            completed: `${socialCompleted} of ${this.ESG_COUNTS.S} sections completed`,
-            status: getPillarStatus(combinedSocialProgress),
+            progress: soc.total > 0 ? Math.round((soc.completed / soc.total) * 100) : 0,
+            completed: `${soc.completed} of ${soc.total} sections completed`,
+            status: getStatus(soc.completed, soc.total),
           },
           governance: {
-            progress: Math.round(combinedGovProgress),
-            completed: `${govCompleted} of ${this.ESG_COUNTS.G} sections completed`,
-            status: getPillarStatus(combinedGovProgress),
+            progress: gov.total > 0 ? Math.round((gov.completed / gov.total) * 100) : 0,
+            completed: `${gov.completed} of ${gov.total} sections completed`,
+            status: getStatus(gov.completed, gov.total),
           },
-          totalCompleted: envCompleted + socialCompleted + govCompleted,
-          totalSections: this.ESG_COUNTS.total,
+          totalCompleted,
+          totalSections,
         };
       };
 
@@ -261,18 +273,37 @@ export class CompanyService {
         include: { generalTarget: true, scopeTargets: true },
       });
 
-      const esgPillars = (latestReport?.esgPillars as any) || {};
+      // Compute ESG scores from the latest approved assessment data
+      let esgScore = 0;
+      let esgGrade = 'N/A';
+      let esgPillars: any = {};
+
+      const approvedData = parseAssessmentData(latestApprovedAssessment?.assessmentData);
+      if (approvedData) {
+        const totals = {
+          ghg_total_emissions: latestReport?.ghg_total_emissions ?? approvedData.totalEmission ?? 0,
+        };
+        const evaluation = this.scoringService.calculateESGScore(approvedData, totals);
+        esgScore = evaluation.overallScore;
+        esgGrade = evaluation.overallGrade;
+        esgPillars = evaluation.pillars || {};
+      } else if (latestReport) {
+        // Fallback to stored report scores
+        esgScore = latestReport.esgScore ?? 0;
+        esgGrade = (latestReport as any).esgGrade ?? 'N/A';
+        esgPillars = (latestReport.esgPillars as any) || {};
+      }
 
       return {
         totalEmissions: latestReport?.ghg_total_emissions ?? 0,
         scope1: latestReport?.ghg_scope_one ?? 0,
         scope2: latestReport?.ghg_scope_two ?? 0,
         scope3: latestReport?.ghg_scope_three ?? 0,
-        esgScore: latestReport?.esgScore ?? 0,
-        esgGrade: latestReport?.esgGrade ?? 'N/A',
+        esgScore,
+        esgGrade,
         overallProgress: {
           count: `${hubStats.totalCompleted} of ${hubStats.totalSections} sections`,
-          percentage: Math.round((hubStats.totalCompleted / hubStats.totalSections) * 100),
+          percentage: hubStats.totalSections > 0 ? Math.round((hubStats.totalCompleted / hubStats.totalSections) * 100) : 0,
         },
         pillars: {
           environmental: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,

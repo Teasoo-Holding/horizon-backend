@@ -58,7 +58,9 @@ export class AssessmentCalculatorService {
     data.environment ??= {};
     data.environment.ghg ??= { scope1: {} };
 
-    if (data.activityMetrics && !data.foundationalData?.activityMetrics) {
+    // Always migrate root-level activityMetrics into foundationalData.activityMetrics
+    // and flatten assetPortfolio nesting so data is in a canonical location
+    if (data.activityMetrics) {
       data.foundationalData ??= {};
       const rootAm = data.activityMetrics;
       const flattenedAm = {
@@ -71,6 +73,8 @@ export class AssessmentCalculatorService {
         ...(data.foundationalData.activityMetrics || {}),
         ...flattenedAm,
       };
+      // Remove root-level copy to prevent stale data divergence
+      delete data.activityMetrics;
     }
 
 
@@ -100,6 +104,14 @@ export class AssessmentCalculatorService {
       breakdown.stationarySources = result;
       group.totalEmission = result.sum;
       scope1Total += result.sum;
+
+      // Stamp per-source computed emissions on individual fuel entries
+      this.stampPerSourceEmissions(
+        group.electricityHeat?.dieselGenerators,
+        group.electricityHeat?.gasTurbines,
+        group.industrialProcess?.boilerFurnaces,
+        group.oilGasOperations?.onShoreProduction,
+      );
 
       if (group.electricityHeat) {
         group.electricityHeat.totalEmission = (result.fuel_powered_generator?.value || 0) + (result.gas_powered_turbine?.value || 0);
@@ -132,6 +144,17 @@ export class AssessmentCalculatorService {
         group.totalEmission = result.sum;
         scope1Total += result.sum;
         breakdown.mobileSources = result;
+
+        // Stamp per-source computed emissions on individual fuel entries
+        this.stampPerSourceEmissions(
+          group.roadTransport?.vehicleFleet,
+          group.roadTransport?.carsBuses,
+          group.vehicleEquipment?.forkliftFuelType,
+          group.vehicleEquipment?.heavyDutyFuelType,
+          group.vehicleEquipment?.tractorFuelType,
+          group.marineAviation?.air,
+          group.marineAviation?.marine,
+        );
       }
 
       this.calculateGroupProgress(
@@ -757,6 +780,23 @@ export class AssessmentCalculatorService {
     }));
   }
 
+  /**
+   * Stamps `computedEmission` (tCO₂e) on each fuel source entry in-place.
+   * Formula: volume × emissionFactor / 1000
+   */
+  private stampPerSourceEmissions(...arrays: any[][]) {
+    for (const items of arrays) {
+      if (!Array.isArray(items)) continue;
+      for (const entry of items) {
+        const volume = Number(entry.volume || entry.fuelVolume || entry.quantity || entry.energy_consumed || 0);
+        const ef = Number(entry.emissionFactor || entry.emission_factor || 0);
+        if (volume && ef) {
+          entry.computedEmission = Number(((volume * ef) / 1000).toFixed(4));
+        }
+      }
+    }
+  }
+
   private mapUpstreamEmissions(upstream: any) {
     return {
       total_amount_spent_on_goods_and_services: Number(
@@ -1154,13 +1194,20 @@ export class AssessmentCalculatorService {
     }
 
     // Management of Legal & Regulatory Environment
-    if (leadership.legalRegulatoryEnvironment) {
+    // Form saves to managementOfTheLegalAndRegulatoryEnvironment, normalize to legalRegulatoryEnvironment
+    const legalReg = leadership.legalRegulatoryEnvironment || leadership.managementOfTheLegalAndRegulatoryEnvironment;
+    if (legalReg) {
+      // Normalize field name: form saves boardAndManagementOversight, calculator expects boardManagementOversight
+      if (legalReg.boardAndManagementOversight && !legalReg.boardManagementOversight) {
+        legalReg.boardManagementOversight = legalReg.boardAndManagementOversight;
+      }
       const forms = [
         'boardManagementOversight',
         'publicPolicyEngagement'
       ];
-      this.calculateGroupProgress(leadership.legalRegulatoryEnvironment, forms, [4, 4]);
-      if (leadership.legalRegulatoryEnvironment.progress != null) topics.push(leadership.legalRegulatoryEnvironment.progress);
+      this.calculateGroupProgress(legalReg, forms, [4, 4]);
+      leadership.legalRegulatoryEnvironment = legalReg;
+      if (legalReg.progress != null) topics.push(legalReg.progress);
     }
 
     return topics.length > 0
