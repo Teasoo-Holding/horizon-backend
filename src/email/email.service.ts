@@ -5,6 +5,20 @@ import axios from 'axios';
 @Injectable()
 export class EmailService {
   constructor(private configService: ConfigService) { }
+  private getSender() {
+    return {
+      email: this.configService.get<string>('SENDER_EMAIL') || 'noreply@esghorizon.africa',
+      name: 'ESG Horizon',
+    };
+  }
+
+  private getReplyTo() {
+    return {
+      email: this.configService.get<string>('REPLY_TO_EMAIL') || 'support@esghorizon.africa',
+      name: 'ESG Horizon',
+    };
+  }
+
   async sendEmail(to: string, params: Record<string, any>, templateId: number) {
     try {
       const apiKey = this.configService.get<string>('BREVO_API_KEY');
@@ -16,9 +30,8 @@ export class EmailService {
       await axios.post(
         'https://api.brevo.com/v3/smtp/email',
         {
-          sender: {
-            email: this.configService.get<string>('SENDER_EMAIL') as string,
-          },
+          sender: this.getSender(),
+          replyTo: this.getReplyTo(),
           to: [{ email: to }],
           templateId,
           params,
@@ -54,10 +67,8 @@ export class EmailService {
       await axios.post(
         'https://api.brevo.com/v3/smtp/email',
         {
-          sender: {
-            email: this.configService.get<string>('SENDER_EMAIL') as string,
-            name: 'ESG Horizon',
-          },
+          sender: this.getSender(),
+          replyTo: this.getReplyTo(),
           to: [{ email: to }],
           subject,
           htmlContent,
