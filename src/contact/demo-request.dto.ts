@@ -1,6 +1,10 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class DemoRequestDto {
+  @IsString()
+  @IsOptional()
+  @IsIn(['demo', 'quote', 'support'])
+  requestType?: 'demo' | 'quote' | 'support';
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
