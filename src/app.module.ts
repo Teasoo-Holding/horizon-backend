@@ -33,9 +33,12 @@ import { ActivitiesModule } from './activities/activities.module';
 import { ScoringModule } from './assessment/scoring/scoring.module';
 import { ContactModule } from './contact/contact.module';
 
+import { AdminModule } from './admin/admin.module';
+
 @Module({
   imports: [
     PrismaModule,
+    AdminModule,
     AuthModule,
     ConfigModule.forRoot({ isGlobal: true }),
     UserModule,
