@@ -1,11 +1,14 @@
 model Industry {
-  id           Int                @id @default(autoincrement())
-  name         String             @unique @map("industry")
-  sectorId     Int
-  sector       Sector             @relation(fields: [sectorId], references: [id])
-  subsidiaries Subsidiary[]
-  companies    Company[]
-  pillars      PillarOnIndustry[]
+  id              Int                @id @default(autoincrement())
+  name            String             @unique @map("industry")
+  code            String?            // Short code e.g. "OIL_GAS"
+  sectorId        Int
+  isActive        Boolean            @default(true)
+  sector          Sector             @relation(fields: [sectorId], references: [id])
+  subsidiaries    Subsidiary[]
+  companies       Company[]
+  pillars         PillarOnIndustry[]
+  topics          DisclosureTopic[]  // Topics scoped to this industry
 
   @@unique([sectorId, name])
   @@map("industries")

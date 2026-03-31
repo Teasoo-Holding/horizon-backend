@@ -1,0 +1,22 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN AUDIT LOG
+// Tracks all create/update/delete actions performed by platform admins on the
+// assessment hierarchy (Pillars, Topics, Metrics, form fields, etc.).
+// ─────────────────────────────────────────────────────────────────────────────
+model AdminAuditLog {
+  id        Int      @id @default(autoincrement())
+  entity    String   // Model name e.g. "Pillar", "DisclosureTopic", "DisclosureSubmetricDetail"
+  entityId  Int      // The affected record's ID
+  action    String   // "CREATE" | "UPDATE" | "DELETE"
+  changedBy Int      // Platform admin user ID
+  before    Json?    // Snapshot of state before the change (null for CREATE)
+  after     Json?    // Snapshot of state after the change (null for DELETE)
+  note      String?  // Optional admin-supplied reason/note
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [changedBy], references: [id])
+
+  @@index([entity, entityId])
+  @@index([changedBy])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
+}

@@ -1,19 +1,32 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// INPUT TYPE ENUM
+// Represents all supported field input types for DisclosureSubmetricDetail.
+// SOURCE_DATA_MAP kept for legacy mapping compatibility.
+// ─────────────────────────────────────────────────────────────────────────────
 enum InputType {
-  NUMBER
+  NUMBER                // Plain numeric input
+  NUMBER_WITH_UNIT      // Numeric + selectable unit (e.g. kWh, litres)
+  NUMBER_WITH_UNIT_AND_TYPE // Numeric + unit + fuel/gas type selector
   TEXT
   RADIO
   CHECKBOX
   FILE
   SELECT
-  DATE
   MULTISELECT
-  SOURCE_DATA_MAP
+  DATE
+  SOURCE_DATA_MAP       // Legacy: maps to hardcoded internal category keys
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTOR
+// Top-level grouping (e.g. "Extractives & Minerals Processing")
+// ─────────────────────────────────────────────────────────────────────────────
 model Sector {
   id          Int        @id @default(autoincrement())
   name        String     @unique
+  code        String?    @unique // Short code e.g. "EXT"
   description String?
+  isActive    Boolean    @default(true)
   industries  Industry[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -21,10 +34,18 @@ model Sector {
   @@map("sectors")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PILLAR
+// ESG pillars (e.g. Environmental, Social, Governance).
+// Not directly tied to an industry here – the link is via PillarOnIndustry.
+// ─────────────────────────────────────────────────────────────────────────────
 model Pillar {
   id          Int                @id @default(autoincrement())
-  name        String
+  name        String             @unique
+  code        String             @unique // Short code e.g. "ENV", "SOC", "GOV"
   description String?
+  isActive    Boolean            @default(true)
+  sortOrder   Int                @default(0)
   industries  PillarOnIndustry[]
   topics      DisclosureTopic[]
   createdAt   DateTime           @default(now())
@@ -33,9 +54,15 @@ model Pillar {
   @@map("pillars")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PILLAR ↔ INDUSTRY JOIN TABLE
+// Links pillars to industries (many-to-many).
+// sortOrder controls the display order of pillars within an industry.
+// ─────────────────────────────────────────────────────────────────────────────
 model PillarOnIndustry {
   pillarId   Int
   industryId Int
+  sortOrder  Int      @default(0)
   pillar     Pillar   @relation(fields: [pillarId], references: [id], onDelete: Cascade)
   industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
 
@@ -43,71 +70,124 @@ model PillarOnIndustry {
   @@map("pillar_on_industry")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCLOSURE TOPIC
+// e.g. "Greenhouse Gas Emissions", "Air Quality"
+// Scoped to both a Pillar AND an Industry — topics can differ per industry
+// even if they share the same parent pillar.
+// ─────────────────────────────────────────────────────────────────────────────
 model DisclosureTopic {
   id          Int                  @id @default(autoincrement())
   name        String
+  code        String?              // Optional short code for API/mapping
   description String?
   pillarId    Int
+  industryId  Int                  // Industry-scoped topic
+  isActive    Boolean              @default(true)
+  sortOrder   Int                  @default(0)
   pillar      Pillar               @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  industry    Industry             @relation(fields: [industryId], references: [id], onDelete: Cascade)
   subtopics   DisclosureSubtopic[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
+  @@unique([pillarId, industryId, name])
+  @@index([pillarId])
+  @@index([industryId])
   @@map("disclosure_topics")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCLOSURE SUBTOPIC
+// e.g. "Scope 1", "Scope 2"
+// ─────────────────────────────────────────────────────────────────────────────
 model DisclosureSubtopic {
   id          Int                @id @default(autoincrement())
   name        String
   description String?
   topicId     Int
+  isActive    Boolean            @default(true)
+  sortOrder   Int                @default(0)
   topic       DisclosureTopic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   metrics     DisclosureMetric[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  @@index([topicId])
   @@map("disclosure_subtopics")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCLOSURE METRIC
+// e.g. "Stationary Sources", "Location-Based"
+// ─────────────────────────────────────────────────────────────────────────────
 model DisclosureMetric {
   id          Int                   @id @default(autoincrement())
   name        String
   description String?
   subtopicId  Int
+  isActive    Boolean               @default(true)
+  sortOrder   Int                   @default(0)
   subtopic    DisclosureSubtopic    @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
   submetrics  DisclosureSubmetric[]
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
+  @@index([subtopicId])
   @@map("disclosure_metrics")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCLOSURE SUBMETRIC
+// e.g. "Electricity and Heat Generation", "Industrial Processes"
+// ─────────────────────────────────────────────────────────────────────────────
 model DisclosureSubmetric {
-  id               Int                      @id @default(autoincrement())
+  id               Int                        @id @default(autoincrement())
   name             String
   description      String?
   metricId         Int
-  metric           DisclosureMetric         @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  isActive         Boolean                    @default(true)
+  sortOrder        Int                        @default(0)
+  metric           DisclosureMetric           @relation(fields: [metricId], references: [id], onDelete: Cascade)
   submetricDetails DisclosureSubmetricDetail[]
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
+  @@index([metricId])
   @@map("disclosure_submetrics")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCLOSURE SUBMETRIC DETAIL  (the actual form fields)
+// Each record represents one input field shown to the user in the assessment.
+//
+// emissionFactor: { value: Float, source: String }
+// options:        input-type-specific config (e.g. radio choices, unit list)
+// unitOptions:    [{ label: String, value: String }] for NUMBER_WITH_UNIT
+// icon:           icon key string (maps to frontend icon set)
+// mappingKey:     legacy JSON key (e.g. 'dieselGenerators') for migration compat
+// ─────────────────────────────────────────────────────────────────────────────
 model DisclosureSubmetricDetail {
-  id               Int                @id @default(autoincrement())
-  submetricId      Int
-  submetric        DisclosureSubmetric @relation(fields: [submetricId], references: [id], onDelete: Cascade)
-  label            String
-  inputType        InputType
-  options          Json?              // For select/radio options
-  emissionFactor   Json?              // e.g. { value: 2.5, source: '2025' }
-  mappingKey       String?            // Maps to legacy JSON field names (e.g. 'dieselGenerators')
-  required         Boolean            @default(false)
-  answers          AssessmentAnswer[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id             Int                 @id @default(autoincrement())
+  submetricId    Int
+  label          String              // Display label e.g. "Diesel-Powered Generators"
+  inputType      InputType
+  placeholder    String?             // Input placeholder text
+  helpText       String?             // Tooltip / helper text shown in the UI
+  unit           String?             // Default unit e.g. "kWh", "litres"
+  unitOptions    Json?               // [{ label: "kWh", value: "kWh" }, ...]
+  icon           String?             // Icon key e.g. "fuel", "electricity"
+  options        Json?               // Type-specific options (radio choices, select values, etc.)
+  emissionFactor Json?               // { value: 2.5, source: "IPCC 2025" }
+  isRequired     Boolean             @default(false)
+  isActive       Boolean             @default(true)
+  sortOrder      Int                 @default(0)
+  mappingKey     String?             // Legacy: maps to old JSON field names
+  answers        AssessmentAnswer[]
+  submetric      DisclosureSubmetric @relation(fields: [submetricId], references: [id], onDelete: Cascade)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
+  @@index([submetricId])
   @@map("disclosure_submetric_details")
 }
