@@ -8,11 +8,26 @@ export class ContactService {
 
   constructor(private emailService: EmailService) {}
 
+  private getTemplateIds(type: string): { internal: number; confirmation: number } {
+    switch (type) {
+      case 'quote':
+        return { internal: 22, confirmation: 23 };
+      case 'support':
+        return { internal: 20, confirmation: 21 };
+      default:
+        return { internal: 20, confirmation: 21 };
+    }
+  }
+
   async submitDemoRequest(dto: DemoRequestDto) {
+    const requestType = dto.requestType || 'demo';
+    const templates = this.getTemplateIds(requestType);
+
     // Internal notification to support team
     const internalResult = await this.emailService.sendEmail(
       this.SUPPORT_EMAIL,
       {
+        request_type: requestType,
         first_name: dto.firstName,
         last_name: dto.lastName,
         email: dto.email,
@@ -21,7 +36,7 @@ export class ContactService {
         org_size: dto.orgSize || '',
         challenge: dto.challenge || '',
       },
-      20,
+      templates.internal,
     );
 
     // User confirmation (fire-and-forget)
@@ -29,11 +44,12 @@ export class ContactService {
       .sendEmail(
         dto.email,
         {
+          request_type: requestType,
           first_name: dto.firstName,
           organization: dto.organization,
           email: dto.email,
         },
-        21,
+        templates.confirmation,
       )
       .catch((err) => console.error('Failed to send confirmation email:', err));
 
