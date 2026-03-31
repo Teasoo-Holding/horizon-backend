@@ -3,6 +3,7 @@ model Industry {
   name            String             @unique @map("industry")
   code            String?            // Short code e.g. "OIL_GAS"
   sectorId        Int
+  description     String?
   isActive        Boolean            @default(true)
   sector          Sector             @relation(fields: [sectorId], references: [id])
   subsidiaries    Subsidiary[]

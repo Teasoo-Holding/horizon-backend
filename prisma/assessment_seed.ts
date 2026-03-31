@@ -18,10 +18,7 @@ async function main() {
   // 2. Industry
   const industry = await prisma.industry.upsert({
     where: {
-      sectorId_name: {
-        sectorId: sector.id,
-        name: 'Oil & Gas-Exploration & Production',
-      },
+      name: 'Oil & Gas-Exploration & Production',
     },
     update: {},
     create: {
@@ -39,6 +36,7 @@ async function main() {
     },
     create: {
       name: 'Environmental',
+      code: 'ENV',
       description: 'Environmental impact and sustainability metrics.',
     },
   });
@@ -63,6 +61,7 @@ async function main() {
     data: {
       name: 'Greenhouse Gas Emissions',
       pillarId: environmentalPillar.id,
+      industryId: industry.id,
     },
   });
 
@@ -97,7 +96,7 @@ async function main() {
         submetricId: electricityHeatSubmetric.id,
         label: 'Diesel-Powered Generators',
         inputType: 'SOURCE_DATA_MAP' as any,
-        required: true,
+        isRequired: true,
         options: {
           category: 'dieselGenerators',
           volumeLabel: 'Volume of Fuel Consumed',
@@ -108,7 +107,7 @@ async function main() {
         submetricId: electricityHeatSubmetric.id,
         label: 'Gas-Fired Turbines',
         inputType: 'SOURCE_DATA_MAP' as any,
-        required: true,
+        isRequired: true,
         options: {
           category: 'gasTurbines',
           volumeLabel: 'Volume of Fuel Consumed',
@@ -119,13 +118,13 @@ async function main() {
         submetricId: electricityHeatSubmetric.id,
         label: 'Gas supply invoices from suppliers',
         inputType: 'FILE' as any,
-        required: false,
+        isRequired: false,
       },
       {
         submetricId: electricityHeatSubmetric.id,
         label: 'Turbine operation logs (hours, efficiency)',
         inputType: 'FILE' as any,
-        required: false,
+        isRequired: false,
       },
     ],
   });
@@ -157,7 +156,7 @@ async function main() {
       submetricId: purchasedElectricitySubmetric.id,
       label: 'Grid Electricity Consumption',
       inputType: 'NUMBER' as any,
-      required: true,
+      isRequired: true,
       options: { unit: 'kWh' } as any,
     },
   });

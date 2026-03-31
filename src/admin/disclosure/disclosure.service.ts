@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminAuditLogService, AuditAction } from '../audit/audit-log.service';
 import {
   CreateSectorDto,
+  CreateIndustryDto,
   CreatePillarDto,
   CreateTopicDto,
   CreateSubtopicDto,
@@ -26,6 +27,19 @@ export class DisclosureService {
     return this.prisma.sector.findMany({ orderBy: { name: 'asc' } });
   }
 
+  async getSector(id: number) {
+    const sector = await this.prisma.sector.findUnique({ where: { id } });
+    if (!sector) throw new NotFoundException('Sector not found');
+    return sector;
+  }
+
+  async getIndustriesBySector(sectorId: number) {
+    return this.prisma.industry.findMany({
+      where: { sectorId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async createSector(userId: number, dto: CreateSectorDto) {
     const sector = await this.prisma.sector.create({ data: dto });
     await this.auditLog.logAction(userId, 'Sector', sector.id, AuditAction.CREATE, null, sector);
@@ -47,6 +61,33 @@ export class DisclosureService {
 
     await this.prisma.sector.delete({ where: { id } });
     await this.auditLog.logAction(userId, 'Sector', id, AuditAction.DELETE, before, null);
+    return { success: true };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // INDUSTRIES
+  // ─────────────────────────────────────────────────────────────────────────────
+  async createIndustry(userId: number, dto: CreateIndustryDto) {
+    const industry = await this.prisma.industry.create({ data: dto });
+    await this.auditLog.logAction(userId, 'Industry', industry.id, AuditAction.CREATE, null, industry);
+    return industry;
+  }
+
+  async updateIndustry(userId: number, id: number, dto: UpdateHierarchyDto & Partial<CreateIndustryDto>) {
+    const before = await this.prisma.industry.findUnique({ where: { id } });
+    if (!before) throw new NotFoundException('Industry not found');
+
+    const after = await this.prisma.industry.update({ where: { id }, data: dto });
+    await this.auditLog.logAction(userId, 'Industry', id, AuditAction.UPDATE, before, after);
+    return after;
+  }
+
+  async deleteIndustry(userId: number, id: number) {
+    const before = await this.prisma.industry.findUnique({ where: { id } });
+    if (!before) throw new NotFoundException('Industry not found');
+
+    await this.prisma.industry.delete({ where: { id } });
+    await this.auditLog.logAction(userId, 'Industry', id, AuditAction.DELETE, before, null);
     return { success: true };
   }
 
@@ -246,12 +287,44 @@ export class DisclosureService {
   }
 
   async deleteSubmetricDetail(userId: number, id: number) {
-    const before = await this.prisma.disclosureSubmetricDetail.findUnique({ where: { id } });
-    if (!before) throw new NotFoundException('Detail not found');
-
+    const detail = await this.prisma.disclosureSubmetricDetail.findUnique({ where: { id } });
+    if (!detail) throw new NotFoundException('Field not found');
     await this.prisma.disclosureSubmetricDetail.delete({ where: { id } });
-    await this.auditLog.logAction(userId, 'DisclosureSubmetricDetail', id, AuditAction.DELETE, before, null);
+    await this.auditLog.logAction(userId, 'DisclosureSubmetricDetail', id, AuditAction.DELETE, detail, null);
     return { success: true };
+  }
+
+  async getAuditLogs(entityType?: string, entityId?: number) {
+    const logs = await this.prisma.adminAuditLog.findMany({
+      where: {
+        ...(entityType && { entityType }),
+        ...(entityId && { entityId }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return logs.map((log) => ({
+      ...log,
+      user: log.user
+        ? {
+            id: log.user.id,
+            firstName: log.user.first_name,
+            lastName: log.user.last_name,
+            email: log.user.email,
+          }
+        : null,
+    }));
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

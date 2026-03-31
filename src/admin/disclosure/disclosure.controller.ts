@@ -5,6 +5,7 @@ import { ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { GetUserDecorator } from 'src/auth/decorators/getuser.decorator';
 import {
   CreateSectorDto,
+  CreateIndustryDto,
   CreatePillarDto,
   CreateTopicDto,
   CreateSubtopicDto,
@@ -30,6 +31,20 @@ export class DisclosureController {
     return this.disclosureService.getSectors();
   }
 
+  @Get('sectors/:id')
+  @Roles('super_admin', 'platform_subadmin')
+  @ApiOperation({ summary: 'Get sector details' })
+  async getSector(@Param('id') id: string) {
+    return this.disclosureService.getSector(+id);
+  }
+
+  @Get('sectors/:id/industries')
+  @Roles('super_admin', 'platform_subadmin')
+  @ApiOperation({ summary: 'List industries for a sector' })
+  async getIndustriesBySector(@Param('id') id: string) {
+    return this.disclosureService.getIndustriesBySector(+id);
+  }
+
   @Post('sectors')
   @Roles('super_admin')
   @ApiOperation({ summary: 'Create a new sector' })
@@ -53,6 +68,34 @@ export class DisclosureController {
   @ApiOperation({ summary: 'Delete a sector' })
   async deleteSector(@GetUserDecorator('id') userId: number, @Param('id') id: string) {
     return this.disclosureService.deleteSector(userId, +id);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // INDUSTRIES
+  // ─────────────────────────────────────────────────────────────────────────────
+  @Post('industries')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Create a new industry' })
+  async createIndustry(@GetUserDecorator('id') userId: number, @Body() dto: CreateIndustryDto) {
+    return this.disclosureService.createIndustry(userId, dto);
+  }
+
+  @Patch('industries/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Update an industry' })
+  async updateIndustry(
+    @GetUserDecorator('id') userId: number,
+    @Param('id') id: string,
+    @Body() dto: UpdateHierarchyDto & Partial<CreateIndustryDto>,
+  ) {
+    return this.disclosureService.updateIndustry(userId, +id, dto);
+  }
+
+  @Delete('industries/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Delete an industry' })
+  async deleteIndustry(@GetUserDecorator('id') userId: number, @Param('id') id: string) {
+    return this.disclosureService.deleteIndustry(userId, +id);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -276,5 +319,14 @@ export class DisclosureController {
   @ApiOperation({ summary: 'Get the full ESG hierarchy for a specific industry' })
   async getIndustryHierarchy(@Param('id') id: string) {
     return this.disclosureService.getIndustryHierarchy(+id);
+  }
+
+  @Get('audit-logs')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'List administrative audit logs' })
+  @ApiQuery({ name: 'entityType', required: false })
+  @ApiQuery({ name: 'entityId', required: false, type: Number })
+  async getAuditLogs(@Query('entityType') entityType?: string, @Query('entityId') entityId?: string) {
+    return this.disclosureService.getAuditLogs(entityType, entityId ? +entityId : undefined);
   }
 }

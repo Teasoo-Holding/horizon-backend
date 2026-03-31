@@ -1,11 +1,31 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsInt, IsJSON, IsOptional, IsString } from 'class-validator';
-import { InputType } from '@prisma/client';
+import { DisclosureInputType } from '@prisma/client';
 
 export class CreateSectorDto {
   @ApiProperty()
   @IsString()
   name: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+export class CreateIndustryDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsInt()
+  sectorId: number;
 
   @ApiPropertyOptional()
   @IsString()
@@ -136,9 +156,9 @@ export class CreateSubmetricDetailDto {
   @IsString()
   label: string;
 
-  @ApiProperty({ enum: InputType })
-  @IsEnum(InputType)
-  inputType: InputType;
+  @ApiProperty({ enum: DisclosureInputType })
+  @IsEnum(DisclosureInputType)
+  inputType: DisclosureInputType;
 
   @ApiPropertyOptional()
   @IsString()

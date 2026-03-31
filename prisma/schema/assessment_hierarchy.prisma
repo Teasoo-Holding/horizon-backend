@@ -3,7 +3,7 @@
 // Represents all supported field input types for DisclosureSubmetricDetail.
 // SOURCE_DATA_MAP kept for legacy mapping compatibility.
 // ─────────────────────────────────────────────────────────────────────────────
-enum InputType {
+enum DisclosureInputType {
   NUMBER                // Plain numeric input
   NUMBER_WITH_UNIT      // Numeric + selectable unit (e.g. kWh, litres)
   NUMBER_WITH_UNIT_AND_TYPE // Numeric + unit + fuel/gas type selector
@@ -171,7 +171,7 @@ model DisclosureSubmetricDetail {
   id             Int                 @id @default(autoincrement())
   submetricId    Int
   label          String              // Display label e.g. "Diesel-Powered Generators"
-  inputType      InputType
+  inputType      DisclosureInputType
   placeholder    String?             // Input placeholder text
   helpText       String?             // Tooltip / helper text shown in the UI
   unit           String?             // Default unit e.g. "kWh", "litres"
