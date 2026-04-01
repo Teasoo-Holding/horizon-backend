@@ -122,6 +122,12 @@ export class ScoringService {
     socScores.push(trirScore);
     socIndicators.push({ label: 'Total Recordable Incident Rate (TRIR)', score: trirScore });
 
+    const totalNearMisses = (Number(humSafety.direct?.nearMisses) || 0) + (Number(humSafety.contract?.nearMisses) || 0);
+    const nmfr = totalHoursWorked > 0 ? (totalNearMisses * 200000) / totalHoursWorked : 0;
+    const nmfrScore = this.interpolate(nmfr, 0.5, 2.5); 
+    socScores.push(nmfrScore);
+    socIndicators.push({ label: 'Near Miss Frequency Rate (NMFR)', score: nmfrScore });
+
     // --- Governance (Business Model + Leadership) indicators ---
     const govScores: number[] = [];
     const govIndicators: { label: string; score: number }[] = [];
@@ -161,7 +167,15 @@ export class ScoringService {
     govIndicators.push({ label: 'Safety Certification (ISO 45001)', score: safetyCert });
 
     const fatalities = (Number(humSafety.direct?.fatalities) || 0) + (Number(humSafety.contract?.fatalities) || 0);
-    const protestDaysLevel = Number(com.operationalDelays?.durationDelaysCommunityProtests) || 0;
+    const protestDays = Number(com.operationalDelays?.durationDelaysCommunityProtests) || 0;
+    const otherDelays = Number(com.operationalDelays?.durationDelaysOtherIssues) || 0;
+    const totalDaysLost = protestDays + otherDelays;
+
+    const totalDisruptionEvents = (Number(com.operationalDelays?.numberOfDelaysCommunityProtests) || 0) + 
+                                  (Number(com.operationalDelays?.numberOfDelaysOtherStakeholder) || 0);
+    const disruptionScore = this.interpolate(totalDisruptionEvents, 2, 10);
+    socScores.push(disruptionScore);
+    socIndicators.push({ label: 'Total Disruption Events', score: disruptionScore });
 
     const result = this.gradingService.aggregate(
       envScores,
@@ -170,16 +184,24 @@ export class ScoringService {
       {
         majorSpills: spillVol > 250 ? 1 : 0,
         fatalities: fatalities,
-        protestDays: protestDaysLevel,
+        protestDays: totalDaysLost,
         processSafetyEvents: tier1,
         hcdtDefiance: hcdtAmount === 0,
+        totalNearMisses,
+        totalDisruptionEvents,
       }
     );
 
     // Attach per-indicator breakdowns to each pillar
     result.pillars.environmental.indicators = envIndicators;
-    result.pillars.socialCapital.indicators = socIndicators.slice(0, 4);
-    result.pillars.humanCapital.indicators = [socIndicators[4]]; // TRIR only
+    result.pillars.socialCapital.indicators = [
+      ...socIndicators.slice(0, 4), // Conflict, Indigenous, HCDT, Dispute
+      socIndicators[6] // Total Disruption Events
+    ];
+    result.pillars.humanCapital.indicators = [
+      socIndicators[4], // TRIR
+      socIndicators[5]  // NMFR
+    ];
     result.pillars.businessModel.indicators = govIndicators.slice(1, 4); // CapEx, Climate, Embedded
     result.pillars.leadership.indicators = [govIndicators[0], govIndicators[4]]; // PSER, ISO cert
 

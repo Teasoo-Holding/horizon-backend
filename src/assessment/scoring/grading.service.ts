@@ -40,6 +40,8 @@ export class GradingService {
       hcdtDefiance?: boolean;
       licenseSuspension?: boolean;
       humanRightsAbuses?: boolean;
+      totalNearMisses?: number;
+      totalDisruptionEvents?: number;
     }
   ) {
     const avg = (arr: number[]) => {
