@@ -88,6 +88,7 @@ model DisclosureTopic {
   pillar      Pillar               @relation(fields: [pillarId], references: [id], onDelete: Cascade)
   industry    Industry             @relation(fields: [industryId], references: [id], onDelete: Cascade)
   subtopics   DisclosureSubtopic[]
+  metrics     DisclosureMetric[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
@@ -125,15 +126,18 @@ model DisclosureMetric {
   id          Int                   @id @default(autoincrement())
   name        String
   description String?
-  subtopicId  Int
+  subtopicId  Int?                  // Optional if linked directly to topic
+  topicId     Int?                  // Optional if linked via subtopic
   isActive    Boolean               @default(true)
   sortOrder   Int                   @default(0)
-  subtopic    DisclosureSubtopic    @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  subtopic    DisclosureSubtopic?   @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  topic       DisclosureTopic?      @relation(fields: [topicId], references: [id], onDelete: Cascade)
   submetrics  DisclosureSubmetric[]
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
   @@index([subtopicId])
+  @@index([topicId])
   @@map("disclosure_metrics")
 }
 

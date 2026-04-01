@@ -56,6 +56,11 @@ export class CreatePillarDto {
   @IsInt()
   @IsOptional()
   sortOrder?: number;
+
+  @ApiPropertyOptional()
+  @IsInt()
+  @IsOptional()
+  industryId?: number;
 }
 
 export class CreateTopicDto {
@@ -117,14 +122,25 @@ export class CreateMetricDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsInt()
-  subtopicId: number;
+  @IsOptional()
+  subtopicId?: number;
+
+  @ApiPropertyOptional()
+  @IsInt()
+  @IsOptional()
+  topicId?: number;
 
   @ApiPropertyOptional()
   @IsInt()
   @IsOptional()
   sortOrder?: number;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 export class CreateSubmetricDto {

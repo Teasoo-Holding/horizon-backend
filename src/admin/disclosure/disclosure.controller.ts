@@ -15,8 +15,8 @@ import {
   UpdateHierarchyDto,
 } from './dtos/hierarchy.dto';
 
-@ApiTags('Admin / Disclosure')
-@Controller('admin/disclosure')
+@ApiTags('Admin / Management')
+@Controller('admin/manage')
 @UseGuards(JwtRolesGuard)
 export class DisclosureController {
   constructor(private readonly disclosureService: DisclosureService) {}

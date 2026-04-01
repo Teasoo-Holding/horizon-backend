@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminAuditLogService, AuditAction } from '../audit/audit-log.service';
 import {
@@ -99,7 +99,17 @@ export class DisclosureService {
   }
 
   async createPillar(userId: number, dto: CreatePillarDto) {
-    const pillar = await this.prisma.pillar.create({ data: dto });
+    const { industryId, ...data } = dto;
+    const pillar = await this.prisma.pillar.create({
+      data: {
+        ...data,
+        ...(industryId && {
+          industries: {
+            create: { industryId },
+          },
+        }),
+      },
+    });
     await this.auditLog.logAction(userId, 'Pillar', pillar.id, AuditAction.CREATE, null, pillar);
     return pillar;
   }
@@ -204,7 +214,22 @@ export class DisclosureService {
   }
 
   async createMetric(userId: number, dto: CreateMetricDto) {
-    const metric = await this.prisma.disclosureMetric.create({ data: dto });
+    const { subtopicId, topicId, ...data } = dto;
+    if (!subtopicId && !topicId) {
+      throw new BadRequestException('Metric must belong to either a Topic or a Subtopic');
+    }
+
+    const createData: any = {
+      name: data.name,
+      description: data.description,
+      sortOrder: data.sortOrder,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+    };
+
+    if (subtopicId) createData.subtopic = { connect: { id: subtopicId } };
+    if (topicId) createData.topic = { connect: { id: topicId } };
+
+    const metric = await this.prisma.disclosureMetric.create({ data: createData });
     await this.auditLog.logAction(userId, 'DisclosureMetric', metric.id, AuditAction.CREATE, null, metric);
     return metric;
   }
@@ -343,6 +368,22 @@ export class DisclosureService {
                   where: { industryId, isActive: true },
                   orderBy: { sortOrder: 'asc' },
                   include: {
+                    metrics: {
+                      where: { isActive: true },
+                      orderBy: { sortOrder: 'asc' },
+                      include: {
+                        submetrics: {
+                          where: { isActive: true },
+                          orderBy: { sortOrder: 'asc' },
+                          include: {
+                            submetricDetails: {
+                              where: { isActive: true },
+                              orderBy: { sortOrder: 'asc' },
+                            },
+                          },
+                        },
+                      },
+                    },
                     subtopics: {
                       where: { isActive: true },
                       orderBy: { sortOrder: 'asc' },

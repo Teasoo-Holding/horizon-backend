@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { industries } from './industries';
+import { seedDisclosureInputs } from './disclosure_inputs.seed';
 
 const prisma = new PrismaClient();
 
@@ -387,6 +388,9 @@ async function main() {
         },
       });
     }
+
+    // 7. Seed disclosure inputs
+    await seedDisclosureInputs(prisma);
 
     console.log('🎉 Seeding completed successfully!');
   } catch (error: any) {
