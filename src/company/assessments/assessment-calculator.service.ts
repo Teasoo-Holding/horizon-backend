@@ -174,6 +174,23 @@ export class AssessmentCalculatorService {
       scope1Total += result.sum;
       breakdown.processEmissions = result;
 
+      // Stamp per-source computed emissions on the sub-objects so the
+      // assessment details modal's "Computed Emissions" highlight field
+      // populates. Reuses the API service's already-computed values to
+      // avoid formula duplication / drift.
+      if (group.cementManufacturing) {
+        group.cementManufacturing.calculated = {
+          ...(group.cementManufacturing.calculated || {}),
+          emission: Number((result.cement || 0).toFixed(4)),
+        };
+      }
+      if (group.gasFlaring) {
+        group.gasFlaring.calculated = {
+          ...(group.gasFlaring.calculated || {}),
+          emission: Number((result.flaring || 0).toFixed(4)),
+        };
+      }
+
       this.calculateGroupProgress(
         group,
         ['cementManufacturing', 'gasFlaring'],
@@ -190,6 +207,30 @@ export class AssessmentCalculatorService {
       group.totalEmission = result.sum || result.venting || 0;
       scope1Total += result.sum || result.venting || 0;
       breakdown.fugitiveEmissions = result;
+
+      // Stamp per-source computed emissions + the constants the calculator
+      // actually used (methane density, GWP) so the modal's auxiliary fields
+      // light up alongside the highlighted "Computed Emissions" value.
+      // Methane density 0.656 kg/m³ and GWP 28 mirror Scope1Computation's
+      // EF_VENTING / GWP constants in computation.service.ts.
+      if (group.ventingNaturalGas) {
+        group.ventingNaturalGas.calculated = {
+          ...(group.ventingNaturalGas.calculated || {}),
+          emission: Number((result.venting || 0).toFixed(4)),
+          methaneDensity: 0.656,
+          gwp: 28,
+        };
+      }
+      if (group.hfcLeaks) {
+        group.hfcLeaks.calculated = {
+          ...(group.hfcLeaks.calculated || {}),
+          emission: Number((result.hfc || 0).toFixed(4)),
+          // Default GWP from Scope1Computation.EF_HFC; per-refrigerant
+          // lookup is a follow-up (would also need mapFugitiveEmissions
+          // to pass an hfcGwp based on which R-xxxA flag is set).
+          gwp: 1300,
+        };
+      }
 
       this.calculateGroupProgress(
         group,
@@ -213,6 +254,35 @@ export class AssessmentCalculatorService {
       group.totalEmission = result.sum;
       scope2Total += result.sum;
       breakdown.scope2Location = result;
+
+      // Stamp per-source computed emissions on each sub-object so the
+      // assessment details modal's "Computed Emissions" highlight field
+      // populates. The Scope2Computation API returns each sub-result as
+      // `{ value, unit }`, so we read `.value` and stamp under `.calculated.emission`.
+      if (group.electricity) {
+        group.electricity.calculated = {
+          ...(group.electricity.calculated || {}),
+          emission: Number((result.electricity_consumed?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.cooling) {
+        group.cooling.calculated = {
+          ...(group.cooling.calculated || {}),
+          emission: Number((result.amount_of_cooling_energy_consumed?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.steam) {
+        group.steam.calculated = {
+          ...(group.steam.calculated || {}),
+          emission: Number((result.total_steam_consumed?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.heating) {
+        group.heating.calculated = {
+          ...(group.heating.calculated || {}),
+          emission: Number((result.total_heating_energy_consumed?.value || 0).toFixed(4)),
+        };
+      }
     }
 
     // Market Based
@@ -223,6 +293,32 @@ export class AssessmentCalculatorService {
       group.totalEmission = result.sum;
       scope2Total += result.sum;
       breakdown.scope2Market = result;
+
+      // Stamp per-source computed emissions for each market-based source.
+      if (group.ipps) {
+        group.ipps.calculated = {
+          ...(group.ipps.calculated || {}),
+          emission: Number((result.ipp?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.eac) {
+        group.eac.calculated = {
+          ...(group.eac.calculated || {}),
+          emission: Number((result.eac?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.residual) {
+        group.residual.calculated = {
+          ...(group.residual.calculated || {}),
+          emission: Number((result.residual?.value || 0).toFixed(4)),
+        };
+      }
+      if (group.coolingSteam) {
+        group.coolingSteam.calculated = {
+          ...(group.coolingSteam.calculated || {}),
+          emission: Number((result.coolingSteam?.value || 0).toFixed(4)),
+        };
+      }
     }
 
     ghg.scope2.totalEmission = Number(scope2Total.toFixed(4));
@@ -237,9 +333,79 @@ export class AssessmentCalculatorService {
       const upstream = ghg.scope3.upstream;
       const dto = this.mapUpstreamEmissions(upstream);
       const result = await this.scope3.upstreamEmission(dto);
-      upstream.totalEmission = result.sum;
-      scope3Total += result.sum;
-      breakdown.upstreamEmissions = result;
+
+      // Hotel/accommodation emissions — computed inline because the API
+      // service doesn't expose them yet (a single-line formula doesn't
+      // justify a DTO change). Default 30 kgCO₂e/room-night per DEFRA;
+      // added to both the group total and the per-source stamp below.
+      const HOTEL_EF_KG_PER_NIGHT = 30;
+      const hotelNights = Number(upstream.businessTravel?.hotelNights || 0);
+      const hotelEmission = (hotelNights * HOTEL_EF_KG_PER_NIGHT) / 1000;
+
+      upstream.totalEmission = result.sum + hotelEmission;
+      scope3Total += result.sum + hotelEmission;
+      breakdown.upstreamEmissions = { ...result, hotel: hotelEmission };
+
+      // Stamp per-category computed emissions on each upstream sub-object
+      // so the modal "Computed Emissions" highlight populates. The
+      // Scope3ComputationService.upstreamEmission returns each category's
+      // tCO₂e as a flat number (not { value, unit }).
+      if (upstream.purchasedGoodsAndServices) {
+        upstream.purchasedGoodsAndServices.calculated = {
+          ...(upstream.purchasedGoodsAndServices.calculated || {}),
+          emission: Number((result.total_amount_spent_on_goods_and_services || 0).toFixed(4)),
+        };
+      }
+      if (upstream.capitalGoods) {
+        upstream.capitalGoods.calculated = {
+          ...(upstream.capitalGoods.calculated || {}),
+          emission: Number((result.total_cost_of_capital_goods_purchased || 0).toFixed(4)),
+        };
+      }
+      if (upstream.fuelEnergyRelatedActivities) {
+        upstream.fuelEnergyRelatedActivities.calculated = {
+          ...(upstream.fuelEnergyRelatedActivities.calculated || {}),
+          emission: Number((result.volume_of_fuel_consumed || 0).toFixed(4)),
+        };
+      }
+      if (upstream.upstreamTransportationDistribution) {
+        upstream.upstreamTransportationDistribution.calculated = {
+          ...(upstream.upstreamTransportationDistribution.calculated || {}),
+          emission: Number((result.mass_of_goods_transported || 0).toFixed(4)),
+        };
+      }
+      if (upstream.wasteGeneratedInOperations) {
+        upstream.wasteGeneratedInOperations.calculated = {
+          ...(upstream.wasteGeneratedInOperations.calculated || {}),
+          emission: Number((result.total_weight_of_waste_generated || 0).toFixed(4)),
+        };
+      }
+      if (upstream.businessTravel) {
+        // Business Travel: the API returns separate ground_travel and
+        // air_travel; the modal renders one combined "Air Travel" card so
+        // we sum them onto `.emission`. The "Accommodation" card reads
+        // `bt.calculated.hotelEmission` — computed in the outer scope
+        // above (single source of truth, also added to upstream total).
+        upstream.businessTravel.calculated = {
+          ...(upstream.businessTravel.calculated || {}),
+          emission: Number(
+            ((result.ground_travel || 0) + (result.air_travel || 0)).toFixed(4),
+          ),
+          hotelEmission: Number(hotelEmission.toFixed(4)),
+        };
+      }
+      if (upstream.employeeCommuting) {
+        upstream.employeeCommuting.calculated = {
+          ...(upstream.employeeCommuting.calculated || {}),
+          emission: Number((result.employee_commuting || 0).toFixed(4)),
+        };
+      }
+      if (upstream.upstreamLeasedAssets) {
+        upstream.upstreamLeasedAssets.calculated = {
+          ...(upstream.upstreamLeasedAssets.calculated || {}),
+          emission: Number((result.upstream_leased_asset || 0).toFixed(4)),
+        };
+      }
 
       this.calculateGroupProgress(
         upstream,
@@ -262,9 +428,72 @@ export class AssessmentCalculatorService {
       const downstream = ghg.scope3.downstream;
       const dto = this.mapDownstreamEmissions(downstream);
       const result = await this.scope3.downstreamEmission(dto);
-      downstream.totalEmission = result.sum;
-      scope3Total += result.sum;
-      breakdown.downstreamEmissions = result;
+
+      // Cat. 10 Processing of Sold Products — computed inline because the
+      // API service doesn't expose it. The form captures only
+      // `processedQuantity` (tonnes) + `processingType` (string), so we use
+      // a default factor for hydrocarbon refining/processing of intermediate
+      // products: ~0.05 tCO₂e per tonne of refined product. This is a
+      // reasonable industry approximation; once the form gains per-process
+      // EF inputs (or processingType-driven lookups), this default can be
+      // replaced. Added to both the group total and the per-source stamp
+      // below so it surfaces in the modal AND the dashboard.
+      const PROCESSING_EF_TPER_T = 0.05;
+      const processedQuantity = Number(
+        downstream.processingSoldProducts?.processedQuantity || 0,
+      );
+      const processingEmission = processedQuantity * PROCESSING_EF_TPER_T;
+
+      downstream.totalEmission = result.sum + processingEmission;
+      scope3Total += result.sum + processingEmission;
+      breakdown.downstreamEmissions = { ...result, processing_sold_products: processingEmission };
+
+      // Stamp per-category computed emissions on each downstream sub-object.
+      // Note: Cat. 9 (downstream transport) currently reuses the API's
+      // `mass_of_products_sold` field. Cat. 10 (processingSoldProducts)
+      // is now computed inline above using the form's processedQuantity.
+      if (downstream.downstreamTransportationDistribution) {
+        downstream.downstreamTransportationDistribution.calculated = {
+          ...(downstream.downstreamTransportationDistribution.calculated || {}),
+          emission: Number((result.mass_of_products_sold || 0).toFixed(4)),
+        };
+      }
+      if (downstream.processingSoldProducts) {
+        downstream.processingSoldProducts.calculated = {
+          ...(downstream.processingSoldProducts.calculated || {}),
+          emission: Number(processingEmission.toFixed(4)),
+        };
+      }
+      if (downstream.useOfSoldProducts) {
+        downstream.useOfSoldProducts.calculated = {
+          ...(downstream.useOfSoldProducts.calculated || {}),
+          emission: Number((result.use_of_sold_products || 0).toFixed(4)),
+        };
+      }
+      if (downstream.endOfLifeTreatment) {
+        downstream.endOfLifeTreatment.calculated = {
+          ...(downstream.endOfLifeTreatment.calculated || {}),
+          emission: Number((result.eol_emission_summation || 0).toFixed(4)),
+        };
+      }
+      if (downstream.downstreamLeasedAssets) {
+        downstream.downstreamLeasedAssets.calculated = {
+          ...(downstream.downstreamLeasedAssets.calculated || {}),
+          emission: Number((result.downstream_leased_asset || 0).toFixed(4)),
+        };
+      }
+      if (downstream.franchises) {
+        downstream.franchises.calculated = {
+          ...(downstream.franchises.calculated || {}),
+          emission: Number((result.franchise || 0).toFixed(4)),
+        };
+      }
+      if (downstream.investments) {
+        downstream.investments.calculated = {
+          ...(downstream.investments.calculated || {}),
+          emission: Number((result.investment || 0).toFixed(4)),
+        };
+      }
 
       this.calculateGroupProgress(
         downstream,
@@ -748,15 +977,28 @@ export class AssessmentCalculatorService {
   }
 
   private mapScope2Location(group: any) {
+    // The form saves to `electricity.*` (PurchaseElectricity.tsx →
+    // saveNow("environment.ghg.scope2.locationBased.electricity")), not
+    // `purchasedElectricity.*`. The previous reader was a stale path from
+    // an older form shape and was silently returning 0 for all Scope 2
+    // Location electricity, regardless of input.
     return {
-      electiricity_consumed: Number(group.purchasedElectricity?.electricityConsumed || 0),
-      electiricity_emission_factor: 0.45,
+      electiricity_consumed: Number(
+        group.electricity?.electricityConsumed ??
+          group.purchasedElectricity?.electricityConsumed ??
+          0,
+      ),
+      electiricity_emission_factor: Number(
+        group.electricity?.emissionFactor ??
+          group.purchasedElectricity?.emissionFactor ??
+          0.45,
+      ),
       amount_of_cooling_energy_consumed: Number(group.cooling?.coolingConsumed || 0),
-      amt_of_c_emission_factor: 0.45,
+      amt_of_c_emission_factor: Number(group.cooling?.emissionFactor || 0.45),
       total_steam_consumed: Number(group.steam?.volume || 0),
-      total_steam_consumed_factor: 0.45,
+      total_steam_consumed_factor: Number(group.steam?.emissionFactor || 0.45),
       total_heating_energy_consumed: Number(group.heating?.heatingConsumed || 0),
-      total_heating_energy_consumed_EF: 0.45,
+      total_heating_energy_consumed_EF: Number(group.heating?.emissionFactor || 0.45),
     };
   }
 
