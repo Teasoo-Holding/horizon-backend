@@ -692,12 +692,56 @@ export class TargetService {
       ? Number(latestAssessment.startYear)
       : null;
 
+    // Attach actual baseline / current dates so the trend chart can plot
+    // points on a real elapsed-time axis instead of bucketing by year.
+    // Pull baseline date from the FIRST assessment of each target's
+    // baseline year; current date from the latest assessment.
+    const currentDate =
+      latestAssessment?.approvedAt?.toISOString() ??
+      latestAssessment?.submittedAt?.toISOString() ??
+      latestAssessment?.updatedAt?.toISOString() ??
+      latestAssessment?.createdAt?.toISOString() ??
+      null;
+
+    const baselineDateForYear = async (
+      baselineYear: number,
+    ): Promise<string | null> => {
+      const baseline = await this.prisma.assessment.findFirst({
+        where: { companyId, startYear: String(baselineYear) },
+        orderBy: { createdAt: 'asc' },
+        select: { approvedAt: true, submittedAt: true, createdAt: true },
+      });
+      return (
+        baseline?.approvedAt?.toISOString() ??
+        baseline?.submittedAt?.toISOString() ??
+        baseline?.createdAt?.toISOString() ??
+        new Date(`${baselineYear}-07-01T00:00:00Z`).toISOString()
+      );
+    };
+
+    const generalBaselineDate = freshGeneral
+      ? await baselineDateForYear(freshGeneral.baselineYear)
+      : null;
+    const scopeBaselineDate = freshScope
+      ? await baselineDateForYear(freshScope.baselineYear)
+      : null;
+
     return {
       general: freshGeneral
-        ? { ...this.formatTargetResponse(freshGeneral), currentAssessmentYear }
+        ? {
+            ...this.formatTargetResponse(freshGeneral),
+            currentAssessmentYear,
+            baselineDate: generalBaselineDate,
+            currentDate,
+          }
         : null,
       scope: freshScope
-        ? { ...this.formatTargetResponse(freshScope), currentAssessmentYear }
+        ? {
+            ...this.formatTargetResponse(freshScope),
+            currentAssessmentYear,
+            baselineDate: scopeBaselineDate,
+            currentDate,
+          }
         : null,
     };
   }
