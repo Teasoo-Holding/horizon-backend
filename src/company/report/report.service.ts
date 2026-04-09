@@ -368,9 +368,18 @@ export class ReportService {
 
     // Helper for change percentage
     const getChange = (current: number, previous: number) => {
-      // Fix #458: Return null if previous data is missing
+      // Return null if previous data is missing (true first entry — frontend
+      // hides the trend badge via the changePercentage != null check).
       if (!previous || previous === 0) return null;
-      return Number((((current - previous) / previous) * 100).toFixed(1));
+      const pct = ((current - previous) / previous) * 100;
+      // Cap: if the change exceeds ±500%, the previous baseline is almost
+      // certainly stale/test data or an incomplete prior report — no
+      // meaningful YoY comparison is possible. Real operational changes
+      // (oil & gas) rarely exceed ±100% YoY; ±500% is a generous safety
+      // threshold. Returning null lets the frontend hide the trend badge
+      // instead of rendering misleading numbers like "50,267% increase".
+      if (Math.abs(pct) > 500) return null;
+      return Number(pct.toFixed(1));
     };
 
     // Helper for safe number access
@@ -411,6 +420,50 @@ export class ReportService {
       include: { scopeTargets: true, generalTarget: true },
       orderBy: { createdAt: 'desc' },
     });
+
+    // The trend chart needs ACTUAL DATES (not just years) on the X axis so
+    // baseline → current → target points sit at the right elapsed-time
+    // positions. Resolve a baseline assessment per target row by matching
+    // on `target.baselineYear` and pulling its approval / submission date.
+    // Current point comes from the report's own assessment (`record`).
+    const baselineAssessmentForYear = async (
+      baselineYear: number,
+    ): Promise<{ approvedAt: Date | null; submittedAt: Date | null } | null> => {
+      const baseline = await this.prisma.assessment.findFirst({
+        where: { companyId, startYear: String(baselineYear) },
+        orderBy: { createdAt: 'asc' }, // FIRST assessment of the baseline year
+        select: { approvedAt: true, submittedAt: true },
+      });
+      return baseline;
+    };
+
+    const decorateTarget = async (t: typeof targets[number] | null) => {
+      if (!t) return null;
+      const baseline = await baselineAssessmentForYear(t.baselineYear);
+      // Prefer approvedAt; fall back to submittedAt; last resort the year
+      // mid-point (Jul 1) so the chart still has *some* date to plot.
+      const baselineDate =
+        baseline?.approvedAt?.toISOString() ??
+        baseline?.submittedAt?.toISOString() ??
+        new Date(`${t.baselineYear}-07-01T00:00:00Z`).toISOString();
+      const currentDate =
+        record.approvedAt?.toISOString() ??
+        record.submittedAt?.toISOString() ??
+        record.updatedAt?.toISOString() ??
+        record.createdAt.toISOString();
+      const currentAssessmentYear = record.startYear ? Number(record.startYear) : null;
+      return { ...t, baselineDate, currentDate, currentAssessmentYear };
+    };
+
+    // A company can have BOTH a GENERAL target row AND a SCOPE target row
+    // (independent records, different `type` values). The previous response
+    // returned `targets[0]` — only the most-recently-created row — which
+    // dropped the other on the floor. Pick the most recent of each type so
+    // the report viewer can render both on the trend chart.
+    const targetPair = {
+      general: await decorateTarget(targets.find((t) => t.type === 'GENERAL') ?? null),
+      scope: await decorateTarget(targets.find((t) => t.type === 'SCOPE') ?? null),
+    };
 
     const report = await this.prisma.report.findUnique({
       where: { assessmentId: id },
@@ -783,10 +836,16 @@ export class ReportService {
           (getNum(humHealthSafety.direct?.nearMisses) || getNum(humHealthSafety.nearMisses)) +
           getNum(humHealthSafety.contract?.nearMisses),
         averageSafetyTrainingHoursPerEmployee: (() => {
+          // Read from the nested direct/contract shape first; fall back to the
+          // legacy flat field on healthAndSafetyPerformance so older assessments
+          // (and any test data saved at the parent path) are not silently 0.
           const directTraining = getNum(humHealthSafety.direct?.safetyTrainingHours);
           const contractTraining = getNum(humHealthSafety.contract?.safetyTrainingHours);
-          if (directTraining > 0 && contractTraining > 0) return Number(((directTraining + contractTraining) / 2).toFixed(2));
-          return Number((directTraining || contractTraining || 0).toFixed(2));
+          const flatTraining = getNum(humHealthSafety.safetyTrainingHours);
+          if (directTraining > 0 && contractTraining > 0) {
+            return Number(((directTraining + contractTraining) / 2).toFixed(2));
+          }
+          return Number((directTraining || contractTraining || flatTraining || 0).toFixed(2));
         })(),
         safetyManagementSystems: (() => {
           const sms = humWorkforce.riskAndOpportunityManagement?.safetyManagementSystems || {};
@@ -865,7 +924,7 @@ export class ReportService {
       startYear: record.startYear,
       endMonth: record.endMonth,
       endYear: record.endYear,
-      targets: targets[0] || null,
+      targets: targetPair,
       evidence: this.collectEvidenceByPillar(currentData),
       esgEvaluation: report ? {
         score: report.esgScore,

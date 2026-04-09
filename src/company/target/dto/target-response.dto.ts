@@ -79,6 +79,12 @@ export class TargetResponseDto {
   @ApiPropertyOptional({ example: 2024 })
   currentAssessmentYear?: number | null;
 
+  @ApiPropertyOptional({ example: '2025-03-10T09:00:00.000Z', description: 'ISO date of the baseline assessment (first approved/submitted assessment of baselineYear)' })
+  baselineDate?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-03-10T09:00:00.000Z', description: 'ISO date of the current/latest assessment' })
+  currentDate?: string | null;
+
   @ApiPropertyOptional({ type: GeneralTargetResponseDto })
   generalTarget?: GeneralTargetResponseDto;
 

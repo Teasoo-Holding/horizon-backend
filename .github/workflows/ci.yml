@@ -1,91 +1,38 @@
 name: NestJS CI/CD
-
 on:
   push:
-    branches:
-      - main
+    branches: [main, staging]
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Enable Corepack
         run: corepack enable
-
       - name: Install dependencies
         run: yarn install --no-immutable
-
       - name: Prisma generate
         run: npx prisma generate --schema=./prisma/schema
-
-      # - name: Run lint
-      # run: yarn lint
-
-      # - name: Run tests with coverage
-      # run: yarn test:cov
-
-      # - name: Generate coverage badge  # Optional: Keep if you use it for the README
-      #   run: yarn make-badge
-
       - name: Build project
         run: yarn build
 
-      # --- DEPLOYMENT STEPS START HERE ---
-
-      - name: Verify Secrets Match Frontend
+      - name: Set Environment Variables
         run: |
-          echo "🔍 SECRET VERIFICATION"
-          echo "======================"
-
-          echo "Checking if backend secrets match frontend repo secrets..."
-          echo "Note: If frontend deploys work but backend fails, the secrets may differ between repositories"
-
-          SERVER_IP="${{ secrets.SERVER_IP }}"
-          SSH_KEY="${{ secrets.SSH_PRIVATE_KEY }}"
-
-          echo "Server IP length: ${#SERVER_IP} characters"
-          echo "SSH Key length: ${#SSH_KEY} characters"
-
-          if [ -z "$SERVER_IP" ]; then
-            echo "❌ SERVER_IP secret is empty or not set"
-            exit 1
-          fi
-
-          if [ -z "$SSH_KEY" ]; then
-            echo "❌ SSH_PRIVATE_KEY secret is empty or not set"
-            exit 1
-          fi
-
-          echo "✅ Both secrets are configured"
-
-      - name: Check Network Connectivity
-        run: |
-          echo "🔍 Checking connectivity to ${{ secrets.SERVER_IP }} port 22..."
-
-          # Test TCP connection to port 22 (SSH) with 5 second timeout
-          if nc -z -v -w 5 ${{ secrets.SERVER_IP }} 22; then
-            echo "✅ Port 22 is OPEN and reachable."
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "TARGET_DIR=/var/www/esghorizon/backend" >> $GITHUB_ENV
+            echo "APP_NAME=esg-backend-prod" >> $GITHUB_ENV
+            echo "PORT=3000" >> $GITHUB_ENV
           else
-            echo "❌ Port 22 is CLOSED or UNREACHABLE (Timeout)."
-            echo "This indicates a firewall issue (host-level or provider-level) blocking GitHub Actions."
-            exit 1
+            echo "TARGET_DIR=/var/www/esghorizon/backend-staging" >> $GITHUB_ENV
+            echo "APP_NAME=esg-backend-staging" >> $GITHUB_ENV
+            echo "PORT=4000" >> $GITHUB_ENV
           fi
-
-          echo ""
-          echo "🔧 TROUBLESHOOTING STEPS:"
-          echo "1. Go to horizon-frontend repo → Settings → Secrets and variables → Actions"
-          echo "2. Compare SERVER_IP and SSH_PRIVATE_KEY with horizon-backend repo"
-          echo "3. If they differ, copy the working values from frontend to backend repo"
-        continue-on-error: true
 
       - name: Transfer Files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -93,10 +40,8 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 300s
-          debug: true
           source: 'dist,package.json,.yarn,.yarnrc.yml,prisma'
-          target: '/var/www/esghorizon/backend'
+          target: ${{ env.TARGET_DIR }}
 
       - name: Start via PM2
         uses: appleboy/ssh-action@v1.0.3
@@ -107,12 +52,10 @@ jobs:
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            cd /var/www/esghorizon/backend
+            cd ${{ env.TARGET_DIR }}
             corepack enable
             yarn install
             yarn prisma migrate deploy
-
-            pm2 delete esg-backend || true
-            PORT=3000 pm2 start dist/src/main.js --name "esg-backend" --node-args="-r dotenv/config"
+            pm2 delete ${{ env.APP_NAME }} || true
+            PORT=${{ env.PORT }} pm2 start dist/src/main.js --name "${{ env.APP_NAME }}" --node-args="-r dotenv/config"
             pm2 save
