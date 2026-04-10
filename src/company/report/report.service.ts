@@ -426,13 +426,11 @@ export class ReportService {
     // positions. Resolve a baseline assessment per target row by matching
     // on `target.baselineYear` and pulling its approval / submission date.
     // Current point comes from the report's own assessment (`record`).
-    const baselineAssessmentForYear = async (
-      baselineYear: number,
-    ): Promise<{ approvedAt: Date | null; submittedAt: Date | null } | null> => {
+    const baselineAssessmentForYear = async (baselineYear: number) => {
       const baseline = await this.prisma.assessment.findFirst({
         where: { companyId, startYear: String(baselineYear) },
         orderBy: { createdAt: 'asc' }, // FIRST assessment of the baseline year
-        select: { approvedAt: true, submittedAt: true },
+        select: { approvedAt: true, submittedAt: true, assessmentData: true },
       });
       return baseline;
     };
@@ -440,6 +438,58 @@ export class ReportService {
     const decorateTarget = async (t: typeof targets[number] | null) => {
       if (!t) return null;
       const baseline = await baselineAssessmentForYear(t.baselineYear);
+      const baselineData = baseline?.assessmentData as any;
+
+      // ── Refresh emission values from the assessment data (same pattern
+      //    as getLatestTargetPair in target.service.ts). Without this the
+      //    General target row can have stale/zero baselineYearEmission in
+      //    the DB if the target was created before the baseline assessment
+      //    was approved — and the chart skips lines where all values are 0.
+      const totalEmission = currentData?.totalEmission ?? 0;
+      const scopeTotals = currentData?.environment?.ghg;
+
+      if (t.type === 'GENERAL' && t.generalTarget) {
+        const baselineEmission = baselineData?.totalEmission ?? t.generalTarget.baselineYearEmission ?? 0;
+        const reductionPct = t.generalTarget.reductionPercentage ?? 0;
+        await this.prisma.generalTarget.update({
+          where: { targetId: t.id },
+          data: {
+            currentEmission: totalEmission,
+            baselineYearEmission: baselineEmission,
+            targetEmission: baselineEmission * (1 - reductionPct / 100),
+          },
+        });
+        // Patch the in-memory object so the response reflects the refresh
+        t.generalTarget.currentEmission = totalEmission;
+        t.generalTarget.baselineYearEmission = baselineEmission;
+        t.generalTarget.targetEmission = baselineEmission * (1 - reductionPct / 100);
+      }
+
+      if (t.type === 'SCOPE' && t.scopeTargets?.length) {
+        const baselineScopeTotals = baselineData?.environment?.ghg;
+        const scopeUpdates = [
+          { scope: 'SCOPE1' as const, current: scopeTotals?.scope1?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope1?.totalEmission ?? 0 },
+          { scope: 'SCOPE2' as const, current: scopeTotals?.scope2?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope2?.totalEmission ?? 0 },
+          { scope: 'SCOPE3' as const, current: scopeTotals?.scope3?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope3?.totalEmission ?? 0 },
+        ];
+        await this.prisma.$transaction(
+          scopeUpdates.map((se) =>
+            this.prisma.scopeTarget.updateMany({
+              where: { targetId: t.id, scope: se.scope },
+              data: { currentEmission: se.current, baselineYearEmission: se.baseline },
+            }),
+          ),
+        );
+        // Patch the in-memory scope targets
+        for (const se of scopeUpdates) {
+          const st = t.scopeTargets.find((s) => s.scope === se.scope);
+          if (st) {
+            st.currentEmission = se.current;
+            st.baselineYearEmission = se.baseline;
+          }
+        }
+      }
+
       // Prefer approvedAt; fall back to submittedAt; last resort the year
       // mid-point (Jul 1) so the chart still has *some* date to plot.
       const baselineDate =
