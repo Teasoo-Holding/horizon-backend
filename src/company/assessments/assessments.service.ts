@@ -222,7 +222,7 @@ export class AssessmentService {
         assessmentData: recalculated as any,
         updated_by: userId,
       },
-      include: { creator: true, updater: true, company: true },
+      select: { id: true, status: true, updatedAt: true },
     });
 
     await this.activitiesService.logActivity({
@@ -234,7 +234,7 @@ export class AssessmentService {
       status: 'updated',
     });
 
-    return updated;
+    return updated as Assessment;
   }
 
   async submitGroup(
@@ -438,17 +438,76 @@ export class AssessmentService {
   }
 
   async getAssessments(companyId: number) {
-    return this.prisma.assessment.findMany({
+    const rows = await this.prisma.assessment.findMany({
       where: { companyId },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      include: {
-        company: {
-          select: { requireAssessmentReview: true },
-        },
-      },
+      orderBy: { updatedAt: 'desc' },
+      include: { company: { select: { requireAssessmentReview: true } } },
     });
+
+    return rows.map(({ assessmentData, ...rest }) => {
+      const summary = this.summarizeAssessment(assessmentData);
+      return { ...rest, ...summary };
+    });
+  }
+
+  /**
+   * Compute a slim summary (pillars, progress, submittedGroupsCount) from
+   * the heavy assessmentData JSONB. Lets the list endpoint omit the full blob
+   * while preserving everything the dashboard table renders.
+   */
+  private summarizeAssessment(assessmentData: any) {
+    const data = (assessmentData || {}) as any;
+    const submittedGroups: string[] = Array.isArray(data.submittedGroups) ? data.submittedGroups : [];
+    const overallProgress = typeof data.overallProgress === 'number' ? data.overallProgress : 0;
+
+    const TOTAL = Object.values(PILLAR_GROUPS).reduce((sum, arr) => sum + arr.length, 0);
+    const progress = submittedGroups.length >= TOTAL
+      ? 100
+      : Math.min(parseFloat(overallProgress.toFixed(2)), 100);
+
+    const env = data.environment ?? data.environmental;
+    const social = data.socialCapital ?? data.social;
+    const human = data.humanCapital;
+    const business = data.businessInnovation ?? data.businessModel;
+    const leadership = data.leadershipGovernance;
+    const activity = data.foundationalData?.activityMetrics ?? data.activityMetrics;
+
+    const pillars: ('A' | 'E' | 'S' | 'H' | 'B' | 'L' | 'G')[] = [];
+    if (this.hasUserData(activity)) pillars.push('A');
+    if (this.hasEnvData(env)) pillars.push('E');
+    if (this.hasUserData(social)) pillars.push('S');
+    if (this.hasUserData(human)) pillars.push('H');
+    if (this.hasUserData(business)) pillars.push('B');
+    if (this.hasUserData(leadership?.criticalIncidentRiskManagement)) pillars.push('L');
+    if (this.hasUserData(leadership?.managementOfTheLegalAndRegulatoryEnvironment)) pillars.push('G');
+
+    return { pillars, progress, submittedGroupsCount: submittedGroups.length };
+  }
+
+  private static readonly COMPUTED_KEYS = new Set([
+    'progress', 'totalEmission', 'totalEmissions', 'calculated', 'dataCount',
+    'breakdown', 'status', 'lastUpdated', 'id', 'createdAt', 'updatedAt', '_id',
+  ]);
+
+  private hasUserData(obj: any): boolean {
+    return !!obj && typeof obj === 'object' &&
+      Object.keys(obj).some((k) => !AssessmentService.COMPUTED_KEYS.has(k));
+  }
+
+  private hasEnvData(env: any): boolean {
+    if (!env) return false;
+    if (this.hasUserData(env.airQuality)) return true;
+    if (this.hasUserData(env.waterManagement)) return true;
+    if (this.hasUserData(env.biodiversityImpact)) return true;
+    const ghg = env.ghg;
+    if (!ghg) return false;
+    const hasScope = (scope: any, groups: string[]) =>
+      scope && groups.some((g) => this.hasUserData(scope[g]));
+    return (
+      hasScope(ghg.scope1, ['stationarySources', 'mobileSources', 'processEmissions', 'fugitiveEmissions']) ||
+      hasScope(ghg.scope2, ['locationBased', 'marketBased']) ||
+      hasScope(ghg.scope3, ['upstream', 'downstream'])
+    );
   }
 
   async getAssessment(
