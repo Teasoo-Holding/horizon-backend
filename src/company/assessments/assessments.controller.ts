@@ -403,13 +403,15 @@ export class AssessmentController {
       throw new BadRequestException('Invalid assessment ID provided.');
     }
 
-    const assessment = await this.assessmentService.approveAssessment(
-      companyId,
-      currentUserId,
-      id,
-    );
+    const { assessment, emailSent, reportGenerated } =
+      await this.assessmentService.approveAssessment(companyId, currentUserId, id);
 
-    return { message: 'Assessment approved successfully.', data: assessment };
+    return {
+      message: 'Assessment approved successfully.',
+      data: assessment,
+      emailSent,
+      reportGenerated,
+    };
   }
 
   @Post(':id/decline')
@@ -473,14 +475,14 @@ export class AssessmentController {
       throw new BadRequestException('Reason for declining is required.');
     }
 
-    const assessment = await this.assessmentService.declineAssessment(
+    const { assessment, emailSent } = await this.assessmentService.declineAssessment(
       companyId,
       currentUserId,
       id,
       rejectionReason,
     );
 
-    return { message: 'Assessment rejected successfully.', data: assessment };
+    return { message: 'Assessment rejected successfully.', data: assessment, emailSent };
   }
 
   private parseId(idStr: string): number {
