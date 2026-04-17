@@ -546,12 +546,15 @@ export class ReportService {
     const reservesCalculated = biodiversityManagement.reservesInSensitiveAreas?.calculated || {};
     const reservesDirect = biodiversityManagement.reservesInSensitiveAreas || {};
 
-    // Activity Metrics
-    const am = currentData.activityMetrics || {};
+    // Activity Metrics — canonical location is foundationalData.activityMetrics
+    // (AssessmentCalculatorService migrates root-level activityMetrics there and
+    // deletes the root copy). Fall back to the legacy root path for assessments
+    // created before the migration landed.
+    const am = currentData.foundationalData?.activityMetrics || currentData.activityMetrics || {};
     const prod = am.productionVolume || am.productionData || {};
     const asset = am.assetPortfolio || {};
-    const assetOffshore = asset.offshoreSites || {};
-    const assetTerrestrial = asset.terrestrialSites || {};
+    const assetOffshore = asset.offshoreSites || am.offshoreSites || {};
+    const assetTerrestrial = asset.terrestrialSites || am.terrestrialSites || {};
 
     // Social Capital
     const soc = currentData.socialCapital || {};
