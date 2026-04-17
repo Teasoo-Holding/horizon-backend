@@ -399,7 +399,12 @@ export class AssessmentService {
         );
       }
     } else {
+      // Auto-approval (company's requireAssessmentReview = false): the submitter
+      // is implicitly the approver. Recording them as reviewer keeps the audit
+      // trail populated — previously reviewed_by was left null and approvals
+      // looked like they had no responsible party.
       newStatus = AssessmentStatus.submitted_approved;
+      finalReviewerId = userId;
     }
 
     const now = new Date();
@@ -597,74 +602,93 @@ export class AssessmentService {
     companyId: number,
     currentUserId: number,
     assessmentId: number,
-  ): Promise<Assessment> {
+  ): Promise<{ assessment: Assessment; emailSent: boolean; reportGenerated: boolean }> {
     const assessment = await this.prisma.assessment.findFirst({
       where: { id: assessmentId, companyId },
       select: {
         status: true,
-        creator: {
-          select: {
-            email: true,
-            first_name: true,
-          },
-        },
-        company: {
-          select: {
-            name: true,
-          },
-        },
+        creator: { select: { email: true, first_name: true } },
+        company: { select: { name: true } },
       },
     });
 
     if (!assessment) throw new NotFoundException('Assessment not found');
 
-    const approvableStatuses: AssessmentStatus[] = [
-      AssessmentStatus.awaiting_review,
-      AssessmentStatus.submitted_approved,
-    ];
-    if (!approvableStatuses.includes(assessment.status)) {
+    // Only assessments currently awaiting a reviewer decision can be approved.
+    // submitted_approved is a terminal auto-approved state and re-approving would
+    // overwrite reviewer metadata and re-run side effects.
+    if (assessment.status !== AssessmentStatus.awaiting_review) {
       throw new BadRequestException(
-        `Cannot approve an assessment with status "${assessment.status}". Only assessments awaiting review or submitted can be approved.`,
+        `Cannot approve an assessment with status "${assessment.status}". Only assessments awaiting review can be approved.`,
       );
     }
 
-    const updated = await this.prisma.assessment.update({
-      where: { id: assessmentId, companyId },
-      data: {
-        status: AssessmentStatus.approved,
-        updated_by: currentUserId,
-        reviewed_by: currentUserId,
-        reviewedAt: new Date(),
-        approvedAt: new Date(),
-        rejection_reason: null,
-      },
+    const now = new Date();
+
+    // Status change + audit log must succeed or fail together — either there's an
+    // approved assessment with a matching activity entry, or neither.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.assessment.update({
+        where: { id: assessmentId, companyId },
+        data: {
+          status: AssessmentStatus.approved,
+          updated_by: currentUserId,
+          reviewed_by: currentUserId,
+          reviewedAt: now,
+          approvedAt: now,
+          rejection_reason: null,
+        },
+      });
+
+      await tx.activities.create({
+        data: {
+          companyId,
+          createdById: currentUserId,
+          title: 'Assessment approved',
+          description: `Assessment #${assessmentId} approved by user #${currentUserId}`,
+          type: 'assessment',
+          status: 'approved',
+        },
+      });
+
+      return result;
     });
 
-    // Notify creator that their assessment was approved (non-blocking)
+    // Best-effort side effects. Approval itself has already succeeded; we surface
+    // the outcomes so the caller can warn the user if email or report gen failed.
+    let emailSent = false;
     const creatorEmail = assessment.creator?.email;
     if (creatorEmail) {
       try {
-        await this.emailService.sendEmail(
+        const result = await this.emailService.sendEmail(
           creatorEmail,
           {
             first_name: assessment.creator?.first_name || '',
             company_name: assessment.company?.name || '',
           },
-          17, // Reusing decline template for now — replace with dedicated approval template when available
+          24,
         );
+        emailSent = !!(result as any)?.success;
       } catch (error) {
-        this.logger.error(`Failed to send approval email for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+        this.logger.error(
+          `Failed to send approval email for assessment ${assessmentId}`,
+          error instanceof Error ? error.stack : error,
+        );
       }
     }
 
-    // Trigger report generation upon approval (non-blocking — approval itself must succeed)
+    let reportGenerated = false;
     try {
       await this.reportService.saveReportingData(assessmentId);
+      reportGenerated = true;
     } catch (error) {
-      this.logger.error(`Report generation failed after approval for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+      this.logger.error(
+        `Report generation failed after approval for assessment ${assessmentId}`,
+        error instanceof Error ? error.stack : error,
+      );
     }
 
-    return updated;
+    return { assessment: updated, emailSent, reportGenerated };
   }
 
   async declineAssessment(
@@ -672,22 +696,13 @@ export class AssessmentService {
     currentUserId: number,
     assessmentId: number,
     rejectionReason: string,
-  ): Promise<Assessment> {
+  ): Promise<{ assessment: Assessment; emailSent: boolean }> {
     const assessmentWithCreator = await this.prisma.assessment.findFirst({
       where: { id: assessmentId, companyId },
       select: {
         status: true,
-        company: {
-          select: {
-            name: true,
-          },
-        },
-        creator: {
-          select: {
-            email: true,
-            first_name: true,
-          },
-        },
+        company: { select: { name: true } },
+        creator: { select: { email: true, first_name: true } },
       },
     });
 
@@ -704,29 +719,55 @@ export class AssessmentService {
     const creatorEmail = assessmentWithCreator.creator?.email;
     const first_name = assessmentWithCreator.creator?.first_name || '';
     const company_name = assessmentWithCreator.company?.name || '';
-    if (!creatorEmail)
+    if (!creatorEmail) {
       throw new NotFoundException('Creator email not found for this assessment');
+    }
 
+    // Status change + audit log are atomic. Email is best-effort and its outcome
+    // is returned so the caller can surface a warning if the submitter won't
+    // know they need to revise.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.assessment.update({
+        where: { id: assessmentId, companyId },
+        data: {
+          status: AssessmentStatus.declined,
+          updated_by: currentUserId,
+          reviewed_by: currentUserId,
+          reviewedAt: new Date(),
+          rejection_reason: rejectionReason,
+        },
+      });
+
+      await tx.activities.create({
+        data: {
+          companyId,
+          createdById: currentUserId,
+          title: 'Assessment declined',
+          description: `Assessment #${assessmentId} declined: ${rejectionReason}`,
+          type: 'assessment',
+          status: 'declined',
+        },
+      });
+
+      return result;
+    });
+
+    let emailSent = false;
     try {
-      await this.emailService.sendEmail(
+      const result = await this.emailService.sendEmail(
         creatorEmail,
         { first_name, company_name, reason: rejectionReason },
         17,
       );
+      emailSent = !!(result as any)?.success;
     } catch (error) {
-      this.logger.error(`Failed to send decline email for assessment ${assessmentId}`, error instanceof Error ? error.stack : error);
+      this.logger.error(
+        `Failed to send decline email for assessment ${assessmentId}`,
+        error instanceof Error ? error.stack : error,
+      );
     }
 
-    return this.prisma.assessment.update({
-      where: { id: assessmentId, companyId },
-      data: {
-        status: AssessmentStatus.declined,
-        updated_by: currentUserId,
-        reviewed_by: currentUserId,
-        reviewedAt: new Date(),
-        rejection_reason: rejectionReason,
-      },
-    });
+    return { assessment: updated, emailSent };
   }
 
   private deepMerge(obj: any, path: string, value: any): any {
