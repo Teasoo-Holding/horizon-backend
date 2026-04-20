@@ -34,6 +34,7 @@ model Company {
   companySubscriptions       CompanySubscription[] @relation("CompanySubs")
   users                      User[]                @relation("CompanyUsers")
   generalTarget              Target[]
+  invoices                   Invoice[]             @relation("CompanyInvoices")
 
   @@index([status])
   @@index([created_at])

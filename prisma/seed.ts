@@ -327,17 +327,209 @@ async function main() {
       }
     }
 
-    for (const ind of industries) {
-      await prisma.industry.upsert({
-        where: {
-          sector_industry: {
-            sector: ind.sector,
-            industry: ind.industry,
-          },
+    // 7. Seed Sample Companies and Billing Data (for UI demonstration)
+    if (superAdminUser) {
+      const demoCompanies = [
+        {
+          name: 'EcoFriendly Manufacturing',
+          sector: 'Industrial',
+          industry: 'Manufacturing',
+          plan: 'Enterprise',
+          cycle: 'YEARLY',
+          amount: 38800,
+          status: 'ACTIVE',
         },
+        {
+          name: 'GreenTech Solutions',
+          sector: 'Technology',
+          industry: 'Renewable Energy',
+          plan: 'Premium',
+          cycle: 'YEARLY',
+          amount: 15600,
+          status: 'ACTIVE',
+        },
+        {
+          name: 'Sustain Invest Capital',
+          sector: 'Financials',
+          industry: 'Investment Banking',
+          plan: 'Free',
+          cycle: 'MONTHLY',
+          amount: 0,
+          status: 'ACTIVE',
+        },
+        {
+          name: 'BlueEarth Corp',
+          sector: 'Industrial',
+          industry: 'Environmental Services',
+          plan: 'Basic',
+          cycle: 'MONTHLY',
+          amount: 7500,
+          status: 'EXPIRED',
+        },
+      ];
+
+      for (const demo of demoCompanies) {
+        const company = await prisma.company.upsert({
+          where: { name: demo.name },
+          update: {},
+          create: {
+            name: demo.name,
+            status: CompanyStatus.active,
+            industry: {
+              connectOrCreate: {
+                where: {
+                  sector_industry: { sector: demo.sector, industry: demo.industry },
+                },
+                create: { sector: demo.sector, industry: demo.industry },
+              },
+            },
+            creator: { connect: { id: superAdminUser.id } },
+          } as any,
+        });
+
+        const plan = await prisma.subscription.findUnique({
+          where: { name: demo.plan },
+        });
+
+        if (plan) {
+          const companySub = await prisma.companySubscription.create({
+            data: {
+              company_id: company.id,
+              subscription_id: plan.id,
+              start_date: new Date('2024-01-01'),
+              status: demo.status as any,
+              billing_cycle: demo.cycle as any,
+              amount: demo.amount,
+              auto_renew: true,
+              created_by: superAdminUser.id,
+              updated_by: superAdminUser.id,
+            },
+          });
+
+          // Create invoice history for this company
+          await prisma.invoice.create({
+            data: {
+              invoice_id: `PMT-${Date.now()}-${company.id}`,
+              company_id: company.id,
+              amount: demo.amount,
+              status: demo.status === 'EXPIRED' ? 'PENDING' : 'PAID',
+              billing_date: new Date('2024-01-01'),
+              next_payment_date: new Date('2025-01-01'),
+            },
+          });
+        }
+      }
+      console.log('✅ Demo companies and billing data seeded.');
+    }
+
+    // 8. Seed Permission Groups and Permissions
+    const permissionGroups = [
+      {
+        name: 'User Management',
+        permissions: [
+          { key: 'invite_users', label: 'Invite users' },
+          { key: 'edit_profile', label: 'Edit user profile' },
+          { key: 'suspend_user', label: 'Suspend user' },
+          { key: 'delete_user', label: 'Delete user' },
+          { key: 'assign_roles', label: 'Assign roles' },
+        ],
+      },
+      {
+        name: 'Data & Reports',
+        permissions: [
+          { key: 'view_reports', label: 'View reports' },
+          { key: 'export_reports', label: 'Export reports' },
+          { key: 'submit_data', label: 'Submit data' },
+          { key: 'approve_reports', label: 'Approve reports' },
+          { key: 'lock_data', label: 'Lock data' },
+        ],
+      },
+      {
+        name: 'Company Mgmt',
+        permissions: [
+          { key: 'view_companies', label: 'View companies' },
+          { key: 'approve_company', label: 'Approve company' },
+          { key: 'suspend_company', label: 'Suspend company' },
+          { key: 'delete_company', label: 'Delete company' },
+        ],
+      },
+      {
+        name: 'Platform Config',
+        permissions: [
+          { key: 'view_algorithm', label: 'View algorithm' },
+          { key: 'edit_algorithm', label: 'Edit algorithm' },
+          { key: 'publish_algorithm', label: 'Publish algorithm' },
+          { key: 'manage_pillars', label: 'Manage pillars' },
+          { key: 'edit_assessments_config', label: 'Edit assessments config' },
+        ],
+      },
+    ];
+
+    console.log('🌱 Seeding permissions...');
+    for (const group of permissionGroups) {
+      const createdGroup = await prisma.permissionGroup.upsert({
+        where: { name: group.name },
         update: {},
-        create: ind,
+        create: { name: group.name },
       });
+
+      for (const perm of group.permissions) {
+        await prisma.permission.upsert({
+          where: { key: perm.key },
+          update: { label: perm.label, groupId: createdGroup.id },
+          create: {
+            key: perm.key,
+            label: perm.label,
+            groupId: createdGroup.id,
+          },
+        });
+      }
+    }
+
+    // 9. Assign Permissions to Roles (Permission Matrix)
+    const allPermissions = await prisma.permission.findMany();
+    const roles_list = await prisma.role.findMany();
+
+    const superAdmin = roles_list.find((r) => r.name === 'super_admin');
+    const subAdmin = roles_list.find((r) => r.name === 'platform_subadmin');
+    const dataOfficer = roles_list.find((r) => r.name === 'platform_data_officer');
+    const viewer = roles_list.find((r) => r.name === 'platform_viewer');
+
+    if (superAdmin) {
+      console.log('👑 Assigning all permissions to Super Admin...');
+      for (const p of allPermissions) {
+        await prisma.rolePermission.upsert({
+          where: { roleId_permissionId: { roleId: superAdmin.id, permissionId: p.id } },
+          update: {},
+          create: { roleId: superAdmin.id, permissionId: p.id },
+        });
+      }
+    }
+
+    if (subAdmin) {
+      console.log('⚡ Assigning permissions to Sub Admin...');
+      const subAdminPermissions = allPermissions.filter((p) => 
+        !['delete_user', 'publish_algorithm', 'delete_company'].includes(p.key)
+      );
+      for (const p of subAdminPermissions) {
+        await prisma.rolePermission.upsert({
+          where: { roleId_permissionId: { roleId: subAdmin.id, permissionId: p.id } },
+          update: {},
+          create: { roleId: subAdmin.id, permissionId: p.id },
+        });
+      }
+    }
+
+    if (viewer) {
+      console.log('👁️ Assigning read-only permissions to Viewer...');
+      const viewerPermissions = allPermissions.filter((p) => p.key.startsWith('view_'));
+      for (const p of viewerPermissions) {
+        await prisma.rolePermission.upsert({
+          where: { roleId_permissionId: { roleId: viewer.id, permissionId: p.id } },
+          update: {},
+          create: { roleId: viewer.id, permissionId: p.id },
+        });
+      }
     }
 
     console.log('🎉 Seeding completed successfully!');

@@ -31,6 +31,8 @@ import { AssessmentModule } from './company/assessments/assessments.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { ScoringModule } from './assessment/scoring/scoring.module';
 import { ContactModule } from './contact/contact.module';
+import { AdminBillingModule } from './admin/billing/billing.module';
+import { AdminRolesPermissionsModule } from './admin/roles-permissions/roles-permissions.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { ContactModule } from './contact/contact.module';
     ComputationModule,
     ScoringModule,
     ContactModule,
+    AdminBillingModule,
+    AdminRolesPermissionsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
