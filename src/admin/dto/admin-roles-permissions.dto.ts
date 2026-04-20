@@ -1,6 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsInt, IsArray, IsBoolean } from 'class-validator';
 
+export class CreatePermissionGroupDto {
+  @ApiProperty({ example: 'Platform Config' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
+export class UpdatePermissionGroupDto {
+  @ApiProperty({ example: 'System Configuration' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
 export class PermissionGroupDto {
   @ApiProperty({ example: 1 })
   id: number;
@@ -56,36 +70,38 @@ export class RoleListItemDto {
 }
 
 export class CreateRoleDto {
-  @ApiProperty({ example: 'ESG Analyst' })
+  @ApiProperty({ example: 'Platform Sub-Admin' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Analyze ESG data and generate insights' })
+  @ApiPropertyOptional({ example: 'Can manage most data but cannot delete users' })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ enum: ['Active', 'Draft'], example: 'Active' })
-  @IsEnum(['Active', 'Draft'])
-  status: 'Active' | 'Draft';
-
-  @ApiPropertyOptional({ example: 1, description: 'Role ID to inherit permissions from' })
+  @ApiPropertyOptional({ example: 1, description: 'ID of an existing role to copy permissions from' })
   @IsInt()
   @IsOptional()
   inheritFrom?: number;
 
-  @ApiProperty({ type: [Number], example: [1, 2], description: 'Groups to assign to this role' })
-  @IsArray()
-  @IsInt({ each: true })
-  @IsOptional()
-  assignedGroups?: number[];
-
-  @ApiProperty({ type: [Number], example: [10, 11], description: 'Individual permissions to assign' })
+  @ApiPropertyOptional({ type: [Number], example: [10, 11], description: 'Individual permissions to assign' })
   @IsArray()
   @IsInt({ each: true })
   @IsOptional()
   assignedPermissions?: number[];
+}
+
+export class UpdateRoleDto {
+  @ApiPropertyOptional({ example: 'Updated Role Name' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'Updated description' })
+  @IsString()
+  @IsOptional()
+  description?: string;
 }
 
 export class CreatePermissionDto {

@@ -33,6 +33,7 @@ import { ScoringModule } from './assessment/scoring/scoring.module';
 import { ContactModule } from './contact/contact.module';
 import { AdminBillingModule } from './admin/billing/billing.module';
 import { AdminRolesPermissionsModule } from './admin/roles-permissions/roles-permissions.module';
+import { AdminCompanyModule } from './admin/companies/admin-company.module';
 import { AdminBillingController } from './admin/billing/billing.controller';
 import { AdminBillingService } from './admin/billing/billing.service';
 import { AdminRolesPermissionsController } from './admin/roles-permissions/roles-permissions.controller';
@@ -63,6 +64,7 @@ import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-pe
     ContactModule,
     AdminBillingModule,
     AdminRolesPermissionsModule,
+    AdminCompanyModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

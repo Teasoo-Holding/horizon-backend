@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from 'src/prisma/prisma.service';
 import { 
   CreateRoleDto, 
+  UpdateRoleDto,
   CreatePermissionDto, 
   UpdateMatrixDto,
   RoleListItemDto,
@@ -11,7 +12,7 @@ import {
 
 @Injectable()
 export class AdminRolesPermissionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getRoles(): Promise<RoleListItemDto[]> {
     const roles = await this.prisma.role.findMany({
@@ -21,7 +22,7 @@ export class AdminRolesPermissionsService {
         },
         rolePermissions: {
           include: { permission: true },
-          take: 3 // To show some key permissions in the card
+          take: 3
         }
       }
     });
@@ -32,7 +33,7 @@ export class AdminRolesPermissionsService {
       id: role.id,
       name: role.name,
       description: role.description || '',
-      status: 'Active', // Default for now as schema doesn't have status yet
+      status: 'Active',
       usersAssigned: role._count.users,
       permissionsCount: role._count.rolePermissions,
       totalPermissions,
@@ -57,7 +58,7 @@ export class AdminRolesPermissionsService {
         const parentPermissions = await tx.rolePermission.findMany({
           where: { roleId: dto.inheritFrom }
         });
-        
+
         if (parentPermissions.length > 0) {
           await tx.rolePermission.createMany({
             data: parentPermissions.map(p => ({
@@ -83,6 +84,37 @@ export class AdminRolesPermissionsService {
     });
   }
 
+  async updateRole(id: number, dto: UpdateRoleDto) {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new NotFoundException('Role not found');
+
+    return this.prisma.role.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        description: dto.description
+      }
+    });
+  }
+
+  async deleteRole(id: number) {
+    const role = await this.prisma.role.findUnique({
+      where: { id },
+      include: { _count: { select: { users: true } } }
+    });
+    if (!role) throw new NotFoundException('Role not found');
+
+    if (role._count.users > 0) {
+      throw new ConflictException('Cannot delete a role that is currently assigned to users.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Clean up assignments first
+      await tx.rolePermission.deleteMany({ where: { roleId: id } });
+      return tx.role.delete({ where: { id } });
+    });
+  }
+
   async getPermissionGroups(): Promise<PermissionGroupDto[]> {
     const groups = await this.prisma.permissionGroup.findMany({
       include: { permissions: true }
@@ -101,6 +133,39 @@ export class AdminRolesPermissionsService {
     }));
   }
 
+  async createPermissionGroup(dto: { name: string }) {
+    const existing = await this.prisma.permissionGroup.findUnique({ where: { name: dto.name } });
+    if (existing) throw new ConflictException('Permission group already exists');
+
+    return this.prisma.permissionGroup.create({
+      data: { name: dto.name }
+    });
+  }
+
+  async updatePermissionGroup(id: number, dto: { name: string }) {
+    const group = await this.prisma.permissionGroup.findUnique({ where: { id } });
+    if (!group) throw new NotFoundException('Permission group not found');
+
+    return this.prisma.permissionGroup.update({
+      where: { id },
+      data: { name: dto.name }
+    });
+  }
+
+  async deletePermissionGroup(id: number) {
+    const group = await this.prisma.permissionGroup.findUnique({
+      where: { id },
+      include: { _count: { select: { permissions: true } } }
+    });
+    if (!group) throw new NotFoundException('Permission group not found');
+
+    if (group._count.permissions > 0) {
+      throw new ConflictException('Cannot delete group with existing permissions. Move or delete them first.');
+    }
+
+    return this.prisma.permissionGroup.delete({ where: { id } });
+  }
+
   async createPermission(dto: CreatePermissionDto) {
     const existing = await this.prisma.permission.findUnique({ where: { key: dto.key } });
     if (existing) throw new ConflictException('Permission key already exists');
@@ -114,7 +179,7 @@ export class AdminRolesPermissionsService {
         }
       });
 
-      // Always assign to Super Admin (Role ID 1 usually)
+      // Always assign to Super Admin
       const superAdminRole = await tx.role.findUnique({ where: { name: 'super_admin' } });
       if (superAdminRole) {
         await tx.rolePermission.create({
@@ -180,10 +245,8 @@ export class AdminRolesPermissionsService {
         update: {}
       });
     } else {
-      // Prevent disabling for Super Admin if you want to be safe
       const role = await this.prisma.role.findUnique({ where: { id: dto.roleId } });
       if (role?.name === 'super_admin') {
-         // Optionally throw error or allow it
       }
 
       return this.prisma.rolePermission.delete({

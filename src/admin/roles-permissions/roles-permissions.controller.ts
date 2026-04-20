@@ -3,6 +3,7 @@ import {
   Get, 
   Post, 
   Patch, 
+  Delete,
   Body, 
   Param, 
   UseGuards, 
@@ -14,7 +15,10 @@ import { AdminRolesPermissionsService } from './roles-permissions.service';
 import { 
   RoleListItemDto, 
   CreateRoleDto, 
+  UpdateRoleDto,
   PermissionGroupDto, 
+  CreatePermissionGroupDto,
+  UpdatePermissionGroupDto,
   CreatePermissionDto, 
   PermissionMatrixRowDto, 
   UpdateMatrixDto 
@@ -41,11 +45,52 @@ export class AdminRolesPermissionsController {
     return this.rolesService.createRole(dto);
   }
 
+  @Patch('roles/:id')
+  @ApiOperation({ summary: 'Update a role definition' })
+  @ApiResponse({ status: 200, description: 'Role updated' })
+  async updateRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateRoleDto
+  ) {
+    return this.rolesService.updateRole(id, dto);
+  }
+
+  @Delete('roles/:id')
+  @ApiOperation({ summary: 'Delete a role' })
+  @ApiResponse({ status: 200, description: 'Role deleted' })
+  async deleteRole(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.deleteRole(id);
+  }
+
   @Get('groups')
   @ApiOperation({ summary: 'Get permissions grouped by category' })
   @ApiResponse({ status: 200, type: [PermissionGroupDto] })
   async getGroups() {
     return this.rolesService.getPermissionGroups();
+  }
+
+  @Post('groups')
+  @ApiOperation({ summary: 'Create a new permission group' })
+  @ApiResponse({ status: 201, description: 'Group created' })
+  async createGroup(@Body() dto: CreatePermissionGroupDto) {
+    return this.rolesService.createPermissionGroup(dto);
+  }
+
+  @Patch('groups/:id')
+  @ApiOperation({ summary: 'Update a permission group name' })
+  @ApiResponse({ status: 200, description: 'Group updated' })
+  async updateGroup(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePermissionGroupDto
+  ) {
+    return this.rolesService.updatePermissionGroup(id, dto);
+  }
+
+  @Delete('groups/:id')
+  @ApiOperation({ summary: 'Delete an empty permission group' })
+  @ApiResponse({ status: 200, description: 'Group deleted' })
+  async deleteGroup(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.deletePermissionGroup(id);
   }
 
   @Post('permissions')
