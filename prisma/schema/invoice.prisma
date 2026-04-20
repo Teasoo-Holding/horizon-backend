@@ -1,0 +1,25 @@
+model Invoice {
+  id                Int           @id @default(autoincrement())
+  invoice_id        String        @unique // e.g. PMT-1562792781478
+  company_id        Int
+  amount            Float
+  status            InvoiceStatus @default(PENDING)
+  billing_date      DateTime      @default(now())
+  next_payment_date DateTime?
+  download_url      String?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  
+  Company           Company       @relation("CompanyInvoices", fields: [company_id], references: [id])
+
+  @@index([company_id])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
