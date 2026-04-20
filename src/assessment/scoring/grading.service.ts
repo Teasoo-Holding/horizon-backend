@@ -40,6 +40,8 @@ export class GradingService {
       hcdtDefiance?: boolean;
       licenseSuspension?: boolean;
       humanRightsAbuses?: boolean;
+      totalNearMisses?: number;
+      totalDisruptionEvents?: number;
     }
   ) {
     const avg = (arr: number[]) => {
@@ -62,9 +64,9 @@ export class GradingService {
     if (vetoInputs.briberyConviction) { gScore = Math.min(gScore, 30); gCapped = true; }
     if (vetoInputs.licenseSuspension) { gScore = Math.min(gScore, 40); gCapped = true; }
 
-    const socialCapScore = avg(socScores.slice(0, 4));
-    const humanCapScore = socScores[4] ?? 0;
-    const leadershipScore = avg([govScores[0], govScores[4]]);
+    const socialCapScore = avg([...socScores.slice(0, 4), socScores[6]]);
+    const humanCapScore = avg([socScores[4], socScores[5]]);
+    const leadershipScore = avg([govScores[0], govScores[4], govScores[5], govScores[6], govScores[7]]);
     const businessModelScore = avg(govScores.slice(1, 4));
 
     const overallScore = (eScore * this.weights.E) + (sScore * this.weights.S) + (gScore * this.weights.G);
