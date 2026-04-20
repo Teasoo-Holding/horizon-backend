@@ -33,6 +33,10 @@ import { ScoringModule } from './assessment/scoring/scoring.module';
 import { ContactModule } from './contact/contact.module';
 import { AdminBillingModule } from './admin/billing/billing.module';
 import { AdminRolesPermissionsModule } from './admin/roles-permissions/roles-permissions.module';
+import { AdminBillingController } from './admin/billing/billing.controller';
+import { AdminBillingService } from './admin/billing/billing.service';
+import { AdminRolesPermissionsController } from './admin/roles-permissions/roles-permissions.controller';
+import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-permissions.service';
 
 @Module({
   imports: [
@@ -66,13 +70,21 @@ import { AdminRolesPermissionsModule } from './admin/roles-permissions/roles-per
       },
     ]),
   ],
-  controllers: [AppController, AdminAuthController, AuthController],
+  controllers: [
+    AppController, 
+    AdminAuthController, 
+    AuthController,
+    AdminBillingController,
+    AdminRolesPermissionsController
+  ],
   providers: [
     AppService,
     AdminAuthService,
     EmailService,
     OtpService,
     AuthService,
+    AdminBillingService,
+    AdminRolesPermissionsService,
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
