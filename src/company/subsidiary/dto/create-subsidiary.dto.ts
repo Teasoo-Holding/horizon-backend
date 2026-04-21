@@ -72,22 +72,6 @@ export class CreateSubsidiaryDto {
   @IsOptional()
   isoCountryCode?: string;
 
-  @ApiPropertyOptional({
-    description: 'Sector of the company',
-    example: 'Technology',
-  })
-  @IsOptional()
-  @IsString()
-  sector?: string;
-
-  @ApiPropertyOptional({
-    description: 'Sub-sector of the company',
-    example: 'Software Development',
-  })
-  @IsOptional()
-  @IsString()
-  subSector?: string;
-
   @ApiProperty({
     description: 'Company address',
     example: '3 Olugbenga Street, Shagamu, Ogun State',
@@ -158,8 +142,4 @@ export class CreateSubsidiaryDto {
   @IsOptional()
   @IsString()
   status?: CompanyStatus;
-
-  @IsOptional()
-  @IsString()
-  industry: string;
 }

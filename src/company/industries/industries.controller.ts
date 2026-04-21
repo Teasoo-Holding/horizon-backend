@@ -19,9 +19,9 @@ export class IndustriesController {
     return this.industriesService.getIndustries();
   }
 
-  @Get('sector/:sector')
+  @Get('sector/:sectorId')
   @ApiOperation({ summary: 'Get industries belonging to a sector' })
-  async getIndustriesBySector(@Param('sector') sector: string) {
-    return this.industriesService.getIndustriesBySector(sector);
+  async getIndustriesBySector(@Param('sectorId') sectorId: string) {
+    return this.industriesService.getIndustriesBySector(parseInt(sectorId, 10));
   }
 }

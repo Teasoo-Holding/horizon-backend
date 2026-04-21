@@ -1,10 +1,27 @@
+model Sector {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  sasbCode    String?    @map("sasb_code")
+  industries  Industry[]
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+
+  @@map("sectors")
+}
+
 model Industry {
   id           Int          @id @default(autoincrement())
-  sector       String
-  industry     String
+  sectorId     Int          @map("sector_id")
+  name         String       @map("name")
+  description  String?
+  code         String?      @map("code")
   subsidiaries Subsidiary[]
   companies    Company[]
+  sector       Sector       @relation(fields: [sectorId], references: [id])
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
 
-  @@unique([sector, industry])
+  @@unique([sectorId, name])
   @@map("industries")
 }

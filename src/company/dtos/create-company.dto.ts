@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, Matches, IsNumber } from 'class-validator';
 
 export class CreateCompanyDto {
   @IsEmail()
@@ -27,9 +27,8 @@ export class CreateCompanyDto {
   @Matches(/^[A-Za-z0-9-]+$/)
   registration_number: string;
 
-  @IsString()
-  @MinLength(2)
-  industry_type: string;
+  @IsNumber()
+  industryId: number;
 
   @IsString()
   @MinLength(5)

@@ -5,7 +5,7 @@ import {
   UserStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { industries } from './industries';
+import { sectorsWithIndustries } from './sectors-industries-data';
 
 const prisma = new PrismaClient();
 
@@ -100,6 +100,43 @@ async function main() {
       `👤 Created or updated super admin user: ${superAdminUser.email}`,
     );
 
+    // Seed Sectors and Industries
+    console.log('🏭 Seeding SASB Sectors and Industries...');
+    for (const sectorData of sectorsWithIndustries) {
+      const sector = await prisma.sector.upsert({
+        where: { name: sectorData.name },
+        update: {
+          sasbCode: sectorData.sasbCode,
+          description: sectorData.description,
+        },
+        create: {
+          name: sectorData.name,
+          sasbCode: sectorData.sasbCode,
+          description: sectorData.description,
+        },
+      });
+
+      for (const industryData of sectorData.industries) {
+        await prisma.industry.upsert({
+          where: {
+            sectorId_name: {
+              sectorId: sector.id,
+              name: industryData.name,
+            },
+          },
+          update: {
+            code: industryData.code,
+          },
+          create: {
+            sectorId: sector.id,
+            name: industryData.name,
+            code: industryData.code,
+          },
+        });
+      }
+    }
+    console.log('✅ Sectors and Industries seeded.');
+
     // 3. Create or find default companies using the super admin's ID
     const teasooCompany = await prisma.company.upsert({
       where: { name: 'Teasoo Consulting' },
@@ -108,11 +145,11 @@ async function main() {
         name: 'Teasoo Consulting',
         registration_number: 'TEA12345',
         industry: {
-          connectOrCreate: {
-            where: {
-              sector_industry: { sector: 'Services', industry: 'Advisory' },
+          connect: {
+            sectorId_name: {
+              sectorId: (await prisma.sector.findUnique({ where: { name: 'Services' } }))!.id,
+              name: 'Advisory',
             },
-            create: { sector: 'Services', industry: 'Advisory' },
           },
         },
         isoCountryCode: 'NG',
@@ -138,11 +175,11 @@ async function main() {
         name: 'Horizon ESG Solutions',
         registration_number: 'HZN7890',
         industry: {
-          connectOrCreate: {
-            where: {
-              sector_industry: { sector: 'Technology', industry: 'Software' },
+          connect: {
+            sectorId_name: {
+              sectorId: (await prisma.sector.findUnique({ where: { name: 'Technology & Communications' } }))!.id,
+              name: 'Software & IT Services',
             },
-            create: { sector: 'Technology', industry: 'Software' },
           },
         },
         isoCountryCode: 'US',
@@ -222,16 +259,10 @@ async function main() {
           isinCode: 'NGTEA001',
           isoCountryCode: 'NG',
           industry: {
-            connectOrCreate: {
-              where: {
-                sector_industry: {
-                  sector: 'Services',
-                  industry: 'Advisory',
-                },
-              },
-              create: {
-                sector: 'Services',
-                industry: 'Advisory',
+            connect: {
+              sectorId_name: {
+                sectorId: (await prisma.sector.findUnique({ where: { name: 'Services' } }))!.id,
+                name: 'Advisory',
               },
             },
           },
@@ -332,8 +363,8 @@ async function main() {
       const demoCompanies = [
         {
           name: 'EcoFriendly Manufacturing',
-          sector: 'Industrial',
-          industry: 'Manufacturing',
+          sector: 'Resource Transformation',
+          industry: 'Industrial Machinery & Goods',
           plan: 'Enterprise',
           cycle: 'YEARLY',
           amount: 38800,
@@ -341,8 +372,8 @@ async function main() {
         },
         {
           name: 'GreenTech Solutions',
-          sector: 'Technology',
-          industry: 'Renewable Energy',
+          sector: 'Renewable Resources & Alternative Energy',
+          industry: 'Solar Technology & Project Developers',
           plan: 'Premium',
           cycle: 'YEARLY',
           amount: 15600,
@@ -351,7 +382,7 @@ async function main() {
         {
           name: 'Sustain Invest Capital',
           sector: 'Financials',
-          industry: 'Investment Banking',
+          industry: 'Investment Banking & Brokerage',
           plan: 'Free',
           cycle: 'MONTHLY',
           amount: 0,
@@ -359,8 +390,8 @@ async function main() {
         },
         {
           name: 'BlueEarth Corp',
-          sector: 'Industrial',
-          industry: 'Environmental Services',
+          sector: 'Infrastructure',
+          industry: 'Engineering & Construction Services',
           plan: 'Basic',
           cycle: 'MONTHLY',
           amount: 7500,
@@ -376,11 +407,11 @@ async function main() {
             name: demo.name,
             status: CompanyStatus.active,
             industry: {
-              connectOrCreate: {
-                where: {
-                  sector_industry: { sector: demo.sector, industry: demo.industry },
+              connect: {
+                sectorId_name: { 
+                  sectorId: (await prisma.sector.findUnique({ where: { name: demo.sector } }))!.id, 
+                  name: demo.industry 
                 },
-                create: { sector: demo.sector, industry: demo.industry },
               },
             },
             creator: { connect: { id: superAdminUser.id } },

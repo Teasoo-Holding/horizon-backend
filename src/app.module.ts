@@ -38,6 +38,8 @@ import { AdminBillingController } from './admin/billing/billing.controller';
 import { AdminBillingService } from './admin/billing/billing.service';
 import { AdminRolesPermissionsController } from './admin/roles-permissions/roles-permissions.controller';
 import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-permissions.service';
+import { AdminSectorsModule } from './admin/sectors/admin-sectors.module';
+import { AdminUsersModule } from './admin/users/admin-users.module';
 
 @Module({
   imports: [
@@ -65,6 +67,8 @@ import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-pe
     AdminBillingModule,
     AdminRolesPermissionsModule,
     AdminCompanyModule,
+    AdminSectorsModule,
+    AdminUsersModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

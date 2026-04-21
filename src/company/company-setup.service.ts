@@ -132,7 +132,7 @@ export class CompanySetupService {
             company_logo_url: subDto.company_logo_url ?? null,
           },
           include: {
-            industry: { select: { id: true, industry: true, sector: true } },
+            industry: { select: { id: true, name: true, sector: { select: { id: true, name: true } } } },
             parentCompany: { select: { name: true } },
             teamLead: {
               select: { first_name: true, last_name: true, email: true },
