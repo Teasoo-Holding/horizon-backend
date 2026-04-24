@@ -9,7 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@prisma/client';
-import { InviteUserDto, ListUsersDto, UpdateUserDto } from './dto/admin-users.dto';
+import { InviteUserDto, ListUsersDto, AdminUpdateUserDto } from './dto/admin-users.dto';
 
 const TEASOO_COMPANY_NAME = 'Teasoo Consulting';
 
@@ -209,7 +209,7 @@ export class AdminUsersService {
     });
   }
 
-  async updateUser(id: number, dto: UpdateUserDto) {
+  async updateUser(id: number, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
