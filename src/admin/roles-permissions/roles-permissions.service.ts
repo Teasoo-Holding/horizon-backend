@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { 
-  CreateRoleDto, 
+import {
+  CreateRoleDto,
   UpdateRoleDto,
-  CreatePermissionDto, 
+  CreatePermissionDto,
   UpdateMatrixDto,
   RoleListItemDto,
   PermissionGroupDto,
@@ -12,7 +13,10 @@ import {
 
 @Injectable()
 export class AdminRolesPermissionsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) { }
 
   async getRoles(): Promise<RoleListItemDto[]> {
     const roles = await this.prisma.role.findMany({
@@ -80,6 +84,14 @@ export class AdminRolesPermissionsService {
         });
       }
 
+      await this.auditService.log({
+        module: 'Roles',
+        action: 'Created new role',
+        entity: role.name,
+        entityId: role.id.toString(),
+        status: 'Success',
+      });
+
       return role;
     });
   }
@@ -88,13 +100,23 @@ export class AdminRolesPermissionsService {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Role not found');
 
-    return this.prisma.role.update({
+    const updated = await this.prisma.role.update({
       where: { id },
       data: {
         name: dto.name,
         description: dto.description
       }
     });
+
+    await this.auditService.log({
+      module: 'Roles',
+      action: 'Updated role',
+      entity: updated.name,
+      entityId: id.toString(),
+      status: 'Success',
+    });
+
+    return updated;
   }
 
   async deleteRole(id: number) {
@@ -108,11 +130,20 @@ export class AdminRolesPermissionsService {
       throw new ConflictException('Cannot delete a role that is currently assigned to users.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // Clean up assignments first
+    const deleted = await this.prisma.$transaction(async (tx) => {
       await tx.rolePermission.deleteMany({ where: { roleId: id } });
       return tx.role.delete({ where: { id } });
     });
+
+    await this.auditService.log({
+      module: 'Roles',
+      action: 'Deleted role',
+      entity: role.name,
+      entityId: id.toString(),
+      status: 'Success',
+    });
+
+    return deleted;
   }
 
   async getPermissionGroups(): Promise<PermissionGroupDto[]> {
@@ -230,8 +261,8 @@ export class AdminRolesPermissionsService {
   }
 
   async updatePermissionMatrix(dto: UpdateMatrixDto) {
-    if (dto.enabled) {
-      return this.prisma.rolePermission.upsert({
+    const result = await (dto.enabled ?
+      this.prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
             roleId: dto.roleId,
@@ -243,20 +274,24 @@ export class AdminRolesPermissionsService {
           permissionId: dto.permissionId
         },
         update: {}
-      });
-    } else {
-      const role = await this.prisma.role.findUnique({ where: { id: dto.roleId } });
-      if (role?.name === 'super_admin') {
-      }
-
-      return this.prisma.rolePermission.delete({
+      }) :
+      this.prisma.rolePermission.delete({
         where: {
           roleId_permissionId: {
             roleId: dto.roleId,
             permissionId: dto.permissionId
           }
         }
-      }).catch(() => null); // Ignore if already not there
-    }
+      }).catch(() => null)
+    );
+
+    await this.auditService.log({
+      module: 'Roles',
+      action: dto.enabled ? 'Enabled permission for role' : 'Disabled permission for role',
+      entityId: `Role:${dto.roleId}, Perm:${dto.permissionId}`,
+      status: 'Success',
+    });
+
+    return result;
   }
 }

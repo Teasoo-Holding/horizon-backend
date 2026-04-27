@@ -40,6 +40,7 @@ import { AdminRolesPermissionsController } from './admin/roles-permissions/roles
 import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-permissions.service';
 import { AdminSectorsModule } from './admin/sectors/admin-sectors.module';
 import { AdminUsersModule } from './admin/users/admin-users.module';
+import { AuditModule } from './admin/audit/audit.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { AdminUsersModule } from './admin/users/admin-users.module';
     AdminCompanyModule,
     AdminSectorsModule,
     AdminUsersModule,
+    AuditModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
