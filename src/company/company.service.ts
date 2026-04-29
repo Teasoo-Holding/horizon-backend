@@ -23,7 +23,7 @@ export class CompanyService {
   async findAll() {
     return this.prisma.company.findMany({
       include: {
-        industry: true,
+        industry: { include: { sector: true } },
       },
       orderBy: {
         created_at: 'desc',
@@ -34,7 +34,7 @@ export class CompanyService {
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
-        industry: true,
+        industry: { include: { sector: true } },
       },
     });
     if (!company) throw new NotFoundException('Company not found');
@@ -44,7 +44,7 @@ export class CompanyService {
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
-        industry: true,
+        industry: { include: { sector: true } },
         users: {
           where: { role: { name: 'company_esg_admin' } },
         },
@@ -109,7 +109,7 @@ export class CompanyService {
         }),
       } as any,
       include: {
-        industry: true,
+        industry: { include: { sector: true } },
       },
     });
   }

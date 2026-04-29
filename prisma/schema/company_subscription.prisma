@@ -1,16 +1,22 @@
 model CompanySubscription {
-  id              Int                @id @default(autoincrement())
-  company_id      Int
-  subscription_id Int
-  start_date      DateTime
-  end_date        DateTime?
-  status          SubscriptionStatus @default(ACTIVE)
-  created_by      Int
-  updated_by      Int
-  created_at      DateTime           @default(now())
-  updated_at      DateTime           @updatedAt
-  Company         Company            @relation("CompanySubs", fields: [company_id], references: [id])
-  Subscription    Subscription       @relation("CompanySubs", fields: [subscription_id], references: [id])
+  id                    Int                @id @default(autoincrement())
+  company_id            Int
+  subscription_id       Int
+  start_date            DateTime
+  end_date              DateTime?
+  status                SubscriptionStatus @default(ACTIVE)
+  billing_cycle         BillingCycle       @default(MONTHLY)
+  auto_renew            Boolean            @default(true)
+  amount                Float
+  billing_contact_name  String?
+  billing_contact_email String?
+  billing_address       String?
+  created_by            Int
+  updated_by            Int
+  created_at            DateTime           @default(now())
+  updated_at            DateTime           @updatedAt
+  Company               Company            @relation("CompanySubs", fields: [company_id], references: [id])
+  Subscription          Subscription       @relation("CompanySubs", fields: [subscription_id], references: [id])
 
   @@index([company_id])
   @@index([subscription_id])
@@ -23,4 +29,9 @@ enum SubscriptionStatus {
   CANCELLED
   EXPIRED
   TRIAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
 }

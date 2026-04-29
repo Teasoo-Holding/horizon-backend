@@ -117,26 +117,7 @@ export class SubsidiaryService {
         teamLead = user;
       }
 
-      let industryRecord: {
-        id: number;
-        industry: string;
-        sector?: string;
-      } | null = null;
 
-      if (createSubsidiaryDto.industry) {
-        industryRecord = await this.prisma.industry.findFirst({
-          where: { industry: createSubsidiaryDto.industry },
-        });
-
-        if (!industryRecord) {
-          industryRecord = await this.prisma.industry.create({
-            data: {
-              industry: createSubsidiaryDto.industry,
-              sector: createSubsidiaryDto.sector ?? '',
-            },
-          });
-        }
-      }
 
       try {
         console.log('ind', createSubsidiaryDto.industryId);
@@ -144,7 +125,7 @@ export class SubsidiaryService {
           data: {
             name: createSubsidiaryDto.name,
             industryId:
-              industryRecord?.id ?? createSubsidiaryDto.industryId ?? null,
+              createSubsidiaryDto.industryId ?? null,
             parentCompanyId: user.companyId as number,
             created_by: user.id,
             updated_by: user.id,
@@ -162,7 +143,7 @@ export class SubsidiaryService {
             company_logo_url: createSubsidiaryDto.company_logo_url,
           },
           include: {
-            industry: { select: { id: true, industry: true, sector: true } },
+            industry: { select: { id: true, name: true, code: true, sector: { select: { id: true, name: true } } } },
             teamLead: {
               select: { first_name: true, last_name: true, email: true },
             },
@@ -246,7 +227,7 @@ export class SubsidiaryService {
         },
       },
       include: {
-        industry: { select: { id: true, industry: true, sector: true } },
+        industry: { select: { id: true, name: true, code: true, sector: { select: { id: true, name: true } } } },
         teamLead: {
           select: { first_name: true, last_name: true, email: true },
         },
@@ -290,7 +271,7 @@ export class SubsidiaryService {
     const subsidiary = await this.prisma.subsidiary.findUnique({
       where: { id },
       include: {
-        industry: { select: { industry: true, sector: true } },
+        industry: { select: { id: true, name: true, code: true, sector: { select: { id: true, name: true } } } },
         teamLead: {
           select: { first_name: true, last_name: true, email: true },
         },
@@ -337,7 +318,6 @@ export class SubsidiaryService {
         leadId,
         teamLead_email,
         teamLead_name,
-        industry,
         ...rest
       } = updateSubsidiaryDto;
 
@@ -450,7 +430,7 @@ export class SubsidiaryService {
         data,
         include: {
           parentCompany: true,
-          industry: { select: { id: true, industry: true, sector: true } },
+          industry: { select: { id: true, name: true, code: true, sector: { select: { id: true, name: true } } } },
           teamLead: {
             select: { first_name: true, last_name: true, email: true },
           },

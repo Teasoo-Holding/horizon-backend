@@ -1,11 +1,42 @@
 model Role {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
-  description String?
-  invitations Invitation[]
-  users       User[]
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
+  invitations     Invitation[]
+  users           User[]
+  rolePermissions RolePermission[]
 
   @@map("roles")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement())
+  key             String           @unique // e.g. invite_users
+  label           String
+  description     String?
+  groupId         Int
+  group           PermissionGroup  @relation(fields: [groupId], references: [id])
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model PermissionGroup {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique // e.g. User Management
+  permissions Permission[]
+
+  @@map("permission_groups")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 enum RoleName {

@@ -6,29 +6,27 @@ export class IndustriesService {
   constructor(private prisma: PrismaService) {}
 
   async getSectors() {
-    const sectors = await this.prisma.industry.findMany({
-      distinct: ['sector'],
-      select: { sector: true },
-      orderBy: { sector: 'asc' },
+    return this.prisma.sector.findMany({
+      orderBy: { name: 'asc' },
     });
-
-    return sectors.map((s) => s.sector);
   }
 
   async getIndustries() {
     return this.prisma.industry.findMany({
-      where: {sector: {equals: "Extractives and Minerals Processing"}},
-      orderBy: { industry: 'asc' },
+      include: { sector: true },
+      orderBy: { name: 'asc' },
     });
   }
 
-  async getIndustriesBySector(sector: string) {
+  async getIndustriesBySector(sectorId: number) {
     const industries = await this.prisma.industry.findMany({
-      where: { sector: { equals: sector, mode: 'insensitive' } },
+      where: { sectorId },
+      include: { sector: true },
+      orderBy: { name: 'asc' },
     });
 
     if (!industries.length) {
-      throw new NotFoundException(`Sector "${sector}" not found`);
+      throw new NotFoundException(`Sector with ID ${sectorId} not found or has no industries`);
     }
 
     return industries;

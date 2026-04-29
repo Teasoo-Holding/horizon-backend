@@ -31,6 +31,19 @@ import { AssessmentModule } from './company/assessments/assessments.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { ScoringModule } from './assessment/scoring/scoring.module';
 import { ContactModule } from './contact/contact.module';
+import { AdminBillingModule } from './admin/billing/billing.module';
+import { AdminRolesPermissionsModule } from './admin/roles-permissions/roles-permissions.module';
+import { AdminCompanyModule } from './admin/companies/admin-company.module';
+import { AdminBillingController } from './admin/billing/billing.controller';
+import { AdminBillingService } from './admin/billing/billing.service';
+import { AdminRolesPermissionsController } from './admin/roles-permissions/roles-permissions.controller';
+import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-permissions.service';
+import { AdminSectorsModule } from './admin/sectors/admin-sectors.module';
+import { AdminUsersModule } from './admin/users/admin-users.module';
+import { AuditModule } from './admin/audit/audit.module';
+import { AdminSettingsModule } from './admin/settings/admin-settings.module';
+import { AdminSettingsController } from './admin/settings/admin-settings.controller';
+import { AdminSettingsService } from './admin/settings/admin-settings.service';
 
 @Module({
   imports: [
@@ -55,6 +68,13 @@ import { ContactModule } from './contact/contact.module';
     ComputationModule,
     ScoringModule,
     ContactModule,
+    AdminBillingModule,
+    AdminRolesPermissionsModule,
+    AdminCompanyModule,
+    AdminSectorsModule,
+    AdminUsersModule,
+    AuditModule,
+    AdminSettingsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -62,13 +82,23 @@ import { ContactModule } from './contact/contact.module';
       },
     ]),
   ],
-  controllers: [AppController, AdminAuthController, AuthController],
+  controllers: [
+    AppController, 
+    AdminAuthController, 
+    AuthController,
+    AdminBillingController,
+    AdminRolesPermissionsController,
+    AdminSettingsController
+  ],
   providers: [
     AppService,
     AdminAuthService,
     EmailService,
     OtpService,
     AuthService,
+    AdminBillingService,
+    AdminRolesPermissionsService,
+    AdminSettingsService,
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
