@@ -40,6 +40,10 @@ import { AdminRolesPermissionsController } from './admin/roles-permissions/roles
 import { AdminRolesPermissionsService } from './admin/roles-permissions/roles-permissions.service';
 import { AdminSectorsModule } from './admin/sectors/admin-sectors.module';
 import { AdminUsersModule } from './admin/users/admin-users.module';
+import { AuditModule } from './admin/audit/audit.module';
+import { AdminSettingsModule } from './admin/settings/admin-settings.module';
+import { AdminSettingsController } from './admin/settings/admin-settings.controller';
+import { AdminSettingsService } from './admin/settings/admin-settings.service';
 
 @Module({
   imports: [
@@ -69,6 +73,8 @@ import { AdminUsersModule } from './admin/users/admin-users.module';
     AdminCompanyModule,
     AdminSectorsModule,
     AdminUsersModule,
+    AuditModule,
+    AdminSettingsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -81,7 +87,8 @@ import { AdminUsersModule } from './admin/users/admin-users.module';
     AdminAuthController, 
     AuthController,
     AdminBillingController,
-    AdminRolesPermissionsController
+    AdminRolesPermissionsController,
+    AdminSettingsController
   ],
   providers: [
     AppService,
@@ -91,6 +98,7 @@ import { AdminUsersModule } from './admin/users/admin-users.module';
     AuthService,
     AdminBillingService,
     AdminRolesPermissionsService,
+    AdminSettingsService,
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,

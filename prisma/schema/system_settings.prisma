@@ -1,0 +1,22 @@
+model SystemSetting {
+  id                            Int      @id @default(1)
+  
+  // Notifications
+  notify_new_company_reg        Boolean  @default(true)
+  notify_payment_failures       Boolean  @default(true)
+  notify_report_submissions      Boolean  @default(true)
+  notify_algorithm_draft_saved  Boolean  @default(false)
+  notify_weekly_summary         Boolean  @default(true)
+
+  // Security
+  two_factor_enforced           Boolean  @default(false)
+  login_notifications_enabled    Boolean  @default(true)
+
+  // Data Management
+  auto_backup_enabled           Boolean  @default(true)
+  data_retention_period         String   @default("Indefinite")
+
+  updated_at                    DateTime @updatedAt
+
+  @@map("system_settings")
+}

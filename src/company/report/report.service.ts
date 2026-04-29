@@ -8,6 +8,10 @@ import {
 } from './entities/helpers';
 import { TOTAL_GROUP_COUNT } from '../assessments/common/group-keys';
 import { ScoringService } from '../../assessment/scoring/scoring.service';
+import {
+  AssessmentForCompute,
+  computeTargetEmissions,
+} from '../target/utils/computeEmissions';
 
 export interface EvidenceFile {
   name: string;
@@ -421,98 +425,88 @@ export class ReportService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // The trend chart needs ACTUAL DATES (not just years) on the X axis so
-    // baseline → current → target points sit at the right elapsed-time
-    // positions. Resolve a baseline assessment per target row by matching
-    // on `target.baselineYear` and pulling its approval / submission date.
-    // Current point comes from the report's own assessment (`record`).
-    const baselineAssessmentForYear = async (baselineYear: number) => {
-      const baseline = await this.prisma.assessment.findFirst({
-        where: { companyId, startYear: String(baselineYear) },
-        orderBy: { createdAt: 'asc' }, // FIRST assessment of the baseline year
-        select: { approvedAt: true, submittedAt: true, assessmentData: true },
+    // Pull every approved assessment for this company in the lean shape used
+    // by `computeTargetEmissions`. One query feeds every target's baseline
+    // lookup; no per-target roundtrips and no DB writes during a GET.
+    const assessmentsForCompute: AssessmentForCompute[] =
+      await this.prisma.assessment.findMany({
+        where: {
+          companyId,
+          status: { in: ['approved', 'submitted_approved'] as any },
+          startYear: { not: '' },
+          endYear: { not: '' },
+          startMonth: { not: '' },
+          endMonth: { not: '' },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          startYear: true,
+          assessmentData: true,
+          approvedAt: true,
+          submittedAt: true,
+          updatedAt: true,
+          createdAt: true,
+        },
       });
-      return baseline;
+
+    // Report semantics: "current" should reflect the snapshot of the report's
+    // own assessment, not whatever assessment happens to be latest right now.
+    // Pass `record` as the override so a 2024 report always shows 2024
+    // numbers even if a 2025 assessment was approved later.
+    const reportAssessmentForCompute: AssessmentForCompute = {
+      id: record.id,
+      startYear: record.startYear,
+      assessmentData: record.assessmentData as any,
+      approvedAt: record.approvedAt,
+      submittedAt: record.submittedAt,
+      updatedAt: record.updatedAt,
+      createdAt: record.createdAt,
     };
 
-    const decorateTarget = async (t: typeof targets[number] | null) => {
+    const decorateTargetForReport = (t: (typeof targets)[number] | null) => {
       if (!t) return null;
-      const baseline = await baselineAssessmentForYear(t.baselineYear);
-      const baselineData = baseline?.assessmentData as any;
-
-      // ── Refresh emission values from the assessment data (same pattern
-      //    as getLatestTargetPair in target.service.ts). Without this the
-      //    General target row can have stale/zero baselineYearEmission in
-      //    the DB if the target was created before the baseline assessment
-      //    was approved — and the chart skips lines where all values are 0.
-      const totalEmission = currentData?.totalEmission ?? 0;
-      const scopeTotals = currentData?.environment?.ghg;
-
-      if (t.type === 'GENERAL' && t.generalTarget) {
-        const baselineEmission = baselineData?.totalEmission ?? t.generalTarget.baselineYearEmission ?? 0;
-        const reductionPct = t.generalTarget.reductionPercentage ?? 0;
-        await this.prisma.generalTarget.update({
-          where: { targetId: t.id },
-          data: {
-            currentEmission: totalEmission,
-            baselineYearEmission: baselineEmission,
-            targetEmission: baselineEmission * (1 - reductionPct / 100),
-          },
-        });
-        // Patch the in-memory object so the response reflects the refresh
-        t.generalTarget.currentEmission = totalEmission;
-        t.generalTarget.baselineYearEmission = baselineEmission;
-        t.generalTarget.targetEmission = baselineEmission * (1 - reductionPct / 100);
-      }
-
-      if (t.type === 'SCOPE' && t.scopeTargets?.length) {
-        const baselineScopeTotals = baselineData?.environment?.ghg;
-        const scopeUpdates = [
-          { scope: 'SCOPE1' as const, current: scopeTotals?.scope1?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope1?.totalEmission ?? 0 },
-          { scope: 'SCOPE2' as const, current: scopeTotals?.scope2?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope2?.totalEmission ?? 0 },
-          { scope: 'SCOPE3' as const, current: scopeTotals?.scope3?.totalEmission ?? 0, baseline: baselineScopeTotals?.scope3?.totalEmission ?? 0 },
-        ];
-        await this.prisma.$transaction(
-          scopeUpdates.map((se) =>
-            this.prisma.scopeTarget.updateMany({
-              where: { targetId: t.id, scope: se.scope },
-              data: { currentEmission: se.current, baselineYearEmission: se.baseline },
-            }),
-          ),
+      const computed = computeTargetEmissions(t, assessmentsForCompute, {
+        currentAssessmentOverride: reportAssessmentForCompute,
+      });
+      const generalTargetOut =
+        t.generalTarget && computed.general
+          ? {
+              ...t.generalTarget,
+              baselineYearEmission:
+                computed.general.baselineYearEmission ?? 0,
+              targetEmission: computed.general.targetEmission ?? 0,
+              currentEmission: computed.general.currentEmission ?? null,
+            }
+          : t.generalTarget;
+      const scopeTargetsOut = t.scopeTargets?.map((st) => {
+        const computedScope = computed.scopes.find(
+          (c) => c.scope === st.scope,
         );
-        // Patch the in-memory scope targets
-        for (const se of scopeUpdates) {
-          const st = t.scopeTargets.find((s) => s.scope === se.scope);
-          if (st) {
-            st.currentEmission = se.current;
-            st.baselineYearEmission = se.baseline;
-          }
-        }
-      }
-
-      // Prefer approvedAt; fall back to submittedAt; last resort the year
-      // mid-point (Jul 1) so the chart still has *some* date to plot.
-      const baselineDate =
-        baseline?.approvedAt?.toISOString() ??
-        baseline?.submittedAt?.toISOString() ??
-        new Date(`${t.baselineYear}-07-01T00:00:00Z`).toISOString();
-      const currentDate =
-        record.approvedAt?.toISOString() ??
-        record.submittedAt?.toISOString() ??
-        record.updatedAt?.toISOString() ??
-        record.createdAt.toISOString();
-      const currentAssessmentYear = record.startYear ? Number(record.startYear) : null;
-      return { ...t, baselineDate, currentDate, currentAssessmentYear };
+        if (!computedScope) return st;
+        return {
+          ...st,
+          baselineYearEmission:
+            computedScope.figures.baselineYearEmission ?? 0,
+          targetEmission: computedScope.figures.targetEmission ?? 0,
+          currentEmission: computedScope.figures.currentEmission ?? null,
+        };
+      });
+      return {
+        ...t,
+        generalTarget: generalTargetOut,
+        scopeTargets: scopeTargetsOut,
+        currentAssessmentYear: computed.currentAssessmentYear,
+      };
     };
 
-    // A company can have BOTH a GENERAL target row AND a SCOPE target row
-    // (independent records, different `type` values). The previous response
-    // returned `targets[0]` — only the most-recently-created row — which
-    // dropped the other on the floor. Pick the most recent of each type so
-    // the report viewer can render both on the trend chart.
     const targetPair = {
-      general: await decorateTarget(targets.find((t) => t.type === 'GENERAL') ?? null),
-      scope: await decorateTarget(targets.find((t) => t.type === 'SCOPE') ?? null),
+      general: decorateTargetForReport(
+        targets.find((t) => t.type === 'GENERAL') ?? null,
+      ),
+      scope: decorateTargetForReport(
+        targets.find((t) => t.type === 'SCOPE') ?? null,
+      ),
     };
 
     const report = await this.prisma.report.findUnique({

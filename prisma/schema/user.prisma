@@ -37,6 +37,7 @@ model User {
 
   TaskAssignment TaskAssignment[]
   Task           Task[]           @relation("CreatedTasks")
+  AuditLog       AuditLog[]
 
   @@index([email])
   @@index([status])

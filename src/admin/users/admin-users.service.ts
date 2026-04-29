@@ -9,7 +9,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@prisma/client';
-import { InviteUserDto, ListUsersDto, UpdateUserDto } from './dto/admin-users.dto';
+import { InviteUserDto, ListUsersDto, AdminUpdateUserDto } from './dto/admin-users.dto';
+import { AuditService } from '../audit/audit.service';
 
 const TEASOO_COMPANY_NAME = 'Teasoo Consulting';
 
@@ -35,6 +36,7 @@ export class AdminUsersService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private jwtService: JwtService,
+    private auditService: AuditService,
   ) { }
 
   async getStats() {
@@ -178,6 +180,16 @@ export class AdminUsersService {
       console.error('Error sending invitation email:', err);
     }
 
+    await this.auditService.log({
+      userId: user.id,
+      actorName: user.first_name || "User",
+      actorEmail: user.email,
+      module: 'Users',
+      action: 'Invited new user',
+      entity: dto.email,
+      status: 'Success',
+    });
+
     return { message: 'Invitation sent successfully', userId: user.id };
   }
 
@@ -188,11 +200,21 @@ export class AdminUsersService {
       throw new BadRequestException('User is already suspended');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { status: UserStatus.suspended },
       select: USER_SELECT,
     });
+
+    await this.auditService.log({
+      module: 'Users',
+      action: 'Suspended user',
+      entity: user.email,
+      entityId: id.toString(),
+      status: 'Success',
+    });
+
+    return updated;
   }
 
   async reactivateUser(id: number) {
@@ -202,14 +224,24 @@ export class AdminUsersService {
       throw new BadRequestException('User is not suspended');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { status: UserStatus.active },
       select: USER_SELECT,
     });
+
+    await this.auditService.log({
+      module: 'Users',
+      action: 'Reactivated user',
+      entity: user.email,
+      entityId: id.toString(),
+      status: 'Success',
+    });
+
+    return updated;
   }
 
-  async updateUser(id: number, dto: UpdateUserDto) {
+  async updateUser(id: number, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 

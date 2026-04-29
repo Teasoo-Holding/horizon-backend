@@ -75,7 +75,7 @@ export class InviteUserDto {
   first_name?: string;
 }
 
-export class UpdateUserDto {
+export class AdminUpdateUserDto {
   @ApiPropertyOptional({ example: 3, description: 'New role ID' })
   @IsOptional()
   @IsInt()

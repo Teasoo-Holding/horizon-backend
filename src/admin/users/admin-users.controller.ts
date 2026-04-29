@@ -17,7 +17,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AdminUsersService } from './admin-users.service';
-import { InviteUserDto, ListUsersDto, UpdateUserDto } from './dto/admin-users.dto';
+import { InviteUserDto, ListUsersDto, AdminUpdateUserDto } from './dto/admin-users.dto';
 import { JwtRolesGuard, Roles } from 'src/auth/guards/jwtroles.guard';
 import { GetUserDecorator } from 'src/auth/decorators/getuser.decorator';
 
@@ -76,7 +76,7 @@ export class AdminUsersController {
   @ApiParam({ name: 'id', type: Number })
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateUserDto,
+    @Body() dto: AdminUpdateUserDto,
   ) {
     return this.service.updateUser(id, dto);
   }

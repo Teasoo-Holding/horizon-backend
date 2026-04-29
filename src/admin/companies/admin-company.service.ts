@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { 
   AdminCompanyStatsDto, 
@@ -9,7 +10,10 @@ import { CompanyStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminCompanyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   async getStats(): Promise<AdminCompanyStatsDto> {
     const [total, approved, pending, suspended] = await Promise.all([
@@ -138,12 +142,23 @@ export class AdminCompanyService {
     const company = await this.prisma.company.findUnique({ where: { id } });
     if (!company) throw new NotFoundException('Company not found');
 
-    return this.prisma.company.update({
+    const updated = await this.prisma.company.update({
       where: { id },
       data: { 
         status,
         updated_by: adminId
       },
     });
+
+    await this.auditService.log({
+      userId: adminId,
+      module: 'Companies',
+      action: `Updated company status to ${status}`,
+      entity: company.name,
+      entityId: id.toString(),
+      status: 'Success',
+    });
+
+    return updated;
   }
 }

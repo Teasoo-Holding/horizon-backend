@@ -14,6 +14,7 @@ import { EmailService } from 'src/email/email.service';
 import { OtpService } from 'src/otp/otp.service';
 import { CompanyStatus, CompanyType, UserStatus } from '@prisma/client';
 import { ActivitiesService } from 'src/activities/activities.service';
+import { AuditService } from 'src/admin/audit/audit.service';
 @Injectable()
 export class AuthService {
   constructor(
@@ -22,6 +23,7 @@ export class AuthService {
     private emailService: EmailService,
     private otpService: OtpService,
     private activitiesService: ActivitiesService,
+    private auditService: AuditService,
   ) { }
 
   async validateUser(email: string, password: string) {
@@ -33,7 +35,16 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) {
+      await this.auditService.log({
+        actorEmail: email,
+        module: 'Auth',
+        action: 'Failed login attempt',
+        entity: 'User not found',
+        status: 'Failed',
+      });
+      throw new NotFoundException('User not found');
+    }
 
     if (!user.password) {
       throw new UnauthorizedException(
@@ -42,7 +53,17 @@ export class AuthService {
     }
 
     const passwordValid = await bcrypt.compare(password, user.password);
-    if (!passwordValid) throw new NotFoundException('Invalid credentials');
+    if (!passwordValid) {
+      await this.auditService.log({
+        userId: user.id,
+        actorEmail: email,
+        module: 'Auth',
+        action: 'Failed login attempt',
+        entity: 'Invalid password',
+        status: 'Failed',
+      });
+      throw new NotFoundException('Invalid credentials');
+    }
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account awaiting approval');
@@ -88,6 +109,17 @@ export class AuthService {
       title: 'User logged in',
       description: `${user.email} logged in.`,
       type: 'auth',
+    });
+
+    await this.auditService.log({
+      userId: user.id,
+      actorName: user.email,
+      actorEmail: user.email,
+      actorRole: user.role,
+      module: 'Auth',
+      action: 'Login',
+      entity: 'Platform',
+      status: 'Success',
     });
 
     return {
