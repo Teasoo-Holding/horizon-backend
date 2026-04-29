@@ -212,6 +212,25 @@ export class TargetController {
     return this.targetService.getLatestTargetPair(req.user.companyId);
   }
 
+  @Get('with-progress')
+  @Roles(...ALL_ROLES)
+  @ApiOperation({
+    summary: 'Get every target with computed progress',
+    description:
+      'Returns every target for the company with baseline / current / target emission values computed from the latest approved assessments. Read-only — no DB writes. Used by the KPI dashboard to benchmark every target the company has set.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'All targets with computed emissions',
+    type: [TargetResponseDto],
+  })
+  async getTargetsWithProgress(@Req() req: RequestWithUser) {
+    if (!req.user?.companyId) {
+      throw new BadRequestException('User company ID is missing');
+    }
+    return this.targetService.getCompanyTargetsWithProgress(req.user.companyId);
+  }
+
   @Get(':id')
   @Roles(...ALL_ROLES)
   @ApiOperation({
