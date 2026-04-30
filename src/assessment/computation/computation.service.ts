@@ -407,7 +407,9 @@ export class Scope1ComputationService {
 
   async FugitiveEmission(dto: FugitiveEmissionCalculationDto) {
     // GHG Guide: Volume * Methane Density (0.656) * GWP (28) = kgCO2e. Then divide by 1000 for tonnes.
-    const venting = ((dto.volume || 0) * this.EF_VENTING * 28) / 1000;
+    // ventingFactor (kgCO2/m³) is overridable by the form; defaults to EF_VENTING.
+    const ventingFactor = (dto as any).ventingFactor ?? this.EF_VENTING;
+    const venting = ((dto.volume || 0) * ventingFactor * 28) / 1000;
     const hfc = (dto as any).hfcMass
       ? ((dto as any).hfcMass * ((dto as any).hfcGwp || this.EF_HFC)) / 1000
       : 0;
