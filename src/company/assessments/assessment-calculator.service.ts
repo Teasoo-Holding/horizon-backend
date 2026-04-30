@@ -970,17 +970,27 @@ export class AssessmentCalculatorService {
   }
 
   private mapFugitiveEmissions(group: any) {
-    // Optional override: form may save a custom emissionFactor (kgCO2/m³).
-    // When absent/empty, computation falls back to its hardcoded default.
+    // Optional overrides: form may save a custom emissionFactor (kgCO2/m³)
+    // for venting and a custom hfcGwp (kgCO2e/kg) derived from refrigerant
+    // selection or user edit. When absent/empty, computation falls back
+    // to its hardcoded defaults (EF_VENTING / EF_HFC).
     const ventingFactorRaw = group.ventingNaturalGas?.emissionFactor;
     const ventingFactor =
       ventingFactorRaw != null && ventingFactorRaw !== '' && !isNaN(Number(ventingFactorRaw))
         ? Number(ventingFactorRaw)
         : undefined;
+
+    const hfcGwpRaw = group.hfcLeaks?.hfcGwp;
+    const hfcGwp =
+      hfcGwpRaw != null && hfcGwpRaw !== '' && !isNaN(Number(hfcGwpRaw))
+        ? Number(hfcGwpRaw)
+        : undefined;
+
     return {
       volume: Number(group.ventingNaturalGas?.volumeOfGasVented || 0),
       ventingFactor,
       hfcMass: Number(group.hfcLeaks?.refrigerantAdded || group.hfcLeaks?.refrigerant_mass || 0),
+      hfcGwp,
     };
   }
 
