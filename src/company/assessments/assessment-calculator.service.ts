@@ -970,9 +970,27 @@ export class AssessmentCalculatorService {
   }
 
   private mapFugitiveEmissions(group: any) {
+    // Optional overrides: form may save a custom emissionFactor (kgCO2/m³)
+    // for venting and a custom hfcGwp (kgCO2e/kg) derived from refrigerant
+    // selection or user edit. When absent/empty, computation falls back
+    // to its hardcoded defaults (EF_VENTING / EF_HFC).
+    const ventingFactorRaw = group.ventingNaturalGas?.emissionFactor;
+    const ventingFactor =
+      ventingFactorRaw != null && ventingFactorRaw !== '' && !isNaN(Number(ventingFactorRaw))
+        ? Number(ventingFactorRaw)
+        : undefined;
+
+    const hfcGwpRaw = group.hfcLeaks?.hfcGwp;
+    const hfcGwp =
+      hfcGwpRaw != null && hfcGwpRaw !== '' && !isNaN(Number(hfcGwpRaw))
+        ? Number(hfcGwpRaw)
+        : undefined;
+
     return {
       volume: Number(group.ventingNaturalGas?.volumeOfGasVented || 0),
+      ventingFactor,
       hfcMass: Number(group.hfcLeaks?.refrigerantAdded || group.hfcLeaks?.refrigerant_mass || 0),
+      hfcGwp,
     };
   }
 
@@ -1003,15 +1021,20 @@ export class AssessmentCalculatorService {
   }
 
   private mapScope2Market(group: any) {
+    // Safety fallback for old data where the factor field could be "", null, or undefined.
+    // New data saves the resolved factor (default or user-edited) directly, so this only
+    // applies to records saved before the editable-factor refactor.
+    const factor = (v: any, fb: number) =>
+      v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : fb;
     return {
       ipp_electricity_consumed: Number(group.ipps?.electricityConsumed || 0),
-      ipp_emission_factor: Number(group.ipps?.emissionFactor || 0),
+      ipp_emission_factor: factor(group.ipps?.emissionFactor, 0.45),
       eac_electricity_consumed: Number(group.eac?.gridElectricity || 0),
-      eac_emission_factor: Number(group.eac?.emissionFactor || 0),
+      eac_emission_factor: factor(group.eac?.emissionFactor, 0.45),
       residual_electricity_consumed: Number(group.residual?.electricityConsumed || 0),
-      residual_emission_factor: Number(group.residual?.residualMixFactor || 0),
+      residual_emission_factor: factor(group.residual?.residualMixFactor, 0.45),
       coolingsteam_energy_consumed: Number(group.coolingSteam?.energyConsumed || 0),
-      coolingsteam_emission_factor: Number(group.coolingSteam?.emissionFactor || 0),
+      coolingsteam_emission_factor: factor(group.coolingSteam?.emissionFactor, 0.45),
     };
   }
 
