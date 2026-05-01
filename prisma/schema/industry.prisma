@@ -4,6 +4,7 @@ model Sector {
   description String?
   sasbCode    String?    @map("sasb_code")
   industries  Industry[]
+  pillars     AssessmentPillar[]
   created_at  DateTime   @default(now())
   updated_at  DateTime   @updatedAt
 
@@ -18,6 +19,8 @@ model Industry {
   code         String?      @map("code")
   subsidiaries Subsidiary[]
   companies    Company[]
+  pillars      AssessmentPillar[]
+  topics       AssessmentDisclosureTopic[]
   sector       Sector       @relation(fields: [sectorId], references: [id])
   created_at   DateTime     @default(now())
   updated_at   DateTime     @updatedAt

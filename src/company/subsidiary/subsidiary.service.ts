@@ -64,56 +64,71 @@ export class SubsidiaryService {
           where: { id: createSubsidiaryDto.leadId },
         });
 
-        if (!teamLead) {
-          throw new NotFoundException(
-            `User with id ${createSubsidiaryDto.leadId} not found`,
-          );
-        }
+        // If user not found OR belongs to another company (ID collision), check invitation table
+        if (!teamLead || teamLead.companyId !== user.companyId) {
+          const invitation = await this.prisma.invitation.findUnique({
+            where: { id: createSubsidiaryDto.leadId },
+          });
 
-        if (teamLead.companyId !== user.companyId) {
-          throw new ForbiddenException(
-            'You can only assign team leads from your own company',
-          );
+          if (invitation && invitation.companyId === user.companyId) {
+            // Found a valid invitation, resolve by email
+            createSubsidiaryDto.teamLead_email = invitation.email;
+          } else if (teamLead) {
+            // It was a user from another company and no valid invitation found
+            throw new ForbiddenException(
+              'You can only assign team leads from your own company',
+            );
+          } else {
+            throw new NotFoundException(
+              `User or invitation with id ${createSubsidiaryDto.leadId} not found`,
+            );
+          }
         }
       }
-      // CASE 2: teamLead_email was provided
-      else if (createSubsidiaryDto.teamLead_email) {
+
+      // CASE 2: teamLead_email was provided (or resolved from invitation above)
+      if (createSubsidiaryDto.teamLead_email) {
+        const leadEmail = createSubsidiaryDto.teamLead_email.toLowerCase();
         teamLead = await this.prisma.user.findUnique({
-          where: { email: createSubsidiaryDto.teamLead_email },
+          where: { email: leadEmail },
         });
 
         if (!teamLead) {
           teamLead = await this.prisma.user.create({
             data: {
-              email: createSubsidiaryDto.teamLead_email,
+              email: leadEmail,
               first_name: createSubsidiaryDto?.teamLead_name ?? '',
               companyId: user.companyId,
               password: '',
               roleId: await resolveRoleId(this.prisma, DEFAULT_TEAM_LEAD_ROLE),
+              status: 'pending',
             },
           });
 
           await this.emailService.sendEmail(
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             teamLead.email,
             {
-              first_name: createSubsidiaryDto?.teamLead_name ?? '',
+              firstname: createSubsidiaryDto?.teamLead_name || leadEmail,
               link: this.configService.get('FRONTEND_URL') + '/register',
               admin_name: user.first_name,
               esg_name: company?.name,
             },
             6,
           );
-        }
-
-        if (teamLead.companyId !== user.companyId) {
+        } else if (teamLead.companyId !== user.companyId) {
           throw new ForbiddenException(
             'You can only create subsidiaries with your own team lead',
           );
         }
+
+        // Gracious handling: Cancel any pending invitations for this email
+        await this.prisma.invitation.updateMany({
+          where: { email: leadEmail, status: 'pending' },
+          data: { status: 'cancelled' },
+        });
       }
       // CASE 3: No teamLead provided → use current user as teamLead
-      else {
+      else if (!teamLead) {
         teamLead = user;
       }
 
@@ -338,84 +353,69 @@ export class SubsidiaryService {
         };
       }
 
-      if (leadId) {
-        data.teamLead = {
-          connect: { id: leadId },
-        };
+      if (leadId || teamLead_email || teamLead_name) {
+        let finalLeadId = leadId;
+        const leadEmail = teamLead_email?.toLowerCase();
+
+        // If leadId is provided, validate it (handle collisions/invitations)
+        if (finalLeadId) {
+          const teamLead = await this.prisma.user.findUnique({
+            where: { id: finalLeadId },
+          });
+
+          if (!teamLead || teamLead.companyId !== user.companyId) {
+            const invitation = await this.prisma.invitation.findUnique({
+              where: { id: finalLeadId },
+            });
+
+            if (invitation && invitation.companyId === user.companyId) {
+              // It's an invitation ID, we need to resolve it by email
+              const resolvedUser = await this.resolveLeadByEmail(
+                user.companyId as number,
+                invitation.email,
+                teamLead_name,
+                user,
+                id, // subsidiaryId
+              );
+              finalLeadId = resolvedUser.id;
+            } else if (teamLead) {
+              throw new ForbiddenException(
+                'You can only assign team leads from your own company',
+              );
+            } else {
+              throw new NotFoundException(
+                `User or invitation with id ${finalLeadId} not found`,
+              );
+            }
+          }
+        } else if (leadEmail) {
+          const resolvedUser = await this.resolveLeadByEmail(
+            user.companyId as number,
+            leadEmail,
+            teamLead_name,
+            user,
+            id, // subsidiaryId
+          );
+          finalLeadId = resolvedUser.id;
+        }
+
+        if (finalLeadId) {
+          data.teamLead = { connect: { id: finalLeadId } };
+
+          // Ensure any pending invitations for the resolved lead are cancelled
+          const leadUser = await this.prisma.user.findUnique({
+            where: { id: finalLeadId },
+            select: { email: true },
+          });
+          if (leadUser) {
+            await this.prisma.invitation.updateMany({
+              where: { email: leadUser.email, status: 'pending' },
+              data: { status: 'cancelled' },
+            });
+          }
+        }
       }
 
-      if (
-        updateSubsidiaryDto.teamLead_email ||
-        updateSubsidiaryDto.teamLead_name
-      ) {
-        const leadEmail = updateSubsidiaryDto.teamLead_email?.toLowerCase();
-
-        if (!leadEmail) {
-          throw new BadRequestException(
-            'Team lead email is required to create a new team lead.',
-          );
-        }
-
-        // 1. Check if user already exists
-        const existingUser = await this.prisma.user.findUnique({
-          where: { email: leadEmail },
-        });
-
-        if (existingUser) {
-          throw new BadRequestException(
-            'A user with this email already exists. Please select them from the lead dropdown instead.',
-          );
-        }
-
-        // 2. Check for existing pending invitation
-        const pendingInvitation = await this.prisma.invitation.findFirst({
-          where: { email: leadEmail, status: 'pending' },
-        });
-
-        if (pendingInvitation) {
-          throw new BadRequestException(
-            'A pending invitation already exists for this email.',
-          );
-        }
-
-        const fullName = updateSubsidiaryDto.teamLead_name || '';
-        const nameParts = fullName.trim().split(/\s+/);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        const newTeamLead = await this.prisma.user.create({
-          data: {
-            email: leadEmail,
-            first_name: firstName,
-            last_name: lastName,
-            companyId: user.companyId,
-            subsidiaryId: id, // Associate with the subsidiary
-            password: '',
-            roleId: 2,
-            status: 'pending',
-          },
-        });
-
-        const company = await this.prisma.company.findUnique({
-          where: { id: user.companyId ?? 0 },
-          select: { name: true },
-        });
-
-        await this.emailService.sendEmail(
-          newTeamLead.email,
-          {
-            firstname: firstName || leadEmail, // Key must be 'firstname' for the template
-            link: this.configService.get('FRONTEND_URL') + '/register',
-            admin_name: `${user.first_name} ${user.last_name || ''}`.trim(),
-            esg_name: company?.name || 'the company',
-          },
-          6,
-        );
-
-        data.teamLead = {
-          connect: { id: newTeamLead.id },
-        };
-      }
 
       await this.activitiesService.logActivity({
         companyId: user?.companyId ?? existingSubsidiary.parentCompany.id,
@@ -470,5 +470,75 @@ export class SubsidiaryService {
     return this.prisma.subsidiary.delete({
       where: { id },
     });
+  }
+
+  private async resolveLeadByEmail(
+    companyId: number,
+    email: string,
+    name?: string,
+    creator?: any,
+    subsidiaryId?: number,
+  ) {
+    const emailLower = email.toLowerCase();
+    let user = await this.prisma.user.findUnique({
+      where: { email: emailLower },
+    });
+
+    if (user) {
+      if (user.companyId && user.companyId !== companyId) {
+        throw new ForbiddenException(
+          'User already belongs to a different company',
+        );
+      }
+      // Update companyId if not set
+      if (!user.companyId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { companyId },
+        });
+      }
+    } else {
+      const fullName = name || '';
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      user = await this.prisma.user.create({
+        data: {
+          email: emailLower,
+          first_name: firstName,
+          last_name: lastName,
+          companyId: companyId,
+          subsidiaryId: subsidiaryId,
+          password: '',
+          roleId: await resolveRoleId(this.prisma, DEFAULT_TEAM_LEAD_ROLE),
+          status: 'pending',
+        },
+      });
+
+      const company = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      });
+
+      await this.emailService.sendEmail(
+        user.email,
+        {
+          firstname: firstName || emailLower,
+          link: this.configService.get('FRONTEND_URL') + '/register',
+          admin_name: creator ? `${creator.first_name} ${creator.last_name || ''}`.trim() : 'Admin',
+          esg_name: company?.name || 'the company',
+        },
+        6,
+      );
+    }
+
+    // Cancel any pending invitations for this email
+    await this.prisma.invitation.updateMany({
+      where: { email: emailLower, status: 'pending' },
+      data: { status: 'cancelled' },
+    });
+
+    return user;
   }
 }

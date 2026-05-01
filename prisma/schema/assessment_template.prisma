@@ -1,0 +1,113 @@
+model AssessmentPillar {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique // e.g., Environmental, Social Capital, Etc..
+  description String?
+  order       Int               @default(0)
+  
+  // If not tied, this means they are globally accessible.
+  sectors     Sector[]
+  industries  Industry[]
+  
+  topics      AssessmentDisclosureTopic[]
+  
+  @@map("assessment_pillars")
+}
+
+model AssessmentDisclosureTopic {
+  id          Int               @id @default(autoincrement())
+  pillarId    Int               @map("pillar_id")
+  industryId  Int               @map("industry_id")
+  name        String            // e.g., Greenhouse Gas Emissions
+  description String?
+  code        String?           // e.g., EM-EP-110a
+  order       Int               @default(0)
+  
+  pillar      AssessmentPillar  @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  industry    Industry          @relation(fields: [industryId], references: [id])
+  subTopics   AssessmentSubTopic[]
+
+  @@map("assessment_disclosure_topics")
+}
+
+model AssessmentSubTopic {
+  id          Int               @id @default(autoincrement())
+  topicId     Int               @map("topic_id")
+  name        String
+  description String?
+  order       Int               @default(0)
+  
+  topic       AssessmentDisclosureTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  metrics     AssessmentMetric[]
+
+  @@map("assessment_sub_topics")
+}
+
+model AssessmentMetric {
+  id               Int              @id @default(autoincrement())
+  subTopicId       Int              @map("sub_topic_id")
+  name             String           // e.g., Scope 1, 2, and 3
+  description      String?
+  code             String?          
+  order            Int              @default(0)
+  
+  subTopic         AssessmentSubTopic @relation(fields: [subTopicId], references: [id], onDelete: Cascade)
+  subMetrics       AssessmentSubMetric[]
+
+  @@map("assessment_metrics")
+}
+
+model AssessmentSubMetric {
+  id               Int              @id @default(autoincrement())
+  metricId         Int              @map("metric_id")
+  name             String           // e.g., Gross global Scope 1 emissions
+  description      String?
+  code             String?          // e.g., EM-EP-110a.1
+  order            Int              @default(0)
+  
+  metric           AssessmentMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  details          AssessmentMetricDetail[]
+
+  @@map("assessment_sub_metrics")
+}
+
+model AssessmentMetricDetail {
+  id               Int              @id @default(autoincrement())
+  subMetricId      Int              @map("sub_metric_id")
+  
+  inputType        MetricInputType  @default(numeric)
+  label            String?
+  placeholder      String?
+  unitOptions      Json?            // e.g., ["MT CO2e", "GJ"]
+  defaultValue     String?
+  isOptional       Boolean          @default(false)
+  
+  subMetric        AssessmentSubMetric @relation(fields: [subMetricId], references: [id], onDelete: Cascade)
+  options          AssessmentMetricOption[]
+
+  @@map("assessment_metric_details")
+}
+
+model AssessmentMetricOption {
+  id               Int                    @id @default(autoincrement())
+  detailId         Int                    @map("detail_id")
+  label            String
+  value            String
+  order            Int                    @default(0)
+  
+  detail           AssessmentMetricDetail @relation(fields: [detailId], references: [id], onDelete: Cascade)
+
+  @@map("assessment_metric_options")
+}
+
+enum MetricInputType {
+  numeric
+  text
+  boolean
+  percentage
+  currency
+  dropdown
+  multi_select // Checkboxes
+  single_select // Radio buttons
+  unit_numeric // Combined unit dropdown + numeric input
+  date
+}

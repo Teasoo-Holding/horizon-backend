@@ -12,7 +12,7 @@ export class ScoringService {
   }
 
   public calculateESGScore(assessmentData: any, totals: any) {
-    const am = assessmentData?.activityMetrics || {};
+    const am = assessmentData?.foundationalData?.activityMetrics || assessmentData?.activityMetrics || {};
     const prod = am.productionVolume || am.productionData || {};
     const asset = am.assetPortfolio || {};
 
@@ -22,10 +22,19 @@ export class ScoringService {
     const oilProdAnnual = rawOilKbpd * 1000 * 365;
     const gasBoeDaily = (rawGasMmscfd * 1000000) / 6000;
     const gasProdAnnual = gasBoeDaily * 365;
-    const totalProdBoe = (oilProdAnnual + gasProdAnnual) || 1; 
+    const totalProdBoe = (oilProdAnnual + gasProdAnnual) || 1;
+
+    const env = assessmentData?.environment || {};
+    const bio = env.biodiversityImpact?.environmentalManagement || {};
+    const bioRes = bio.reservesInSensitiveAreas?.calculated || bio.reservesInSensitiveAreas || {};
+
+    const totalProvedReserves = Number(bioRes.totalProvedReserves?.volume || bioRes.totalProvedReservesVolume || 0) || 
+                                Number(assessmentData?.businessInnovation?.reservesValuationAndCapitalExpenditures?.embeddedCarbonInReserves?.totalProvedReserves) || 1;
+    const totalProbableReserves = Number(bioRes.totalProbableReserves?.volume || bioRes.totalProbableReservesVolume || 0);
+    const total2PReserves = totalProvedReserves + totalProbableReserves;
 
     const hum = assessmentData?.humanCapital || {};
-    const humSafety = hum.riskAndOpportunityManagement?.healthAndSafetyPerformance || {};
+    const humSafety = (hum.riskAndOpportunityManagement || hum.workforceHealthAndSafety)?.healthAndSafetyPerformance || {};
     const totalHoursWorked = (Number(humSafety.direct?.totalHoursWorked) || 0) + (Number(humSafety.contract?.totalHoursWorked) || 0) || 1;
 
     const soc = assessmentData?.socialCapital || {};
@@ -34,12 +43,12 @@ export class ScoringService {
 
     const bus = assessmentData?.businessInnovation || {};
     const busRes = bus.reservesValuationAndCapitalExpenditures || {};
-    const totalProvedReserves = Number(busRes.embeddedCarbonInReserves?.totalProvedReserves) || 1;
 
-    const offAsset = asset.offshoreSites || {};
-    const onAsset = asset.terrestrialSites || {};
-    const totalOffshoreAssets = Number(offAsset.totalNumber) || 1;
-    const totalOnshoreAssets = Number(onAsset.totalNumber) || 1;
+    const offAsset = asset.offshoreSites || am.offshoreSites || {};
+    const onAsset = asset.terrestrialSites || am.terrestrialSites || {};
+    const totalOffshoreAssets = Number(offAsset.totalNumber) || 0;
+    const totalOnshoreAssets = Number(onAsset.totalNumber) || 0;
+    const totalAssets = (totalOffshoreAssets + totalOnshoreAssets) || 1;
 
     // --- Environmental indicators ---
     const envScores: number[] = [];
@@ -51,7 +60,6 @@ export class ScoringService {
     envScores.push(ghgScore);
     envIndicators.push({ label: 'GHG Intensity', score: ghgScore });
 
-    const env = assessmentData?.environment || {};
     const flaredVol = Number(env.ghg?.scope1?.processEmissions?.gasFlaring?.volumeOfFlaredGas || env.ghg?.gasFlaringVolume || 0);
     const flareIntensity = flaredVol / totalProdBoe;
     const flareScore = this.interpolate(flareIntensity, 0.5, 5.0);
@@ -86,17 +94,16 @@ export class ScoringService {
 
     const flowStations = Number(onAsset.flowStations) || 1;
     const waterPerStation = waterWithdrawn / flowStations;
-    const waterStationScore = this.interpolate(waterPerStation, 0, 150000); // Approximate default
+    const waterStationScore = this.interpolate(waterPerStation, 0, 150000); 
     envScores.push(waterStationScore);
     envIndicators.push({ label: 'Water Withdrawal per Flow Station', score: waterStationScore });
 
     const waterConsumed = Number(waterCalc.withdrawals?.totalConsumed?.volume) || 0;
     const waterConsIntensity = waterConsumed / totalProdBoe;
-    const waterConsScore = this.interpolate(waterConsIntensity, 0, 0.05); // Approximate default
+    const waterConsScore = this.interpolate(waterConsIntensity, 0, 0.05); 
     envScores.push(waterConsScore);
     envIndicators.push({ label: 'Water Consumption Intensity', score: waterConsScore });
 
-    const bio = env.biodiversityImpact?.environmentalManagement || {};
     const spill = bio.hydrocarbonSpills?.calculated || bio.hydrocarbonSpills || {};
     const spillVol = Number(spill.totalVolumeSpilled?.volume || spill.totalVolumeSpilled) || 0;
     const spillsBblPerMMBOE = (spillVol / totalProdBoe) * 1000000;
@@ -105,7 +112,6 @@ export class ScoringService {
     envIndicators.push({ label: 'Hydrocarbon Spills', score: spillScore });
 
     const numberOfSpills = Number(spill.numberOfSpills) || 0;
-    const totalAssets = totalOffshoreAssets + totalOnshoreAssets;
     const spillFreq = numberOfSpills / totalAssets;
     const spillFreqScore = this.interpolate(spillFreq, 0, 1.0);
     envScores.push(spillFreqScore);
@@ -122,17 +128,19 @@ export class ScoringService {
     const socIndicators: { label: string; score: number }[] = [];
 
     const sec = soc.securityRights || soc.securityHumanRights || {};
-    const conflictRes = Number((sec.reservesAreaConflict || sec.operationsInConflictZones)?.totalProvedReservesVolume) || 0;
-    const conflictRatio = conflictRes / totalProvedReserves;
-    const conflictScore = this.interpolate(conflictRatio, 0.0, 0.25);
+    const conflictData = sec.reservesAreaConflict || sec.operationsInConflictZones || {};
+    const conflict2P = (Number(conflictData.provedReservesInConflictVolume) || 0) + (Number(conflictData.probableReservesInConflictVolume) || 0);
+    const conflictRatio = (conflict2P / total2PReserves) * 100;
+    const conflictScore = this.interpolate(conflictRatio, 0.0, 25.0);
     socScores.push(conflictScore);
-    socIndicators.push({ label: 'Operations in Conflict Zones', score: conflictScore });
+    socIndicators.push({ label: 'Conflict Exposure (2P)', score: conflictScore });
 
-    const indigRes = Number((sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand)?.totalProvedReservesVolume) || 0;
-    const indigRatio = indigRes / totalProvedReserves;
-    const indigScore = this.interpolate(indigRatio, 0.0, 0.25);
+    const indigData = sec.reservesIndigenousLand || sec.reservesInNearIndigenousLand || {};
+    const indig2P = (Number(indigData.provedIndigenousVolume) || 0) + (Number(indigData.probableIndigenousVolume) || 0);
+    const indigRatio = (indig2P / total2PReserves) * 100;
+    const indigScore = this.interpolate(indigRatio, 0.0, 25.0);
     socScores.push(indigScore);
-    socIndicators.push({ label: 'Indigenous Land Reserves', score: indigScore });
+    socIndicators.push({ label: 'Indigenous Exposure (2P)', score: indigScore });
 
     const hcdtAmount = Number(com.hcdtContribution?.hcdtAmount) || 0;
     const hcdtRatio = hcdtAmount / priorYearOpex;
@@ -160,7 +168,7 @@ export class ScoringService {
     socIndicators.push({ label: 'Near Miss Frequency Rate (NMFR)', score: nmfrScore });
 
     const totalDisruptionEvents = (Number(com.operationalDelays?.numberOfDelaysCommunityProtests) || 0) + 
-                                  (Number(com.operationalDelays?.numberOfDelaysOtherStakeholder) || 0);
+                                   (Number(com.operationalDelays?.numberOfDelaysOtherStakeholder) || 0);
     const disruptionFreq = totalDisruptionEvents / totalAssets;
     const disruptionScore = this.interpolate(disruptionFreq, 0, 1.0);
     socScores.push(disruptionScore);
@@ -180,18 +188,18 @@ export class ScoringService {
     govIndicators.push({ label: 'Process Safety Event Rate', score: pserScore });
 
     const capexStr = Number(busRes.capitalExpenditureStrategy?.transitionCapexPercentage) || 0;
-    const capexScore = this.interpolate(capexStr, 0.50, 0.10);
+    const capexScore = this.interpolate(capexStr, 50.0, 10.0);
     govScores.push(capexScore);
     govIndicators.push({ label: 'Transition CapEx Strategy', score: capexScore });
 
     const climateRiskRes = Number(busRes.reservesSensitivityToCarbonPricing?.estimatedDecrease) || Number(busRes.reservesSensitivityToCarbonPricing?.percentageDecrease) || 0;
-    const climateRiskRatio = climateRiskRes > 100 ? climateRiskRes / totalProvedReserves : climateRiskRes / 100;
-    const climateScore = this.interpolate(climateRiskRatio, 0.0, 0.25);
+    const climateRiskRatio = climateRiskRes > 100 ? (climateRiskRes / total2PReserves) * 100 : climateRiskRes;
+    const climateScore = this.interpolate(climateRiskRatio, 0.0, 25.0);
     govScores.push(climateScore);
     govIndicators.push({ label: 'Climate Risk on Reserves', score: climateScore });
 
     const embeddedCarbon = Number(busRes.embeddedCarbonInReserves?.estimatedEmbeddedEmissions) || 0;
-    const embeddedIntensity = embeddedCarbon / totalProvedReserves;
+    const embeddedIntensity = embeddedCarbon / total2PReserves;
     const embeddedScore = this.interpolate(embeddedIntensity, 0.25, 0.50);
     govScores.push(embeddedScore);
     govIndicators.push({ label: 'Embedded Carbon Intensity', score: embeddedScore });
@@ -243,8 +251,11 @@ export class ScoringService {
     // Attach per-indicator breakdowns to each pillar
     result.pillars.environmental.indicators = envIndicators;
     result.pillars.socialCapital.indicators = [
-      ...socIndicators.slice(0, 4), // Conflict, Indigenous, HCDT, Dispute
-      socIndicators[6] // Disruption Event Frequency
+      socIndicators[0], // Conflict Exposure (2P)
+      socIndicators[1], // Indigenous Exposure (2P)
+      socIndicators[2], // HCDT
+      socIndicators[3], // Dispute
+      socIndicators[6]  // Disruption Event Frequency
     ];
     result.pillars.humanCapital.indicators = [
       socIndicators[4], // TRIR
