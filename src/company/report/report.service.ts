@@ -333,6 +333,8 @@ export class ReportService {
 
 
   async getReport(id: number, companyId: number) {
+    // Step 1: fetch the current record — every other query depends on its
+    // createdAt as the cursor, so this can't run in parallel with them.
     const record = await this.prisma.assessment.findUnique({
       where: { id, companyId },
     });
@@ -341,14 +343,62 @@ export class ReportService {
       throw new NotFoundException(`Assessment with ID ${id} not found.`);
     }
 
-    // Fetch previous assessment for change percentage calculations
-    const previousRecord = await this.prisma.assessment.findFirst({
-      where: {
-        companyId,
-        createdAt: { lt: record.createdAt },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Step 2: previous record + trend + targets + assessmentsForCompute are
+    // all independent given record.createdAt — fan them out.
+    const [previousRecord, trendData, targets, assessmentsForCompute] = await Promise.all([
+      // Previous assessment for change-percentage calculations
+      this.prisma.assessment.findFirst({
+        where: { companyId, createdAt: { lt: record.createdAt } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // Trend (only assessments up to and including the current one)
+      this.prisma.assessment.findMany({
+        where: { companyId, createdAt: { lte: record.createdAt } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          startMonth: true,
+          startYear: true,
+          endMonth: true,
+          endYear: true,
+          report: {
+            select: {
+              ghg_scope_one: true,
+              ghg_scope_two: true,
+              ghg_scope_three: true,
+              ghg_total_emissions: true,
+            },
+          },
+        },
+      }),
+      this.prisma.target.findMany({
+        where: { companyId },
+        include: { scopeTargets: true, generalTarget: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // Lean shape for computeTargetEmissions baseline lookups — one query
+      // feeds every target, no per-target roundtrips.
+      this.prisma.assessment.findMany({
+        where: {
+          companyId,
+          status: { in: ['approved', 'submitted_approved'] as any },
+          startYear: { not: '' },
+          endYear: { not: '' },
+          startMonth: { not: '' },
+          endMonth: { not: '' },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          startYear: true,
+          assessmentData: true,
+          approvedAt: true,
+          submittedAt: true,
+          updatedAt: true,
+          createdAt: true,
+        },
+      }) as Promise<AssessmentForCompute[]>,
+    ]);
 
     let currentData: any = {};
     try {
@@ -389,27 +439,6 @@ export class ReportService {
     // Helper for safe number access
     const getNum = (val: any) => (val && !isNaN(Number(val)) ? Number(val) : 0);
 
-    // Fetch trend data (only assessments up to and including the current one)
-    const trendData = await this.prisma.assessment.findMany({
-      where: { companyId, createdAt: { lte: record.createdAt } },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: {
-        startMonth: true,
-        startYear: true,
-        endMonth: true,
-        endYear: true,
-        report: {
-          select: {
-            ghg_scope_one: true,
-            ghg_scope_two: true,
-            ghg_scope_three: true,
-            ghg_total_emissions: true,
-          },
-        },
-      },
-    });
-
     const formatHistory = (data: any[], key: string) => {
       return data
         .filter(t => t.report != null)
@@ -418,37 +447,6 @@ export class ReportService {
           period: `${t.startMonth} ${t.startYear} - ${t.endMonth} ${t.endYear}`
         })).reverse();
     };
-
-    const targets = await this.prisma.target.findMany({
-      where: { companyId },
-      include: { scopeTargets: true, generalTarget: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    // Pull every approved assessment for this company in the lean shape used
-    // by `computeTargetEmissions`. One query feeds every target's baseline
-    // lookup; no per-target roundtrips and no DB writes during a GET.
-    const assessmentsForCompute: AssessmentForCompute[] =
-      await this.prisma.assessment.findMany({
-        where: {
-          companyId,
-          status: { in: ['approved', 'submitted_approved'] as any },
-          startYear: { not: '' },
-          endYear: { not: '' },
-          startMonth: { not: '' },
-          endMonth: { not: '' },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          startYear: true,
-          assessmentData: true,
-          approvedAt: true,
-          submittedAt: true,
-          updatedAt: true,
-          createdAt: true,
-        },
-      });
 
     // Report semantics: "current" should reflect the snapshot of the report's
     // own assessment, not whatever assessment happens to be latest right now.
