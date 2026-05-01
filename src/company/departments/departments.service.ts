@@ -85,12 +85,25 @@ export class DepartmentsService {
       subsidiaryId = subsidiary?.id ?? null;
     }
 
+    let finalContactEmail = dto.contact_email;
+    if (!finalContactEmail) {
+      if (leadId) {
+        const leadUser = await this.prisma.user.findUnique({
+          where: { id: leadId },
+          select: { email: true },
+        });
+        finalContactEmail = leadUser?.email || creatorEmail;
+      } else {
+        finalContactEmail = creatorEmail;
+      }
+    }
+
     const department = await this.prisma.department.create({
       data: {
         companyId,
         name: dto.name,
         description: dto.description,
-        contact_email: dto.contact_email || creatorEmail,
+        contact_email: finalContactEmail,
         leadId: leadId ?? creatorId,
         subsidiaryId: subsidiaryId,
       },
