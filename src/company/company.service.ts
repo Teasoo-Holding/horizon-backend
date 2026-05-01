@@ -124,34 +124,52 @@ export class CompanyService {
 
   async getDashboard(companyId: number) {
     try {
-      const latestAssessment = await this.prisma.assessment.findFirst({
-        where: { companyId },
-        orderBy: { updatedAt: 'desc' },
-      });
-
-      // Latest approved/submitted_approved assessment — used for ESG scoring
-      const latestApprovedAssessment = await this.prisma.assessment.findFirst({
-        where: {
-          companyId,
-          status: { in: [AssessmentStatus.approved, AssessmentStatus.submitted_approved] },
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-
-      const latestReport = await this.prisma.report.findFirst({
-        where: {
-          assessment: {
+      // All three queries are independent — fetch in parallel.
+      // Note: total emissions, emission trend, and target progress are NOT
+      // included here. The frontend already consumes them via /report/:id
+      // and /target/with-progress respectively. Including them here was
+      // dead weight (and the previous target block returned hardcoded
+      // 1500/2050 placeholder values regardless of the active target).
+      const [latestAssessment, latestApprovedAssessment, activities] = await Promise.all([
+        // For hub progress: only need id, status, and submittedGroups inside
+        // assessmentData. Prisma can't slice JSON columns, so the full JSON
+        // does come down — keep the row light by skipping relations.
+        this.prisma.assessment.findFirst({
+          where: { companyId },
+          orderBy: { updatedAt: 'desc' },
+          select: { id: true, status: true, assessmentData: true },
+        }),
+        // For ESG scoring: prefer the report's stored values; fall back to
+        // recomputing from assessmentData only when missing (rare — should
+        // only happen for legacy approvals predating the score-on-approve
+        // pipeline).
+        this.prisma.assessment.findFirst({
+          where: {
             companyId,
-            status: {
-              in: [
-                AssessmentStatus.approved,
-                AssessmentStatus.submitted_approved,
-              ],
+            status: { in: [AssessmentStatus.approved, AssessmentStatus.submitted_approved] },
+          },
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            assessmentData: true,
+            report: {
+              select: {
+                ghg_total_emissions: true,
+                esgScore: true,
+                esgGrade: true,
+                esgPillars: true,
+              },
             },
           },
-        },
-        orderBy: { id: 'desc' },
-      });
+        }),
+        this.prisma.activities.findMany({
+          where: { companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          include: { createdBy: true },
+        }),
+      ]);
 
       const parseAssessmentData = (raw: any) => {
         if (!raw) return null;
@@ -208,51 +226,6 @@ export class CompanyService {
 
       const hubStats = getHubStats(latestAssessment);
 
-      const trendReports = await this.prisma.report.findMany({
-        where: {
-          assessment: {
-            companyId,
-            status: { in: [AssessmentStatus.approved, AssessmentStatus.submitted_approved] },
-          },
-        },
-        orderBy: { assessment: { createdAt: 'asc' } },
-        take: 10,
-        select: {
-          ghg_total_emissions: true,
-          ghg_scope_one: true,
-          ghg_scope_two: true,
-          ghg_scope_three: true,
-          startMonth: true,
-          startYear: true,
-          endMonth: true,
-          endYear: true,
-        },
-      });
-
-      const pad = (n: number | null): string => (n === null ? '--' : n < 10 ? `0${n}` : `${n}`);
-      const parseMonth = (m?: string | null): number | null => {
-        if (!m) return null;
-        const num = parseInt(m, 10);
-        if (!isNaN(num)) return num;
-        const map: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-        return map[m.toLowerCase().slice(0, 3)] ?? null;
-      };
-
-      const emissionTrend = trendReports.map((r) => ({
-        period: `${pad(parseMonth(r.startMonth))}/${r.startYear?.slice(-2) ?? '--'} - ${pad(parseMonth(r.endMonth))}/${r.endYear?.slice(-2) ?? '--'}`,
-        total: r.ghg_total_emissions,
-        scope1: r.ghg_scope_one,
-        scope2: r.ghg_scope_two,
-        scope3: r.ghg_scope_three,
-      }));
-
-      const activities = await this.prisma.activities.findMany({
-        where: { companyId },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: { createdBy: true },
-      });
-
       const recentActivities = activities.map((a) => ({
         id: a.id,
         title: a.title,
@@ -267,38 +240,40 @@ export class CompanyService {
         },
       }));
 
-      const activeTarget = await this.prisma.target.findFirst({
-        where: { companyId },
-        orderBy: { updatedAt: 'desc' },
-        include: { generalTarget: true, scopeTargets: true },
-      });
-
-      // Compute ESG scores from the latest approved assessment data
+      // ESG scores: prefer stored values on the Report row (cheap, already
+      // computed on approval). Recompute from assessmentData only when the
+      // stored values are missing.
       let esgScore = 0;
       let esgGrade = 'N/A';
       let esgPillars: any = {};
 
-      const approvedData = parseAssessmentData(latestApprovedAssessment?.assessmentData);
-      if (approvedData) {
-        const totals = {
-          ghg_total_emissions: latestReport?.ghg_total_emissions ?? approvedData.totalEmission ?? 0,
-        };
-        const evaluation = this.scoringService.calculateESGScore(approvedData, totals);
-        esgScore = evaluation.overallScore;
-        esgGrade = evaluation.overallGrade;
-        esgPillars = evaluation.pillars || {};
-      } else if (latestReport) {
-        // Fallback to stored report scores
-        esgScore = latestReport.esgScore ?? 0;
-        esgGrade = (latestReport as any).esgGrade ?? 'N/A';
-        esgPillars = (latestReport.esgPillars as any) || {};
+      const storedReport = latestApprovedAssessment?.report;
+      const hasStoredScore =
+        storedReport && (storedReport.esgScore != null || storedReport.esgGrade != null);
+
+      if (hasStoredScore) {
+        esgScore = storedReport.esgScore ?? 0;
+        esgGrade = storedReport.esgGrade ?? 'N/A';
+        esgPillars = (storedReport.esgPillars as any) || {};
+      } else {
+        const approvedData = parseAssessmentData(latestApprovedAssessment?.assessmentData);
+        if (approvedData) {
+          const totals = {
+            ghg_total_emissions:
+              storedReport?.ghg_total_emissions ?? approvedData.totalEmission ?? 0,
+          };
+          const evaluation = this.scoringService.calculateESGScore(approvedData, totals);
+          esgScore = evaluation.overallScore;
+          esgGrade = evaluation.overallGrade;
+          esgPillars = evaluation.pillars || {};
+        }
       }
 
+      // Pillars: each one falls back to 0/N/A on its own. The previous
+      // cross-pillar fallbacks (humanCapital → social, businessModel →
+      // governance, leadership → governance) were legacy from the old
+      // 3-pillar model and silently mis-attributed scores.
       return {
-        totalEmissions: latestReport?.ghg_total_emissions ?? 0,
-        scope1: latestReport?.ghg_scope_one ?? 0,
-        scope2: latestReport?.ghg_scope_two ?? 0,
-        scope3: latestReport?.ghg_scope_three ?? 0,
         esgScore,
         esgGrade,
         overallProgress: {
@@ -308,44 +283,37 @@ export class CompanyService {
         pillars: {
           environmental: {
             score: esgPillars.environmental?.score ?? esgPillars.environment?.score ?? 0,
-            grade: esgPillars.environmental?.grade ?? 'N/A',
-            indicators: esgPillars.environmental?.indicators ?? [],
+            grade: esgPillars.environmental?.grade ?? esgPillars.environment?.grade ?? 'N/A',
+            indicators: esgPillars.environmental?.indicators ?? esgPillars.environment?.indicators ?? [],
           },
           socialCapital: {
-            score: esgPillars.socialCapital?.score ?? esgPillars.social?.score ?? 0,
+            score: esgPillars.socialCapital?.score ?? 0,
             grade: esgPillars.socialCapital?.grade ?? 'N/A',
             indicators: esgPillars.socialCapital?.indicators ?? [],
           },
           humanCapital: {
-            score: esgPillars.humanCapital?.score ?? esgPillars.social?.score ?? 0,
+            score: esgPillars.humanCapital?.score ?? 0,
             grade: esgPillars.humanCapital?.grade ?? 'N/A',
             indicators: esgPillars.humanCapital?.indicators ?? [],
           },
           businessModel: {
-            score: esgPillars.businessModel?.score ?? esgPillars.governance?.score ?? 0,
+            score: esgPillars.businessModel?.score ?? 0,
             grade: esgPillars.businessModel?.grade ?? 'N/A',
             indicators: esgPillars.businessModel?.indicators ?? [],
           },
           leadership: {
-            score: esgPillars.leadership?.score ?? esgPillars.governance?.score ?? 0,
+            score: esgPillars.leadership?.score ?? 0,
             grade: esgPillars.leadership?.grade ?? 'N/A',
             indicators: esgPillars.leadership?.indicators ?? [],
           },
         },
-        emissionTrend,
-        target: latestReport ? {
-          baselineYear: latestReport.startYear ?? '2024',
-          baselineEmission: 1500,
-          currentYear: latestReport.startYear ?? '2024',
-          currentEmission: latestReport.ghg_total_emissions ?? 1500,
-          targetYear: '2050',
-          targetEmission: 0,
-          reductionProgress: 0,
-          name: activeTarget?.name ?? '2050 Reduction Target',
-        } : null,
         recentActivities,
-        latestAssessmentId: latestAssessment?.id ?? null,
-        latestAssessmentStatus: latestAssessment?.status ?? null,
+        // Latest *approved* assessment so the frontend's /report/:id call
+        // resolves to a record that actually has report data. Falls back to
+        // the latest-of-any-status when no approved exists yet, so newly
+        // signed-up companies still get a meaningful id.
+        latestAssessmentId: latestApprovedAssessment?.id ?? latestAssessment?.id ?? null,
+        latestAssessmentStatus: latestApprovedAssessment?.status ?? latestAssessment?.status ?? null,
         hubStats,
       };
     } catch (err) {
