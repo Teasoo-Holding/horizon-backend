@@ -32,17 +32,12 @@ export class DepartmentsService {
 
       if (existingUser) {
         leadId = existingUser.id;
-      } else {
-        const pendingInvitation = await this.prisma.invitation.findFirst({
+
+        await this.prisma.invitation.updateMany({
           where: { email: leadEmailLower, status: 'pending' },
-        });
-
-        if (pendingInvitation) {
-          throw new BadRequestException(
-            'A pending invitation already exists for this email.',
-          );
-        }
-
+          data: { status: 'cancelled' }
+        })
+      } else {
         const fullName = dto.leadName || '';
         const nameParts = fullName.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
@@ -181,16 +176,12 @@ export class DepartmentsService {
 
         if (existingUser) {
           leadId = existingUser.id;
-        } else {
-          const pendingInvitation = await this.prisma.invitation.findFirst({
-            where: { email: leadEmailLower, status: 'pending' },
-          });
 
-          if (pendingInvitation) {
-            throw new BadRequestException(
-              'A pending invitation already exists for this email.',
-            );
-          }
+          await this.prisma.invitation.updateMany({
+            where: { email: leadEmailLower, status: 'pending' },
+            data: { status: 'cancelled' }
+          })
+        } else {
 
           const currentDept = await this.prisma.department.findUnique({ where: { id } });
           if (!currentDept) throw new NotFoundException('Department not found');

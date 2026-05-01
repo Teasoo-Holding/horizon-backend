@@ -106,6 +106,11 @@ export class SubsidiaryService {
           );
         }
 
+        await this.prisma.invitation.updateMany({
+          where: { email: createSubsidiaryDto.teamLead_email, status: 'pending' },
+          data: { status: 'cancelled' },
+        });
+
         if (teamLead.companyId !== user.companyId) {
           throw new ForbiddenException(
             'You can only create subsidiaries with your own team lead',
@@ -362,60 +367,57 @@ export class SubsidiaryService {
         });
 
         if (existingUser) {
-          throw new BadRequestException(
-            'A user with this email already exists. Please select them from the lead dropdown instead.',
+          if (existingUser.companyId !== user.companyId) {
+            throw new ForbiddenException('You can only assign team leads from your own company');
+          }
+
+          await this.prisma.invitation.updateMany({
+            where: { email: leadEmail, status: 'pending' },
+            data: { status: 'cancelled' },
+          });
+
+          data.teamLead = { connect: { id: existingUser.id } };
+        } else {
+          const fullName = updateSubsidiaryDto.teamLead_name || '';
+          const nameParts = fullName.trim().split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
+          const newTeamLead = await this.prisma.user.create({
+            data: {
+              email: leadEmail,
+              first_name: firstName,
+              last_name: lastName,
+              companyId: user.companyId,
+              subsidiaryId: id,
+              password: '',
+              roleId: 2,
+              status: 'pending',
+            },
+          });
+
+          const company = await this.prisma.company.findUnique({
+            where: { id: user.companyId ?? 0 },
+            select: { name: true },
+          });
+
+          await this.emailService.sendEmail(
+            newTeamLead.email,
+            {
+              firstname: firstName || leadEmail, // Key must be 'firstname' for the template
+              link: this.configService.get('FRONTEND_URL') + '/register',
+              admin_name: `${user.first_name} ${user.last_name || ''}`.trim(),
+              esg_name: company?.name || 'the company',
+            },
+            6,
           );
+
+          data.teamLead = {
+            connect: { id: newTeamLead.id },
+          };
         }
-
-        // 2. Check for existing pending invitation
-        const pendingInvitation = await this.prisma.invitation.findFirst({
-          where: { email: leadEmail, status: 'pending' },
-        });
-
-        if (pendingInvitation) {
-          throw new BadRequestException(
-            'A pending invitation already exists for this email.',
-          );
-        }
-
-        const fullName = updateSubsidiaryDto.teamLead_name || '';
-        const nameParts = fullName.trim().split(/\s+/);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        const newTeamLead = await this.prisma.user.create({
-          data: {
-            email: leadEmail,
-            first_name: firstName,
-            last_name: lastName,
-            companyId: user.companyId,
-            subsidiaryId: id, // Associate with the subsidiary
-            password: '',
-            roleId: 2,
-            status: 'pending',
-          },
-        });
-
-        const company = await this.prisma.company.findUnique({
-          where: { id: user.companyId ?? 0 },
-          select: { name: true },
-        });
-
-        await this.emailService.sendEmail(
-          newTeamLead.email,
-          {
-            firstname: firstName || leadEmail, // Key must be 'firstname' for the template
-            link: this.configService.get('FRONTEND_URL') + '/register',
-            admin_name: `${user.first_name} ${user.last_name || ''}`.trim(),
-            esg_name: company?.name || 'the company',
-          },
-          6,
-        );
-
-        data.teamLead = {
-          connect: { id: newTeamLead.id },
-        };
       }
+
 
       await this.activitiesService.logActivity({
         companyId: user?.companyId ?? existingSubsidiary.parentCompany.id,
