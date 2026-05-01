@@ -47,6 +47,7 @@ lerna-debug.log*
 .env.production.local
 .env.local
 .env.prod
+.env.staging
 
 # temp directory
 .temp
@@ -68,6 +69,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 coverage/badge.svg
 
 sasnote.txt
+sasnote.md
 
 # Yarn Berry
 .yarn/*
