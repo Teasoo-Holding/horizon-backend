@@ -85,7 +85,7 @@ export class AuthService {
       role: user.role,
       companyId: user.companyId,
     };
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '24h' });
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: '7d',
     });

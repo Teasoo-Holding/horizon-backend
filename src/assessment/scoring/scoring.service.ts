@@ -3,7 +3,7 @@ import { GradingService } from './grading.service';
 
 @Injectable()
 export class ScoringService {
-  constructor(private gradingService: GradingService) {}
+  constructor(private gradingService: GradingService) { }
 
   private interpolate(value: number, target: number, worst: number): number {
     if (worst === target) return value === target ? 100 : 0;
@@ -28,8 +28,8 @@ export class ScoringService {
     const bio = env.biodiversityImpact?.environmentalManagement || {};
     const bioRes = bio.reservesInSensitiveAreas?.calculated || bio.reservesInSensitiveAreas || {};
 
-    const totalProvedReserves = Number(bioRes.totalProvedReserves?.volume || bioRes.totalProvedReservesVolume || 0) || 
-                                Number(assessmentData?.businessInnovation?.reservesValuationAndCapitalExpenditures?.embeddedCarbonInReserves?.totalProvedReserves) || 1;
+    const totalProvedReserves = Number(bioRes.totalProvedReserves?.volume || bioRes.totalProvedReservesVolume || 0) ||
+      Number(assessmentData?.businessInnovation?.reservesValuationAndCapitalExpenditures?.embeddedCarbonInReserves?.totalProvedReserves) || 1;
     const totalProbableReserves = Number(bioRes.totalProbableReserves?.volume || bioRes.totalProbableReservesVolume || 0);
     const total2PReserves = totalProvedReserves + totalProbableReserves;
 
@@ -85,8 +85,8 @@ export class ScoringService {
     const water = env.waterManagement?.waterAndProducedWaterManagement || {};
     const waterCalc = water.freshwaterWithdrawals?.calculated || {};
     const waterWithdrawn = (Number(waterCalc.withdrawals?.surfaceWater?.volume) || 0) +
-                           (Number(waterCalc.withdrawals?.groundwater?.volume) || 0) +
-                           (Number(waterCalc.withdrawals?.municipal?.volume) || 0);
+      (Number(waterCalc.withdrawals?.groundwater?.volume) || 0) +
+      (Number(waterCalc.withdrawals?.municipal?.volume) || 0);
     const waterIntensity = waterWithdrawn / totalProdBoe;
     const waterScore = this.interpolate(waterIntensity, 0.05, 0.3);
     envScores.push(waterScore);
@@ -94,13 +94,13 @@ export class ScoringService {
 
     const flowStations = Number(onAsset.flowStations) || 1;
     const waterPerStation = waterWithdrawn / flowStations;
-    const waterStationScore = this.interpolate(waterPerStation, 0, 150000); 
+    const waterStationScore = this.interpolate(waterPerStation, 0, 150000);
     envScores.push(waterStationScore);
     envIndicators.push({ label: 'Water Withdrawal per Flow Station', score: waterStationScore });
 
     const waterConsumed = Number(waterCalc.withdrawals?.totalConsumed?.volume) || 0;
     const waterConsIntensity = waterConsumed / totalProdBoe;
-    const waterConsScore = this.interpolate(waterConsIntensity, 0, 0.05); 
+    const waterConsScore = this.interpolate(waterConsIntensity, 0, 0.05);
     envScores.push(waterConsScore);
     envIndicators.push({ label: 'Water Consumption Intensity', score: waterConsScore });
 
@@ -163,12 +163,12 @@ export class ScoringService {
 
     const totalNearMisses = (Number(humSafety.direct?.nearMisses) || 0) + (Number(humSafety.contract?.nearMisses) || 0);
     const nmfr = totalHoursWorked > 0 ? (totalNearMisses * 200000) / totalHoursWorked : 0;
-    const nmfrScore = this.interpolate(nmfr, 0.5, 2.5); 
+    const nmfrScore = this.interpolate(nmfr, 0.5, 2.5);
     socScores.push(nmfrScore);
     socIndicators.push({ label: 'Near Miss Frequency Rate (NMFR)', score: nmfrScore });
 
-    const totalDisruptionEvents = (Number(com.operationalDelays?.numberOfDelaysCommunityProtests) || 0) + 
-                                   (Number(com.operationalDelays?.numberOfDelaysOtherStakeholder) || 0);
+    const totalDisruptionEvents = (Number(com.operationalDelays?.numberOfDelaysCommunityProtests) || 0) +
+      (Number(com.operationalDelays?.numberOfDelaysOtherStakeholder) || 0);
     const disruptionFreq = totalDisruptionEvents / totalAssets;
     const disruptionScore = this.interpolate(disruptionFreq, 0, 1.0);
     socScores.push(disruptionScore);
@@ -208,7 +208,7 @@ export class ScoringService {
       || hum.workforceHealthSafety?.riskAndOpportunityManagement?.safetyManagementSystems
       || hum.riskAndOpportunityManagement?.safetyManagementSystems
       || {};
-      
+
     const safetyCert = safetyMgmt.iso45001Certified === 'yes' ? 100 : 0;
     govScores.push(safetyCert);
     govIndicators.push({ label: 'Safety Certification (ISO 45001)', score: safetyCert });

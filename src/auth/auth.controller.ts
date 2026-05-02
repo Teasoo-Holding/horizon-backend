@@ -22,6 +22,11 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ACCESS_TOKEN_EXPIRY = '24h';
+const REFRESH_TOKEN_EXPIRY = '7d';
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -29,7 +34,7 @@ export class AuthController {
     private authService: AuthService,
     private jwtService: JwtService,
     private prisma: PrismaService,
-  ) {}
+  ) { }
 
   @Get('status')
   @ApiOperation({ summary: 'Check if user has an active session' })
@@ -93,13 +98,13 @@ export class AuthController {
               role: payload.role,
               companyId: payload.companyId,
             },
-            { expiresIn: '24h' },
+            { expiresIn: ACCESS_TOKEN_EXPIRY },
           );
 
           res.cookie('accessToken', newAccessToken, {
             httpOnly: true,
             secure: isProduction,
-            maxAge: 15 * 60 * 1000,
+            maxAge: ACCESS_TOKEN_TTL_MS,
             sameSite: isProduction ? 'none' : 'lax',
           });
 
@@ -166,14 +171,14 @@ export class AuthController {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: isProduction,
-      maxAge: 15 * 60 * 1000,
+      maxAge: ACCESS_TOKEN_TTL_MS,
       sameSite: isProduction ? 'none' : 'lax',
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: REFRESH_TOKEN_TTL_MS,
       sameSite: isProduction ? 'none' : 'lax',
     });
 
@@ -226,13 +231,13 @@ export class AuthController {
           role: payload.role,
           companyId: payload.companyId,
         },
-        { expiresIn: '24h' },
+        { expiresIn: ACCESS_TOKEN_EXPIRY },
       );
 
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: isProduction,
-        maxAge: 15 * 60 * 1000,
+        maxAge: ACCESS_TOKEN_TTL_MS,
         sameSite: isProduction ? 'none' : 'lax',
       });
 
@@ -274,6 +279,7 @@ export class AuthController {
     });
 
     return { message: 'Logged out successfully' };
+
   }
 
   @Post('resend-token')
@@ -362,28 +368,28 @@ export class AuthController {
       companyId: user.companyId,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: REFRESH_TOKEN_EXPIRY });
 
     await this.prisma.refreshToken.create({
       data: {
         user_id: user.id,
         refresh_token: refreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },
     });
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: isProduction,
-      maxAge: 15 * 60 * 1000,
+      maxAge: ACCESS_TOKEN_TTL_MS,
       sameSite: isProduction ? 'none' : 'lax',
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: REFRESH_TOKEN_TTL_MS,
       sameSite: isProduction ? 'none' : 'lax',
     });
 
