@@ -1,12 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EmailService } from '../email/email.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { DemoRequestDto } from './demo-request.dto';
 
 @Injectable()
 export class ContactService {
   private readonly SUPPORT_EMAIL = 'support@esghorizon.africa';
+  private readonly logger = new Logger(ContactService.name);
 
-  constructor(private emailService: EmailService) {}
+  constructor(
+    private emailService: EmailService,
+    private prisma: PrismaService,
+  ) {}
 
   private getTemplateIds(type: string): { internal: number; confirmation: number } {
     switch (type) {
@@ -21,6 +26,37 @@ export class ContactService {
 
   async submitDemoRequest(dto: DemoRequestDto) {
     const requestType = dto.requestType || 'demo';
+
+    // Persist first so a lead is never lost, even if email delivery fails
+    let requestId: string;
+    try {
+      const saved = await this.prisma.contactRequest.create({
+        data: {
+          requestType,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          email: dto.email,
+          organization: dto.organization,
+          industry: dto.industry,
+          orgSize: dto.orgSize,
+          challenge: dto.challenge,
+        },
+      });
+      requestId = saved.id;
+    } catch (err) {
+      this.logger.error('Failed to save contact request', err as Error);
+      return { success: false };
+    }
+
+    // Emails are best-effort and must not delay or fail the response
+    this.sendNotifications(requestId, requestType, dto).catch((err) =>
+      this.logger.error(`Notification emails failed for contact request ${requestId}`, err),
+    );
+
+    return { success: true };
+  }
+
+  private async sendNotifications(requestId: string, requestType: string, dto: DemoRequestDto) {
     const templates = this.getTemplateIds(requestType);
 
     // Internal notification to support team
@@ -39,20 +75,26 @@ export class ContactService {
       templates.internal,
     );
 
-    // User confirmation (fire-and-forget)
-    this.emailService
-      .sendEmail(
-        dto.email,
-        {
-          request_type: requestType,
-          first_name: dto.firstName,
-          organization: dto.organization,
-          email: dto.email,
-        },
-        templates.confirmation,
-      )
-      .catch((err) => console.error('Failed to send confirmation email:', err));
+    await this.prisma.contactRequest.update({
+      where: { id: requestId },
+      data: internalResult.success
+        ? { emailStatus: 'sent' }
+        : { emailStatus: 'failed', emailError: String(internalResult.error ?? 'Unknown error') },
+    });
 
-    return internalResult;
+    // User confirmation
+    const confirmationResult = await this.emailService.sendEmail(
+      dto.email,
+      {
+        request_type: requestType,
+        first_name: dto.firstName,
+        organization: dto.organization,
+        email: dto.email,
+      },
+      templates.confirmation,
+    );
+    if (!confirmationResult.success) {
+      this.logger.warn(`Confirmation email failed for contact request ${requestId}: ${confirmationResult.error}`);
+    }
   }
 }
