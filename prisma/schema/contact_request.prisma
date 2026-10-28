@@ -1,0 +1,21 @@
+model ContactRequest {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+
+  requestType  String
+  firstName    String
+  lastName     String
+  email        String
+  organization String
+  industry     String
+  orgSize      String?
+  challenge    String?
+
+  // Internal notification email to the support team: pending | sent | failed
+  emailStatus  String   @default("pending")
+  emailError   String?
+
+  @@index([createdAt])
+  @@index([emailStatus])
+  @@map("contact_requests")
+}
