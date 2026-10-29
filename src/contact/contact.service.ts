@@ -5,7 +5,7 @@ import { DemoRequestDto } from './demo-request.dto';
 
 @Injectable()
 export class ContactService {
-  private readonly SUPPORT_EMAIL = 'support@esghorizon.africa';
+  private readonly SUPPORT_EMAIL = 'esghorizon@gmail.com';
   private readonly logger = new Logger(ContactService.name);
 
   constructor(
