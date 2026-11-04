@@ -132,12 +132,55 @@ export class EsgAuthService {
       );
     }
 
+    // Best-effort: never delay or fail the signup
+    this.notifyTeamOfSignup(user, company, dto).catch((err) =>
+      console.error('Failed to send new registration notification:', err),
+    );
+
     return {
       message:
         'Registration successful. Your ESG company is pending approval by an administrator.',
       user,
       company,
     };
+  }
+
+  /** Email the team inboxes about a new company registration, if enabled in admin settings. */
+  private async notifyTeamOfSignup(
+    user: { first_name: string | null; last_name: string | null; email: string },
+    company: { id: string | number; name: string },
+    dto: EsgSignupDto,
+  ) {
+    const settings = await this.prisma.systemSetting.findFirst();
+    if (settings && !settings.notify_new_company_reg) return;
+
+    const industry = dto.industryId
+      ? await this.prisma.industry.findUnique({ where: { id: dto.industryId } })
+      : null;
+    const adminLink = `${process.env.FRONTEND_URL}/admin/companies/${company.id}`;
+    const rows: [string, string][] = [
+      ['Name', `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()],
+      ['Email', user.email],
+      ['Company', company.name],
+      ['Industry', industry?.name ?? '—'],
+      ['Registered', new Date().toUTCString()],
+    ];
+    const html = `
+      <p>A new company has registered on ESG Horizon and is pending approval.</p>
+      <table cellpadding="6" style="border-collapse:collapse">
+        ${rows.map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${escapeHtml(v)}</td></tr>`).join('')}
+      </table>
+      <p><a href="${escapeHtml(adminLink)}">Review the company in the admin dashboard</a></p>`;
+
+    const subject = `New registration: ${company.name}`;
+    const results = await Promise.all(
+      this.emailService
+        .getTeamNotificationEmails()
+        .map((to) => this.emailService.sendRawEmail(to, subject, html)),
+    );
+    results.forEach((r, i) => {
+      if (!r.success) console.error(`Registration notification failed (#${i + 1}):`, r.error);
+    });
   }
 
   async completeSignup(dto: CompleteSignupDto) {
@@ -178,4 +221,13 @@ export class EsgAuthService {
 
     return user;
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

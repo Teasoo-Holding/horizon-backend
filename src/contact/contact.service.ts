@@ -5,7 +5,6 @@ import { DemoRequestDto } from './demo-request.dto';
 
 @Injectable()
 export class ContactService {
-  private readonly SUPPORT_EMAIL = 'esghorizon@gmail.com';
   private readonly logger = new Logger(ContactService.name);
 
   constructor(
@@ -59,27 +58,30 @@ export class ContactService {
   private async sendNotifications(requestId: string, requestType: string, dto: DemoRequestDto) {
     const templates = this.getTemplateIds(requestType);
 
-    // Internal notification to support team
-    const internalResult = await this.emailService.sendEmail(
-      this.SUPPORT_EMAIL,
-      {
-        request_type: requestType,
-        first_name: dto.firstName,
-        last_name: dto.lastName,
-        email: dto.email,
-        organization: dto.organization,
-        industry: dto.industry,
-        org_size: dto.orgSize || '',
-        challenge: dto.challenge || '',
-      },
-      templates.internal,
+    // Internal notification to every team inbox
+    const params = {
+      request_type: requestType,
+      first_name: dto.firstName,
+      last_name: dto.lastName,
+      email: dto.email,
+      organization: dto.organization,
+      industry: dto.industry,
+      org_size: dto.orgSize || '',
+      challenge: dto.challenge || '',
+    };
+    const recipients = this.emailService.getTeamNotificationEmails();
+    const results = await Promise.all(
+      recipients.map((to) => this.emailService.sendEmail(to, params, templates.internal)),
     );
+    const failures = recipients
+      .map((to, i) => (results[i].success ? null : `${to}: ${results[i].error ?? 'Unknown error'}`))
+      .filter((f): f is string => f !== null);
 
     await this.prisma.contactRequest.update({
       where: { id: requestId },
-      data: internalResult.success
-        ? { emailStatus: 'sent' }
-        : { emailStatus: 'failed', emailError: String(internalResult.error ?? 'Unknown error') },
+      data: failures.length
+        ? { emailStatus: 'failed', emailError: failures.join('; ') }
+        : { emailStatus: 'sent' },
     });
 
     // User confirmation
