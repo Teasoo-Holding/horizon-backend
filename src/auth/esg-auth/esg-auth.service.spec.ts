@@ -24,7 +24,7 @@ describe('EsgAuthService', () => {
             industry: { findUnique: jest.fn().mockResolvedValue({ id: 1, name: 'Energy' }) },
             systemSetting: { findFirst: jest.fn().mockResolvedValue(null) },
             $transaction: jest.fn((cb) => cb({
-              user: { create: jest.fn().mockResolvedValue({ id: 1, email: 'sadiq@btech.com' }), update: jest.fn() },
+              user: { create: jest.fn().mockResolvedValue({ id: 1, email: 'sadiq@btech.com', password: 'hashed', otpHash: 'otp-hash', otpExpiresAt: new Date() }), update: jest.fn() },
               company: { create: jest.fn().mockResolvedValue({ id: 1, name: 'BeelahTech Ltd.' }) },
             })),
           },
@@ -122,7 +122,28 @@ describe('EsgAuthService', () => {
         expect(html).toContain('Energy');
       });
 
-      it('skips the notification when disabled in admin settings', async () => {
+      it('alerts active super admins with the review email, not the verification template', async () => {
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ email: 'admin@example.com' }]);
+        const emailService = (service as any).emailService;
+
+        await service.signup(baseDto as any);
+        await flush();
+
+        const recipients = emailService.sendRawEmail.mock.calls.map((c: unknown[]) => c[0]);
+        expect(recipients).toEqual(['admin@example.com', 'team1@example.com', 'team2@example.com']);
+        expect(emailService.sendEmail).not.toHaveBeenCalledWith('admin@example.com', expect.anything(), 7);
+      });
+
+      it('never returns password or OTP hashes', async () => {
+        const result = await service.signup(baseDto as any);
+
+        expect(result.user).not.toHaveProperty('password');
+        expect(result.user).not.toHaveProperty('otpHash');
+        expect(result.user).not.toHaveProperty('otpExpiresAt');
+        expect(result.user).toHaveProperty('email', 'sadiq@btech.com');
+      });
+
+      it('skips the team inboxes when disabled in admin settings', async () => {
         (prisma.systemSetting.findFirst as jest.Mock).mockResolvedValue({ notify_new_company_reg: false });
         const emailService = (service as any).emailService;
 
@@ -130,6 +151,18 @@ describe('EsgAuthService', () => {
         await flush();
 
         expect(emailService.sendRawEmail).not.toHaveBeenCalled();
+      });
+
+      it('still alerts super admins when the team setting is disabled', async () => {
+        (prisma.systemSetting.findFirst as jest.Mock).mockResolvedValue({ notify_new_company_reg: false });
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ email: 'admin@example.com' }]);
+        const emailService = (service as any).emailService;
+
+        await service.signup(baseDto as any);
+        await flush();
+
+        expect(emailService.sendRawEmail).toHaveBeenCalledTimes(1);
+        expect(emailService.sendRawEmail.mock.calls[0][0]).toBe('admin@example.com');
       });
     });
 

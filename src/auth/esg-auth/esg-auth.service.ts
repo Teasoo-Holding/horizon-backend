@@ -109,50 +109,41 @@ export class EsgAuthService {
       4,
     );
 
-    const superAdmins = await this.prisma.user.findMany({
-      where: {
-        role: {
-          name: 'super_admin',
-        },
-        status: UserStatus.active,
-      },
-    });
-
-    const companyDetailsLink = `${process.env.FRONTEND_URL}/admin/companies/${company?.id}`;
-
-    for (const admin of superAdmins) {
-      await this.emailService.sendEmail(
-        admin.email,
-        {
-          firstname: admin.first_name,
-          company_name: company?.name ?? 'New Company',
-          link: companyDetailsLink,
-        },
-        7,
-      );
-    }
-
     // Best-effort: never delay or fail the signup
-    this.notifyTeamOfSignup(user, company, dto).catch((err) =>
+    this.notifySignup(user, company, dto).catch((err) =>
       console.error('Failed to send new registration notification:', err),
     );
 
     return {
       message:
         'Registration successful. Your ESG company is pending approval by an administrator.',
-      user,
+      user: withoutSecrets(user),
       company,
     };
   }
 
-  /** Email the team inboxes about a new company registration, if enabled in admin settings. */
-  private async notifyTeamOfSignup(
+  /**
+   * Email active super admins, plus the team inboxes when "notify on new company
+   * registration" is on in admin settings, about a new company awaiting approval.
+   */
+  private async notifySignup(
     user: { first_name: string | null; last_name: string | null; email: string },
     company: { id: string | number; name: string },
     dto: EsgSignupDto,
   ) {
+    const superAdmins = await this.prisma.user.findMany({
+      where: { role: { name: 'super_admin' }, status: UserStatus.active },
+      select: { email: true },
+    });
     const settings = await this.prisma.systemSetting.findFirst();
-    if (settings && !settings.notify_new_company_reg) return;
+    const notifyTeam = !settings || settings.notify_new_company_reg;
+    const recipients = [
+      ...new Set([
+        ...superAdmins.map((a) => a.email),
+        ...(notifyTeam ? this.emailService.getTeamNotificationEmails() : []),
+      ]),
+    ];
+    if (!recipients.length) return;
 
     const industry = dto.industryId
       ? await this.prisma.industry.findUnique({ where: { id: dto.industryId } })
@@ -174,12 +165,10 @@ export class EsgAuthService {
 
     const subject = `New registration: ${company.name}`;
     const results = await Promise.all(
-      this.emailService
-        .getTeamNotificationEmails()
-        .map((to) => this.emailService.sendRawEmail(to, subject, html)),
+      recipients.map((to) => this.emailService.sendRawEmail(to, subject, html)),
     );
     results.forEach((r, i) => {
-      if (!r.success) console.error(`Registration notification failed (#${i + 1}):`, r.error);
+      if (!r.success) console.error(`Registration notification to ${recipients[i]} failed:`, r.error);
     });
   }
 
@@ -219,7 +208,7 @@ export class EsgAuthService {
       data: { status: 'accepted' },
     });
 
-    return user;
+    return withoutSecrets(user);
   }
 }
 
@@ -230,4 +219,12 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** Strip credentials before a user record leaves the API. */
+function withoutSecrets<T extends { password?: unknown; otpHash?: unknown; otpExpiresAt?: unknown }>(
+  user: T,
+): Omit<T, 'password' | 'otpHash' | 'otpExpiresAt'> {
+  const { password: _password, otpHash: _otpHash, otpExpiresAt: _otpExpiresAt, ...rest } = user;
+  return rest;
 }
