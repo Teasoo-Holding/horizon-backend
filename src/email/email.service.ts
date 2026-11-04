@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
+const DEFAULT_TEAM_NOTIFICATION_EMAILS = [
+  'esghorizon@gmail.com',
+  'efeosasere.okoro@teasooconsulting.com',
+  'israel.oni@teasooconsulting.com',
+];
+
 @Injectable()
 export class EmailService {
   constructor(private configService: ConfigService) { }
@@ -17,6 +23,18 @@ export class EmailService {
       email: this.configService.get<string>('REPLY_TO_EMAIL') || 'support@esghorizon.africa',
       name: 'ESG Horizon',
     };
+  }
+
+  /**
+   * Team inboxes notified about contact form submissions and new registrations.
+   * Override on the server with TEAM_NOTIFICATION_EMAILS (comma-separated).
+   */
+  getTeamNotificationEmails(): string[] {
+    const configured = this.configService.get<string>('TEAM_NOTIFICATION_EMAILS');
+    const emails = configured
+      ? configured.split(',').map((e) => e.trim()).filter(Boolean)
+      : [];
+    return emails.length ? emails : DEFAULT_TEAM_NOTIFICATION_EMAILS;
   }
 
   async sendEmail(to: string, params: Record<string, any>, templateId: number) {

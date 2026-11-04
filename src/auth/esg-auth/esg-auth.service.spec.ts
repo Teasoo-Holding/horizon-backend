@@ -22,6 +22,7 @@ describe('EsgAuthService', () => {
             company: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
             role: { findUnique: jest.fn() },
             industry: { findUnique: jest.fn().mockResolvedValue({ id: 1, name: 'Energy' }) },
+            systemSetting: { findFirst: jest.fn().mockResolvedValue(null) },
             $transaction: jest.fn((cb) => cb({
               user: { create: jest.fn().mockResolvedValue({ id: 1, email: 'sadiq@btech.com' }), update: jest.fn() },
               company: { create: jest.fn().mockResolvedValue({ id: 1, name: 'BeelahTech Ltd.' }) },
@@ -32,6 +33,8 @@ describe('EsgAuthService', () => {
           provide: EmailService,
           useValue: {
             sendEmail: jest.fn(),
+            sendRawEmail: jest.fn().mockResolvedValue({ success: true }),
+            getTeamNotificationEmails: jest.fn().mockReturnValue(['team1@example.com', 'team2@example.com']),
           },
         },
         {
@@ -94,6 +97,41 @@ describe('EsgAuthService', () => {
     })
 
       ;
+
+    describe('team notification', () => {
+      // Let the fire-and-forget notification settle
+      const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+      beforeEach(() => {
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+        (prisma.company.findUnique as jest.Mock).mockResolvedValue(null);
+        (prisma.role.findUnique as jest.Mock).mockResolvedValue({ id: 1, name: 'company_esg_admin' });
+      });
+
+      it('emails every team inbox about the new registration', async () => {
+        const emailService = (service as any).emailService;
+
+        await service.signup(baseDto as any);
+        await flush();
+
+        expect(emailService.sendRawEmail).toHaveBeenCalledTimes(2);
+        const [to, subject, html] = emailService.sendRawEmail.mock.calls[0];
+        expect(to).toBe('team1@example.com');
+        expect(subject).toBe('New registration: BeelahTech Ltd.');
+        expect(html).toContain('sadiq@btech.com');
+        expect(html).toContain('Energy');
+      });
+
+      it('skips the notification when disabled in admin settings', async () => {
+        (prisma.systemSetting.findFirst as jest.Mock).mockResolvedValue({ notify_new_company_reg: false });
+        const emailService = (service as any).emailService;
+
+        await service.signup(baseDto as any);
+        await flush();
+
+        expect(emailService.sendRawEmail).not.toHaveBeenCalled();
+      });
+    });
 
     it('should throw ConflictException if user already exists', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({

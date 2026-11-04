@@ -13,7 +13,10 @@ describe('ContactService', () => {
       update: jest.fn(),
     },
   };
-  const mockEmailService = { sendEmail: jest.fn() };
+  const mockEmailService = {
+    sendEmail: jest.fn(),
+    getTeamNotificationEmails: jest.fn().mockReturnValue(['team1@example.com', 'team2@example.com']),
+  };
 
   const dto: DemoRequestDto = {
     requestType: 'demo',
@@ -52,6 +55,8 @@ describe('ContactService', () => {
     expect(mockPrismaService.contactRequest.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ requestType: 'demo', email: 'ada@example.com' }),
     });
+    expect(mockEmailService.sendEmail).toHaveBeenCalledWith('team1@example.com', expect.any(Object), 20);
+    expect(mockEmailService.sendEmail).toHaveBeenCalledWith('team2@example.com', expect.any(Object), 20);
     expect(mockPrismaService.contactRequest.update).toHaveBeenCalledWith({
       where: { id: 'req_1' },
       data: { emailStatus: 'sent' },
@@ -66,7 +71,10 @@ describe('ContactService', () => {
 
     expect(mockPrismaService.contactRequest.update).toHaveBeenCalledWith({
       where: { id: 'req_1' },
-      data: { emailStatus: 'failed', emailError: 'unrecognised IP address' },
+      data: {
+        emailStatus: 'failed',
+        emailError: 'team1@example.com: unrecognised IP address; team2@example.com: unrecognised IP address',
+      },
     });
   });
 
